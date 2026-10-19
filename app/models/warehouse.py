@@ -3,6 +3,7 @@ from sqlalchemy import true, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.checks import enum_check
 
 class LocationType(enum.StrEnum):
     internal = "internal"
@@ -34,11 +35,12 @@ class Warehouse(Base):
 
 class Location(Base):
     __tablename__ = "locations"
+    __table_args__ = (enum_check("location_type", LocationType),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     location_type: Mapped[LocationType] = mapped_column(
-        Enum(LocationType, native_enum=False, create_constraint=True),
+        Enum(LocationType, native_enum=False),
         server_default="internal",
     )
     is_active: Mapped[bool] = mapped_column(server_default=true())
