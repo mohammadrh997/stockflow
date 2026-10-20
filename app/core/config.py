@@ -1,3 +1,4 @@
+from pydantic import SecretStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +12,9 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
+    admin_email: str | None = None
+    admin_name: str = "Admin"
+    admin_password: SecretStr | None = Field(default=None, min_length=8, max_length=128)
 
 
 settings = Settings()
