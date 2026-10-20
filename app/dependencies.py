@@ -36,16 +36,15 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    subject = decode_token(token)
-    if subject is None:
+    token_data = decode_token(token)
+    if token_data is None:
         raise credentials_error
-    try:
-        user_id = int(subject)
-    except ValueError:
-        raise credentials_error from None
 
-    user = await db.get(User, user_id)
-    if user is None or user.is_active is False:
+    user = await db.get(User, token_data.user_id)
+    if user is None or not user.is_active:
+        raise credentials_error
+
+    if user.password_changed_at and token_data.issued_at < int(user.password_changed_at.timestamp()):
         raise credentials_error
     return user
 
