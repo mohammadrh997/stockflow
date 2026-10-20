@@ -4,6 +4,7 @@ from app.models.warehouse import Location, Warehouse
 from app.models.partner import Partner
 from app.models.purchase import PurchaseOrder, PurchaseOrderLine
 from app.models.sale import SalesOrder, SalesOrderLine
+from app.models.stock import Transfer, StockMove
 
 
 __all__ = [
@@ -16,4 +17,6 @@ __all__ = [
     "SalesOrderLine",
     "User",
     "Warehouse",
+    "Transfer",
+    "StockMove",
 ]
