@@ -1,0 +1,57 @@
+import enum
+from sqlalchemy import CheckConstraint, func, DateTime, Enum, ForeignKey, Numeric
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.models.checks import enum_check
+from datetime import datetime
+from decimal import Decimal
+
+
+from app.core.database import Base
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.partner import Partner
+    from app.models.warehouse import Warehouse
+    from app.models.product import Product
+
+
+class SalesState(enum.StrEnum):
+    draft = "draft"
+    confirmed = "confirmed"
+    delivered = "delivered"
+    cancelled = "cancelled"
+
+
+class SalesOrder(Base):
+    __tablename__ = "sales_orders"
+    __table_args__ = (enum_check("state", SalesState),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    reference: Mapped[str] = mapped_column(unique=True)
+    partner_id: Mapped[int] = mapped_column(ForeignKey("partners.id"))
+    partner: Mapped["Partner"] = relationship()
+    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"))
+    warehouse: Mapped["Warehouse"] = relationship()
+    state: Mapped[SalesState] = mapped_column(Enum(SalesState, native_enum=False), server_default= "draft")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["User"] = relationship()
+    lines: Mapped[list["SalesOrderLine"]] = relationship(back_populates="order", cascade="all, delete-orphan")
+
+
+class SalesOrderLine(Base):
+    __tablename__ = "sales_order_lines"
+    __table_args__ = (CheckConstraint("quantity > 0", name="quantity_positive"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("sales_orders.id"))
+    order: Mapped["SalesOrder"] = relationship(back_populates="lines")
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    product: Mapped["Product"] = relationship()
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+
