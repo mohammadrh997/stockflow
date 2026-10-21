@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import engine, AsyncSessionLocal
-from app.routers import auth
+from app.routers import auth, users
 from app.services.bootstrap import bootstrap
 
 
@@ -29,6 +29,7 @@ app = FastAPI(title="Stock Flow", lifespan=lifespan)
 
 
 app.include_router(auth.router)
+app.include_router(users.router)
 
 
 
@@ -36,7 +37,6 @@ app.include_router(auth.router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
