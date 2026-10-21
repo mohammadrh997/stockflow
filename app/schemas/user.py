@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field, BeforeValidator, PlainSerializer, WithJsonSchema, AfterValidator
+from pydantic import BaseModel, EmailStr, Field, BeforeValidator, PlainSerializer, WithJsonSchema, AfterValidator, model_validator
 from app.models.user import Access
 
 def _access_from_name(value: object) -> object:
@@ -49,6 +49,12 @@ class ProfileUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def passwords_differ(self) -> "PasswordChange":
+        if self.new_password == self.current_password:
+            raise ValueError("New password must be different from the current password")
+        return self
 
 class UserRead(UserBase):
     model_config = {"from_attributes": True}
