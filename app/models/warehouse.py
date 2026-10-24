@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import true, ForeignKey, Enum
+from sqlalchemy import true, ForeignKey, Enum, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -35,7 +35,15 @@ class Warehouse(Base):
 
 class Location(Base):
     __tablename__ = "locations"
-    __table_args__ = (enum_check("location_type", LocationType),)
+    __table_args__ = (
+        enum_check("location_type", LocationType),
+        Index(
+        "uq_locations_virtual_type",
+        "location_type",
+        unique=True,
+        postgresql_where=text("location_type <> 'internal'"),
+    ),
+                      )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
