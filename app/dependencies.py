@@ -72,5 +72,13 @@ def require_access(module: Module, level: Access) -> Callable[[User], Awaitable[
 
     return checker
 
+def require_any_access(*modules: Module, level: Access) -> Callable[[User], Awaitable[User]]:
+    async def checker(user: CurrentUser) -> User:
+        if user.is_admin or any(_access_level(user, m) >= level for m in modules):
+            return user
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
+
+    return checker
+
 def pagination_params(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, le=100)):
     return {"skip": skip, "limit": limit}
