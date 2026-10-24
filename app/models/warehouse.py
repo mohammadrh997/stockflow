@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import true, ForeignKey, Enum, Index, text
+from sqlalchemy import true, ForeignKey, Enum, Index, text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -41,8 +41,8 @@ class Location(Base):
         "uq_locations_virtual_type",
         "location_type",
         unique=True,
-        postgresql_where=text("location_type <> 'internal'"),
-    ),
+        postgresql_where=text("location_type <> 'internal'"),),
+        UniqueConstraint("warehouse_id", "name", name="uq_locations_warehouse_id_name"),
                       )
 
     id: Mapped[int] = mapped_column(primary_key=True)
