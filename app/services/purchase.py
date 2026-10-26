@@ -192,7 +192,7 @@ async def confirm_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrd
     return await fetch_purchase_order(db, order_id)
 
 async def cancel_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
-    order = await _lock_order(db, order_id)
+    order = await lock_purchase_order(db, order_id)
     if order.state not in (PurchaseState.draft, PurchaseState.confirmed):
         raise OrderNotCancellable(order.id)
     if order.state == PurchaseState.confirmed:
