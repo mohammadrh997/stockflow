@@ -82,7 +82,7 @@ async def fetch_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder
         raise PurchaseOrderNotFound(order_id)
     return order
 
-async def _lock_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
+async def lock_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
     order = await db.scalar(
         select(PurchaseOrder)
         .where(PurchaseOrder.id == order_id)
@@ -116,7 +116,7 @@ async def list_purchase_orders(
 
 
 async def update_purchase_order(db: AsyncSession, order_id: int, data: PurchaseOrderUpdate) -> PurchaseOrder:
-    order = await _lock_order(db, order_id)
+    order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     for field in data.model_fields_set:
         value = getattr(data, field)
@@ -131,7 +131,7 @@ async def update_purchase_order(db: AsyncSession, order_id: int, data: PurchaseO
     return await fetch_purchase_order(db, order.id)
 
 async def add_line(db: AsyncSession, order_id: int, data: PurchaseOrderLineCreate) -> PurchaseOrder:
-    order = await _lock_order(db, order_id)
+    order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     order_line = await _build_line(db, data)
     order_line.order_id = order_id
@@ -152,7 +152,7 @@ async def _fetch_line(db: AsyncSession, order_id: int, line_id: int) -> Purchase
     return line
 
 async def update_line(db: AsyncSession, order_id: int, line_id: int, data: PurchaseOrderLineUpdate) -> PurchaseOrder:
-    order = await _lock_order(db, order_id)
+    order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     order_line = await _fetch_line(db, order_id, line_id)
     for field in data.model_fields_set:
@@ -165,7 +165,7 @@ async def update_line(db: AsyncSession, order_id: int, line_id: int, data: Purch
 
 
 async def delete_line(db: AsyncSession, order_id: int, line_id: int) -> PurchaseOrder:
-    order = await _lock_order(db, order_id)
+    order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     order_line = await _fetch_line(db, order_id, line_id)
     await db.delete(order_line)
@@ -173,7 +173,7 @@ async def delete_line(db: AsyncSession, order_id: int, line_id: int) -> Purchase
     return await fetch_purchase_order(db, order_id)
 
 async def confirm_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
-    order = await _lock_order(db, order_id)
+    order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     if not order.lines:
         raise OrderHasNoLines()
