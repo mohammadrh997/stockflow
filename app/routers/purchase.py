@@ -7,7 +7,7 @@ from app.models.purchase import PurchaseState
 from app.dependencies import DBsession, Module, require_access, CurrentUser, pagination_params
 from app.schemas.purchase import PurchaseOrderCreate, PurchaseOrderLineCreate, PurchaseOrderLineUpdate, PurchaseOrderRead, PurchaseOrderUpdate
 from app.services import purchase as purchase_service
-from app.services.purchase import (PurchaseOrderNotFound, LineNotFound, OrderNotEditable, InvalidReference)
+from app.services.purchase import (PurchaseOrderNotFound, LineNotFound, OrderNotEditable, InvalidReference, OrderHasNoLines, OrderNotCancellable)
 
 PurchaseManager = Annotated[User, Depends(require_access(Module.purchase, Access.manager))]
 PaginationDep = Annotated[dict, Depends(pagination_params)]
@@ -85,3 +85,24 @@ async def delete_order_line(db: DBsession, order_id: int,line_id: int):
         raise HTTPException(status_code=409, detail="Order is not Draft") from None
     except LineNotFound:
         raise HTTPException(status_code=404, detail="Line was not found") from None
+
+@router.post("/{order_id}/confirm", response_model=PurchaseOrderRead)
+async def confirm_order(db: DBsession, order_id: int, user: PurchaseManager):
+    try:
+        return await purchase_service.confirm_purchase_order(db, order_id)
+    except PurchaseOrderNotFound:
+        raise HTTPException(status_code=404, detail="Order Was Not Found") from None
+    except OrderNotEditable:
+        raise HTTPException(status_code=409, detail="Order is not Draft") from None
+    except OrderHasNoLines as exc:
+        raise HTTPException(status_code=409, detail="Order Has no Lines") from None
+
+@router.post("/{order_id}/cancel", response_model=PurchaseOrderRead)
+async def cancel_order(db: DBsession, order_id: int, user: PurchaseManager):
+    try:
+        return await purchase_service.cancel_purchase_order(db, order_id)
+    except PurchaseOrderNotFound:
+        raise HTTPException(status_code=404, detail="Order Was Not Found") from None
+    except OrderNotCancellable:
+        raise HTTPException(status_code=409, detail="Only draft or confirmed orders can be cancelled") from None
+    
