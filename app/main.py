@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import engine, AsyncSessionLocal
-from app.routers import auth, users, product, warehouse
+from app.routers import auth, users, product, warehouse, purchase
 from app.services.bootstrap import bootstrap
 
 
@@ -31,6 +31,7 @@ app = FastAPI(title="Stock Flow", lifespan=lifespan)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(product.router)
+app.include_router(purchase.router)
 app.include_router(warehouse.warehouse_router)
 app.include_router(warehouse.location_router)
 
