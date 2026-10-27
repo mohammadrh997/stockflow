@@ -3,8 +3,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, Field
-
-Price = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
+from app.schemas.common import Price
 Sku = Annotated[str, AfterValidator(lambda s: s.strip().upper()), Field(min_length=1, max_length=64)]
 
 

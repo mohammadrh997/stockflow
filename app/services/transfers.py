@@ -7,8 +7,9 @@ from sqlalchemy.orm import selectinload
 from app.models.purchase import PurchaseState
 from app.models.stock import StockMove, Transfer, TransferState, TransferType
 from app.models.warehouse import Location, LocationType, Warehouse
-from app.services.purchase import InvalidReference, lock_purchase_order
+from app.services.purchase import lock_purchase_order
 from app.services.warehouse import get_virtual_location
+from app.services.common import InvalidReference
 
 
 class TransferNotFound(Exception): ...  # 404

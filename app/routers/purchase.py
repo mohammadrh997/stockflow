@@ -94,7 +94,7 @@ async def confirm_order(db: DBsession, order_id: int, user: PurchaseManager):
         raise HTTPException(status_code=404, detail="Order Was Not Found") from None
     except OrderNotEditable:
         raise HTTPException(status_code=409, detail="Order is not Draft") from None
-    except OrderHasNoLines as exc:
+    except OrderHasNoLines:
         raise HTTPException(status_code=409, detail="Order Has no Lines") from None
 
 @router.post("/{order_id}/cancel", response_model=PurchaseOrderRead)

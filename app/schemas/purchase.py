@@ -4,10 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, computed_field
 from app.models.purchase import PurchaseState
-
-
-Quantity = Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=3)]
-Price = Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)]
+from app.schemas.common import Quantity, Price
 
 
 class PurchaseOrderLineCreate(BaseModel):

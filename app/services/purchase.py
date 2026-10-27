@@ -9,15 +9,12 @@ from app.models.warehouse import Warehouse
 from app.models.stock import Transfer, TransferType, TransferState
 from app.services.references import next_number, RefSequence
 from app.schemas.purchase import (PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderLineCreate, PurchaseOrderLineUpdate)
+from app.services.common import OrderHasNoLines, OrderNotCancellable, OrderNotEditable, InvalidReference, LineNotFound, resolve_warehouse, get_active_product
 
 
 
 class PurchaseOrderNotFound(Exception): ...   # 404 (from the URL)
-class LineNotFound(Exception): ...            # 404 (from the URL)
-class OrderNotEditable(Exception): ...        # 409 (not a draft)
-class InvalidReference(Exception): ...        # 400 (bad partner/product/warehouse id in the body)
-class OrderHasNoLines(Exception): ...         # 409 (order has no lines)
-class OrderNotCancellable(Exception): ...     # 409
+
 
 
 def _ensure_draft(order: PurchaseOrder):
@@ -31,33 +28,17 @@ async def _get_supplier(db: AsyncSession, partner_id: int) -> Partner:
     partner.is_supplier = True
     return partner
 
-async def _resolve_warehouse(db: AsyncSession, warehouse_id: int | None) -> Warehouse:
-    if warehouse_id is not None:
-        warehouse = await db.get(Warehouse, warehouse_id)
-        if warehouse is None:
-            raise InvalidReference(f"warehouse {warehouse_id} not found")
-        return warehouse
-    
-    warehouses = (await db.scalars(select(Warehouse).limit(2))).all()
-    if len(warehouses) != 1:
-        raise InvalidReference("warehouse_id is required")
-    return warehouses[0]
 
-async def _get_product(db: AsyncSession, product_id: int) -> Product:
-    product = await db.get(Product, product_id)
-    if product is None or not product.is_active:
-        raise InvalidReference(f"product {product_id} not found or archived")
-    return product
 
 async def _build_line(db: AsyncSession, data: PurchaseOrderLineCreate) -> PurchaseOrderLine:
-    product = await _get_product(db, data.product_id)
+    product = await get_active_product(db, data.product_id)
     price = data.unit_price if data.unit_price is not None else product.cost_price
     return PurchaseOrderLine(product_id=product.id, quantity=data.quantity, unit_price=price)
 
 
 async def create_purchase_order(db: AsyncSession, data: PurchaseOrderCreate, created_by_id: int) -> PurchaseOrder:
     partner = await _get_supplier(db, data.partner_id)
-    warehouse = await _resolve_warehouse(db, data.warehouse_id)
+    warehouse = await resolve_warehouse(db, data.warehouse_id)
     lines = [await _build_line(db, line) for line in data.lines]
     number = await next_number(db, RefSequence.purchase_order)
     order = PurchaseOrder(
@@ -123,7 +104,7 @@ async def update_purchase_order(db: AsyncSession, order_id: int, data: PurchaseO
         if value is None:
             continue
         if field == "warehouse_id":
-            value = (await _resolve_warehouse(db, value)).id
+            value = (await resolve_warehouse(db, value)).id
         if field == "partner_id":
             value = (await _get_supplier(db, value)).id
         setattr(order, field, value)
