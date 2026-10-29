@@ -25,6 +25,8 @@ from app.models.user import User  # noqa: E402
 from app.schemas.user import UserCreate  # noqa: E402
 from app.services.bootstrap import ensure_defaults  # noqa: E402
 from app.services.users import create_user  # noqa: E402
+from app.models.user import Access
+from tests.helpers import auth
 
 engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
@@ -95,3 +97,15 @@ def make_user(db: AsyncSession) -> UserFactory:
         return await create_user(db, data)
 
     return _make
+
+
+
+
+@pytest.fixture
+async def boss(make_user) -> dict[str, str]:
+    user = await make_user(
+        sales_access=Access.manager,
+        purchase_access=Access.manager,
+        inventory_access=Access.manager,
+    )
+    return auth(user)
