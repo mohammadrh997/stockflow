@@ -74,3 +74,22 @@ async def stock_of(client, headers, product_id):
         return {"on_hand": Decimal("0"), "reserved": Decimal("0"), "available": Decimal("0")}
     row = rows[0]
     return {key: Decimal(row[key]) for key in ("on_hand", "reserved", "available")}
+
+
+async def create_so(client, headers, lines):
+    customer = await create_partner(client, headers, name="Customer")
+    response = await client.post(
+        "/sales-orders",
+        json={
+            "partner_id": customer["id"],
+            "lines": [{"product_id": pid, "quantity": str(qty)} for pid, qty in lines],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    return response.json(), customer
+
+
+async def delivery_of(client, headers, so_id):
+    transfers = (await client.get("/transfers?transfer_type=delivery", headers=headers)).json()
+    return next(t for t in transfers if t["sales_order_id"] == so_id)
