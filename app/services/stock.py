@@ -1,4 +1,5 @@
 from decimal import Decimal
+from collections.abc import Iterable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, union_all
@@ -24,6 +25,13 @@ def _movements(product_id: int | None = None):
         outflow = outflow.where(StockMove.product_id == product_id)
     return union_all(inflow, outflow).subquery()
 
+async def lock_products(db: AsyncSession, product_ids: Iterable[int]) -> None:
+    (await db.scalars(
+        select(Product.id)
+        .where(Product.id.in_(set(product_ids)))
+        .order_by(Product.id)
+        .with_for_update()
+    )).all()
 
 async def on_hand_by_location(db: AsyncSession, product_id: int, warehouse_id: int) -> dict[int, Decimal]:
     movements = _movements(product_id)

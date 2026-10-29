@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.models.user import User, Access
 from app.models.stock import Transfer, TransferType, TransferState
 from app.dependencies import DBsession, Module, require_access, CurrentUser, pagination_params
-from app.schemas.stock import TransferRead, TransferValidate
+from app.schemas.stock import TransferRead, TransferValidate, InternalTransferCreate
 from app.services import transfers as transfer_service
 from app.services.transfers import TransferNotFound, TransferNotReady, InvalidReference, InsufficientStock
 
@@ -60,6 +60,19 @@ async def validate_transfer(db: DBsession, transfer_id: int, payload: TransferVa
         raise HTTPException(status_code=404, detail="Transfer Was Not Found") from None
     except TransferNotReady as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+    except InvalidReference as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except InsufficientStock as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
+
+
+
+@router.post("/internal", response_model=TransferRead, status_code=201)
+async def create_internal_transfer(db: DBsession, payload: InternalTransferCreate, user: CurrentUser):
+    try:
+        return await transfer_service.create_internal_transfer(db, payload, user.id)
     except InvalidReference as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     except InsufficientStock as exc:

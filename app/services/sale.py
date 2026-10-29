@@ -11,6 +11,7 @@ from app.schemas.sale import (SalesOrderCreate, SalesOrderLineUpdate, SalesOrder
 from app.services.common import OrderHasNoLines, OrderNotCancellable, OrderNotEditable, InvalidReference, LineNotFound, resolve_warehouse, get_active_product
 from collections import defaultdict
 from decimal import Decimal
+from app.services.stock import lock_products
 
 from app.models.product import Product
 from app.services.stock import available_in_warehouse
@@ -168,12 +169,7 @@ async def confirm_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
     for line in order.lines:
         requested[line.product_id] += line.quantity
 
-    (await db.scalars(
-        select(Product.id)
-        .where(Product.id.in_(requested))
-        .order_by(Product.id)
-        .with_for_update()
-    )).all()
+    await lock_products(db, requested)
 
     shortages = []
     for product_id, quantity in requested.items():

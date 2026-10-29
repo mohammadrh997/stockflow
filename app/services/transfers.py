@@ -14,6 +14,17 @@ from app.services.purchase import lock_purchase_order
 from app.services.warehouse import get_virtual_location
 from app.services.common import InvalidReference
 from app.services.sale import InsufficientStock, lock_sales_order
+from app.services.stock import lock_products
+from collections import defaultdict
+
+from app.schemas.stock import InternalTransferCreate
+from app.services.references import RefSequence, next_number
+
+_DONE_TYPES = {
+    TransferType.internal: ("INT", RefSequence.internal),
+    TransferType.adjustment: ("ADJ", RefSequence.adjustment),
+}
+
 
 class TransferNotFound(Exception): ...  # 404
 class TransferNotReady(Exception): ...  # 409
@@ -44,6 +55,37 @@ def _allocate(
     if needed > 0:
         raise InsufficientStock("not enough stock in the chosen location(s)")
     return picks
+
+async def _create_done_transfer(
+    db: AsyncSession, transfer_type: TransferType, warehouse: Warehouse, user_id: int
+) -> Transfer:
+    prefix, sequence = _DONE_TYPES[transfer_type]
+    number = await next_number(db, sequence)
+    transfer = Transfer(
+        reference=f"{warehouse.code}/{prefix}/{number:05d}",
+        transfer_type=transfer_type,
+        state=TransferState.done,
+        warehouse_id=warehouse.id,
+        validated_at=datetime.now(UTC),
+        validated_by_id=user_id,
+    )
+    db.add(transfer)
+    return transfer
+
+
+async def _get_internal_location(db: AsyncSession, location_id: int) -> Location:
+    location = await db.get(Location, location_id)
+    if location is None or location.location_type != LocationType.internal or not location.is_active:
+        raise InvalidReference(f"location {location_id} is not an active internal location")
+    return location
+
+
+async def _ensure_products_exist(db: AsyncSession, product_ids: set[int]) -> None:
+    found = set((await db.scalars(select(Product.id).where(Product.id.in_(product_ids)))).all())
+    missing = product_ids - found
+    if missing:
+        raise InvalidReference(f"products not found: {sorted(missing)}")
+    
 
 async def fetch_transfer(db: AsyncSession, transfer_id: int) -> Transfer:
     transfer = await db.scalar(_transfer_query(transfer_id))
@@ -122,9 +164,7 @@ async def validate_delivery(
         fixed_order = None
 
     product_ids = sorted({line.product_id for line in order.lines})
-    (await db.scalars(
-        select(Product.id).where(Product.id.in_(product_ids)).order_by(Product.id).with_for_update()
-    )).all()
+    await lock_products(db, product_ids)
 
     on_hand: dict[int, dict[int, Decimal]] = {}
     for product_id in product_ids:
@@ -161,8 +201,54 @@ async def validate_delivery(
     return await fetch_transfer(db, transfer_id)
 
 
-async def validate_transfer(db: AssertionError, transfer_id: int, location_id: int | None, user_id: int) -> Transfer:
+async def validate_transfer(db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int) -> Transfer:
     transfer = await fetch_transfer(db, transfer_id)
     if transfer.transfer_type == TransferType.receipt:
         return await validate_receipt(db, transfer_id, location_id, user_id)
-    return await validate_delivery(db, transfer_id, location_id, user_id)
+    if transfer.transfer_type == TransferType.delivery:
+        return await validate_delivery(db, transfer_id, location_id, user_id)
+    raise TransferNotReady(f"{transfer.reference} is created already validated")
+
+async def create_internal_transfer(
+    db: AsyncSession, data: InternalTransferCreate, user_id: int
+) -> Transfer:
+    # Locations: both internal and active, same warehouse, not the same one
+    source = await _get_internal_location(db, data.from_location_id)
+    destination = await _resolve_destination(db, source.warehouse_id, data.to_location_id)
+    if source.id == destination.id:
+        raise InvalidReference("source and destination must be different locations")
+
+    # Total per product (two lines of the same product add up)
+    requested: dict[int, Decimal] = defaultdict(Decimal)
+    for line in data.lines:
+        requested[line.product_id] += line.quantity
+    await _ensure_products_exist(db, set(requested))
+
+    # Lock, then check the source holds enough
+    await lock_products(db, requested)
+    shortages = []
+    for product_id, quantity in requested.items():
+        stock = await on_hand_by_location(db, product_id, source.warehouse_id)
+        at_source = stock.get(source.id, Decimal("0"))
+        if at_source < quantity:
+            shortages.append(f"product {product_id}: requested {quantity}, at source {at_source}")
+    if shortages:
+        raise InsufficientStock("; ".join(shortages))
+
+    # The document and its moves, saved together
+    warehouse = await db.get(Warehouse, source.warehouse_id)
+    transfer = await _create_done_transfer(db, TransferType.internal, warehouse, user_id)
+    for line in data.lines:
+        db.add(
+            StockMove(
+                transfer=transfer,
+                product_id=line.product_id,
+                quantity=line.quantity,
+                from_location_id=source.id,
+                to_location_id=destination.id,
+                note=data.note,
+                created_by_id=user_id,
+            )
+        )
+    await db.commit()
+    return await fetch_transfer(db, transfer.id)
