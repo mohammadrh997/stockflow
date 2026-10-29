@@ -10,7 +10,11 @@ from app.dependencies import DBsession, Module, require_access, CurrentUser, pag
 from app.schemas.stock import TransferRead, TransferValidate, InternalTransferCreate
 from app.services import transfers as transfer_service
 from app.services.transfers import TransferNotFound, TransferNotReady, InvalidReference, InsufficientStock
+from app.schemas.stock import AdjustmentCreate
+from app.services.transfers import NothingToAdjust
 
+
+InventoryManager = Annotated[User, Depends(require_access(Module.inventory, Access.manager))]
 PaginationDep = Annotated[dict, Depends(pagination_params)]
 
 router = APIRouter(
@@ -76,4 +80,16 @@ async def create_internal_transfer(db: DBsession, payload: InternalTransferCreat
     except InvalidReference as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     except InsufficientStock as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
+
+
+@router.post("/adjustments", response_model=TransferRead, status_code=201)
+async def create_adjustment(db: DBsession, payload: AdjustmentCreate, user: InventoryManager):
+    try:
+        return await transfer_service.create_adjustment(db, payload, user.id)
+    except InvalidReference as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except NothingToAdjust as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None

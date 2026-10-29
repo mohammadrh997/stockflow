@@ -16,8 +16,8 @@ from app.services.common import InvalidReference
 from app.services.sale import InsufficientStock, lock_sales_order
 from app.services.stock import lock_products
 from collections import defaultdict
+from app.schemas.stock import AdjustmentCreate, InternalTransferCreate
 
-from app.schemas.stock import InternalTransferCreate
 from app.services.references import RefSequence, next_number
 
 _DONE_TYPES = {
@@ -26,6 +26,8 @@ _DONE_TYPES = {
 }
 
 
+
+class NothingToAdjust(Exception): ...  # 409
 class TransferNotFound(Exception): ...  # 404
 class TransferNotReady(Exception): ...  # 409
 
@@ -250,5 +252,50 @@ async def create_internal_transfer(
                 created_by_id=user_id,
             )
         )
+    await db.commit()
+    return await fetch_transfer(db, transfer.id)
+
+
+
+
+async def create_adjustment(db: AsyncSession, data: AdjustmentCreate, user_id: int) -> Transfer:
+    location = await _get_internal_location(db, data.location_id)
+    product_ids = {line.product_id for line in data.lines}
+    await _ensure_products_exist(db, product_ids)
+
+    # Lock first, so on hand can't change between reading it and correcting it
+    await lock_products(db, product_ids)
+    loss = await get_virtual_location(db, LocationType.loss)
+
+    moves = []
+    for line in data.lines:
+        stock = await on_hand_by_location(db, line.product_id, location.warehouse_id)
+        current = stock.get(location.id, Decimal("0"))
+        difference = line.counted_quantity - current
+        if difference == 0:
+            continue
+        if difference > 0:  # found more than recorded: Loss → location
+            from_id, to_id, quantity = loss.id, location.id, difference
+        else:  # found less than recorded: location → Loss
+            from_id, to_id, quantity = location.id, loss.id, -difference
+        moves.append(
+            StockMove(
+                product_id=line.product_id,
+                quantity=quantity,
+                from_location_id=from_id,
+                to_location_id=to_id,
+                note=data.note,
+                created_by_id=user_id,
+            )
+        )
+
+    if not moves:
+        raise NothingToAdjust("counted quantities match current stock")
+
+    warehouse = await db.get(Warehouse, location.warehouse_id)
+    transfer = await _create_done_transfer(db, TransferType.adjustment, warehouse, user_id)
+    for move in moves:
+        move.transfer = transfer
+        db.add(move)
     await db.commit()
     return await fetch_transfer(db, transfer.id)
