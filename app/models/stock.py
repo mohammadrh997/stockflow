@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 class TransferType(enum.StrEnum):
     receipt = "receipt"
     delivery = "delivery"
-
+    internal = "internal"
+    adjustment = "adjustment"
 
 class TransferState(enum.StrEnum):
     ready = "ready"
