@@ -47,9 +47,9 @@ async def update_warehouse(db: DBsession, warehouse_id: int, payload: WarehouseU
     except WarehouseNotFound:
             raise HTTPException(status_code=404, detail="Warehouse was not Found") from None
     except InvalidDefaultLocation as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from None
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except LocationNotFound:
-            raise HTTPException(status_code=404, detail="Location Was Not Found") from None
+            raise HTTPException(status_code=404, detail="default_location_id: location not found") from None
 
 location_router = APIRouter(
     prefix="/locations",
@@ -80,7 +80,7 @@ async def create_location(db: DBsession, payload: LocationCreate, user: Inventor
     try:
         return await warehouse_service.create_location(db, payload)
     except WarehouseNotFound:
-            raise HTTPException(status_code=404, detail="Warehouse was not Found") from None
+            raise HTTPException(status_code=400, detail="warehouse_id: warehouse not found") from None
     except LocationNameExists:
         raise HTTPException(status_code=409, detail="Location Name already Exists") from None
     
