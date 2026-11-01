@@ -14,6 +14,7 @@ import { PartnersPage } from '@/features/partners/PartnersPage'
 import { NewProductPage } from '@/features/products/NewProductPage'
 import { ProductPage } from '@/features/products/ProductPage'
 import { ProductsPage } from '@/features/products/ProductsPage'
+import { StockPage } from '@/features/stock/StockPage'
 import { WarehousePage } from '@/features/warehouses/WarehousePage'
 import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
 
@@ -54,6 +55,7 @@ export const routes: RouteObject[] = [
                 ),
               },
               { path: 'partners/:partnerId', element: <PartnerPage /> },
+              { path: 'stock', element: <StockPage /> },
               { path: 'warehouses', element: <WarehousesPage /> },
               { path: 'warehouses/:warehouseId', element: <WarehousePage /> },
               { path: '*', element: <NotFoundPage /> },
