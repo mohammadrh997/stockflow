@@ -14,6 +14,9 @@ import { PartnersPage } from '@/features/partners/PartnersPage'
 import { NewProductPage } from '@/features/products/NewProductPage'
 import { ProductPage } from '@/features/products/ProductPage'
 import { ProductsPage } from '@/features/products/ProductsPage'
+import { NewPurchaseOrderPage } from '@/features/purchase/NewPurchaseOrderPage'
+import { PurchaseOrderPage } from '@/features/purchase/PurchaseOrderPage'
+import { PurchaseOrdersPage } from '@/features/purchase/PurchaseOrdersPage'
 import { StockPage } from '@/features/stock/StockPage'
 import { WarehousePage } from '@/features/warehouses/WarehousePage'
 import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
@@ -56,6 +59,19 @@ export const routes: RouteObject[] = [
               },
               { path: 'partners/:partnerId', element: <PartnerPage /> },
               { path: 'stock', element: <StockPage /> },
+              {
+                path: 'purchase-orders',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'purchase')}>
+                    <Outlet />
+                  </RequireAccess>
+                ),
+                children: [
+                  { index: true, element: <PurchaseOrdersPage /> },
+                  { path: 'new', element: <NewPurchaseOrderPage /> },
+                  { path: ':orderId', element: <PurchaseOrderPage /> },
+                ],
+              },
               { path: 'warehouses', element: <WarehousesPage /> },
               { path: 'warehouses/:warehouseId', element: <WarehousePage /> },
               { path: '*', element: <NotFoundPage /> },
