@@ -21,6 +21,7 @@ import { NewSalesOrderPage } from '@/features/sales/NewSalesOrderPage'
 import { SalesOrderPage } from '@/features/sales/SalesOrderPage'
 import { SalesOrdersPage } from '@/features/sales/SalesOrdersPage'
 import { StockPage } from '@/features/stock/StockPage'
+import { NewAdjustmentPage } from '@/features/transfers/NewAdjustmentPage'
 import { NewInternalTransferPage } from '@/features/transfers/NewInternalTransferPage'
 import { TransferPage } from '@/features/transfers/TransferPage'
 import { TransfersPage } from '@/features/transfers/TransfersPage'
@@ -101,6 +102,14 @@ export const routes: RouteObject[] = [
                 children: [
                   { index: true, element: <TransfersPage /> },
                   { path: 'internal', element: <NewInternalTransferPage /> },
+                  {
+                    path: 'adjustment',
+                    element: (
+                      <RequireAccess allowed={(user) => can(user, 'inventory', 'manager')}>
+                        <NewAdjustmentPage />
+                      </RequireAccess>
+                    ),
+                  },
                   { path: ':transferId', element: <TransferPage /> },
                 ],
               },
