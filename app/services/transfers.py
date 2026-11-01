@@ -14,7 +14,7 @@ from app.services.purchase import lock_purchase_order
 from app.services.warehouse import get_virtual_location
 from app.services.common import InvalidReference
 from app.services.sale import InsufficientStock, lock_sales_order
-from app.services.stock import lock_products
+from app.services.stock import lock_products, lock_locations
 from collections import defaultdict
 from app.schemas.stock import AdjustmentCreate, InternalTransferCreate
 
@@ -76,7 +76,7 @@ async def _create_done_transfer(
 
 
 async def _get_internal_location(db: AsyncSession, location_id: int) -> Location:
-    location = await db.get(Location, location_id)
+    location = await db.get(Location, location_id, with_for_update=True)
     if location is None or location.location_type != LocationType.internal or not location.is_active:
         raise InvalidReference(f"location {location_id} is not an active internal location")
     return location
@@ -107,7 +107,7 @@ async def _resolve_destination(db: AsyncSession, warehouse_id: int, location_id:
     if location_id is None:
         warehouse = await db.get(Warehouse, warehouse_id)
         location_id = warehouse.default_location_id
-    location = await db.get(Location, location_id)
+    location = await db.get(Location, location_id, with_for_update=True)
     if (
         location is None
         or location.location_type != LocationType.internal
@@ -150,7 +150,7 @@ async def validate_receipt(
 async def validate_delivery(
     db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int
 ) -> Transfer:
-    # Lock order → transfer → products (the same order as confirm and cancel)
+    # Lock order → transfer → locations → products (the same order as confirm and cancel)
     transfer = await fetch_transfer(db, transfer_id)
     order = await lock_sales_order(db, transfer.sales_order_id)
     transfer = await _lock_transfer(db, transfer_id)
@@ -215,6 +215,7 @@ async def create_internal_transfer(
     db: AsyncSession, data: InternalTransferCreate, user_id: int
 ) -> Transfer:
     # Locations: both internal and active, same warehouse, not the same one
+    await lock_locations(db, [data.from_location_id, data.to_location_id])
     source = await _get_internal_location(db, data.from_location_id)
     destination = await _resolve_destination(db, source.warehouse_id, data.to_location_id)
     if source.id == destination.id:

@@ -2,7 +2,7 @@ import asyncio
 from collections import Counter
 from decimal import Decimal
 
-from tests.helpers import create_product, create_so, delivery_of, receive_stock, stock_of
+from tests.helpers import create_product, create_so, delivery_of, receive_stock, stock_of, main_warehouse, create_location
 
 
 async def test_concurrent_confirmations_never_oversell(client, boss):
@@ -71,3 +71,25 @@ async def test_opposite_product_order_does_not_deadlock(client, boss):
     )
 
     assert [r.status_code for r in responses] == [200, 200]
+
+async def test_opposite_internal_transfers_do_not_deadlock(client, boss):
+    product = await create_product(client, boss)
+    warehouse = await main_warehouse(client, boss)
+    stock = warehouse["default_location_id"]
+    shelf = await create_location(client, boss, "Shelf A", warehouse["id"])
+    await receive_stock(client, boss, product["id"], 5)
+    await receive_stock(client, boss, product["id"], 5, location_id=shelf["id"])
+
+    def move(source, destination):
+        return client.post(
+            "/transfers/internal",
+            json={
+                "from_location_id": source,
+                "to_location_id": destination,
+                "lines": [{"product_id": product["id"], "quantity": "1"}],
+            },
+            headers=boss,
+        )
+
+    responses = await asyncio.gather(move(stock, shelf["id"]), move(shelf["id"], stock))
+    assert [r.status_code for r in responses] == [201, 201]

@@ -9,7 +9,7 @@ from app.models.product import Product
 from app.models.warehouse import Location, LocationType
 from app.models.sale import SalesOrder, SalesOrderLine, SalesState
 
-def _movements(product_id: int | None = None):
+def _movements(product_id: int | None = None, location_id: int | None = None):
     inflow = select(
         StockMove.product_id,
         StockMove.to_location_id.label("location_id"),
@@ -23,13 +23,35 @@ def _movements(product_id: int | None = None):
     if product_id is not None:
         inflow = inflow.where(StockMove.product_id == product_id)
         outflow = outflow.where(StockMove.product_id == product_id)
+    if location_id is not None:
+        inflow = inflow.where(StockMove.to_location_id == location_id)
+        outflow = outflow.where(StockMove.from_location_id == location_id)
     return union_all(inflow, outflow).subquery()
+
+
+async def location_has_stock(db: AsyncSession, location_id: int) -> bool:
+    movements = _movements(location_id=location_id)
+    stmt = (
+        select(movements.c.product_id)
+        .group_by(movements.c.product_id)
+        .having(func.sum(movements.c.qty) != 0)
+        .limit(1)
+    )
+    return await db.scalar(stmt) is not None
 
 async def lock_products(db: AsyncSession, product_ids: Iterable[int]) -> None:
     (await db.scalars(
         select(Product.id)
         .where(Product.id.in_(set(product_ids)))
         .order_by(Product.id)
+        .with_for_update()
+    )).all()
+
+async def lock_locations(db: AsyncSession, location_ids: Iterable[int]) -> None:
+    (await db.scalars(
+        select(Location.id)
+        .where(Location.id.in_(set(location_ids)))
+        .order_by(Location.id)
         .with_for_update()
     )).all()
 

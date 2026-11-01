@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.models.warehouse import Warehouse, Location, LocationType
 from app.schemas.warehouse import WarehouseCreate, WarehouseUpdate, LocationCreate, LocationUpdate
-
+from app.services.stock import location_has_stock
 class CodeAlreadyExists(Exception):
     pass
 class WarehouseNotFound(Exception):
@@ -97,13 +97,17 @@ async def update_location(db: AsyncSession, location_id: int, data: LocationUpda
     return location
 
 async def set_location_active(db: AsyncSession, location_id: int, active: bool) -> Location:
-    location = await fetch_location(db, location_id)
+    location = await db.get(Location, location_id, with_for_update=True)
+    if location is None:
+        raise LocationNotFound(location_id) from None
     if not active:
         if location.location_type != LocationType.internal:
             raise CannotArchiveLocation("Virtual locations cannot be archived")
         warehouse = await fetch_warehouse(db, location.warehouse_id)
         if warehouse.default_location_id == location.id:
             raise CannotArchiveLocation("Choose another default location first")
+        if await location_has_stock(db, location.id):
+            raise CannotArchiveLocation("Move the stock out of this location first")
     location.is_active = active
     await db.commit()
     await db.refresh(location)
