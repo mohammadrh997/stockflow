@@ -14,19 +14,21 @@ export type ProductListParams = {
   limit: number
 }
 
-export function useProducts(params: ProductListParams) {
+export function useProducts(params: ProductListParams, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['products', params],
     queryFn: () => unwrap(api.GET('/products', { params: { query: params } })),
     placeholderData: keepPreviousData,
+    enabled: options.enabled,
   })
 }
 
-export function useProduct(id: number) {
+export function useProduct(id: number, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['product', id],
     queryFn: () =>
       unwrap(api.GET('/products/{product_id}', { params: { path: { product_id: id } } })),
+    enabled: options.enabled,
   })
 }
 
