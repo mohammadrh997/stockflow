@@ -14,6 +14,8 @@ import { PartnersPage } from '@/features/partners/PartnersPage'
 import { NewProductPage } from '@/features/products/NewProductPage'
 import { ProductPage } from '@/features/products/ProductPage'
 import { ProductsPage } from '@/features/products/ProductsPage'
+import { WarehousePage } from '@/features/warehouses/WarehousePage'
+import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
 
 // AuthProvider sits inside the router so it and the pages it wraps can use navigation hooks.
 export const routes: RouteObject[] = [
@@ -52,6 +54,8 @@ export const routes: RouteObject[] = [
                 ),
               },
               { path: 'partners/:partnerId', element: <PartnerPage /> },
+              { path: 'warehouses', element: <WarehousesPage /> },
+              { path: 'warehouses/:warehouseId', element: <WarehousePage /> },
               { path: '*', element: <NotFoundPage /> },
             ],
           },
