@@ -110,3 +110,8 @@ async def test_update_me_cannot_change_permissions(client, make_user):
     assert response.status_code == 200
     assert response.json()["name"] == "New Name"
     assert response.json()["is_admin"] is False
+
+async def test_login_is_rate_limited(client, make_user):
+    await make_user(email="ali@example.com", password="password123")
+    statuses = [(await login(client, "ali@example.com", "wrong")).status_code for _ in range(6)]
+    assert statuses == [401, 401, 401, 401, 401, 429]

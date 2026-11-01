@@ -25,8 +25,10 @@ from app.models.user import User  # noqa: E402
 from app.schemas.user import UserCreate  # noqa: E402
 from app.services.bootstrap import ensure_defaults  # noqa: E402
 from app.services.users import create_user  # noqa: E402
-from app.models.user import Access
-from tests.helpers import auth
+from app.models.user import Access # noqa: E402
+from tests.helpers import auth # noqa: E402
+from app.core.limiter import limiter # noqa: E402
+
 
 engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
@@ -50,6 +52,7 @@ def migrated_database() -> None:
 
 @pytest.fixture(autouse=True)
 async def clean_database() -> AsyncIterator[None]:
+    limiter.reset()
     tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))

@@ -9,11 +9,13 @@ from app.dependencies import CurrentUser, DBsession
 from app.models.user import User
 from app.schemas.user import UserRead, ProfileUpdate, PasswordChange
 from app.core.security import create_access_token, hash_password, verify_password, DUMMY_HASH
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/token")
+@limiter.limit("5/minute")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBsession, request: Request
 ):
@@ -42,7 +44,8 @@ async def update_me(user: CurrentUser, payload: ProfileUpdate, db: DBsession):
 
 
 @router.post("/me/password")
-async def change_password(user: CurrentUser, payload: PasswordChange, db: DBsession):
+@limiter.limit("5/minute")
+async def change_password(user: CurrentUser, payload: PasswordChange, db: DBsession, request: Request):
     if not await verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
