@@ -141,3 +141,17 @@ async def test_sales_user_can_draft_but_not_confirm(client, boss, make_user):
 
     response = await client.post(f"/sales-orders/{so['id']}/confirm", headers=seller)
     assert response.status_code == 403
+
+
+async def test_transfers_can_be_filtered_by_sales_order(client, boss):
+    product = await create_product(client, boss)
+    await receive_stock(client, boss, product["id"], 10)
+    first, _ = await create_so(client, boss, [(product["id"], 2)])
+    second, _ = await create_so(client, boss, [(product["id"], 3)])
+    for so in (first, second):
+        response = await client.post(f"/sales-orders/{so['id']}/confirm", headers=boss)
+        assert response.status_code == 200
+
+    response = await client.get(f"/transfers?sales_order_id={second['id']}", headers=boss)
+    assert response.status_code == 200
+    assert [t["sales_order_id"] for t in response.json()] == [second["id"]]

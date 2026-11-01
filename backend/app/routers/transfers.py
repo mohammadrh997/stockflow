@@ -39,6 +39,8 @@ async def list_transfer(
     transfer_type: TransferType | None = None,
     state: TransferState | None = None,
     warehouse_id: int | None = None,
+    purchase_order_id: int | None = None,
+    sales_order_id: int | None = None,
 ):
     skip, limit = pagination["skip"], pagination["limit"]
     stmt = select(Transfer).order_by(Transfer.id)
@@ -48,6 +50,10 @@ async def list_transfer(
         stmt = stmt.where(Transfer.state == state)
     if warehouse_id:
         stmt = stmt.where(Transfer.warehouse_id == warehouse_id)
+    if purchase_order_id is not None:
+        stmt = stmt.where(Transfer.purchase_order_id == purchase_order_id)
+    if sales_order_id is not None:
+        stmt = stmt.where(Transfer.sales_order_id == sales_order_id)
     if skip:
         stmt = stmt.offset(skip)
     if limit:

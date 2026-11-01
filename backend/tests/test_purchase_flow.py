@@ -166,3 +166,16 @@ async def test_warehouse_is_required_when_there_are_several(client, boss):
     )
     assert response.status_code == 400
     assert "warehouse_id" in response.json()["detail"]
+
+
+async def test_transfers_can_be_filtered_by_purchase_order(client, boss):
+    product = await create_product(client, boss)
+    first, _ = await create_po(client, boss, product["id"])
+    second, _ = await create_po(client, boss, product["id"])
+    for po in (first, second):
+        response = await client.post(f"/purchase-orders/{po['id']}/confirm", headers=boss)
+        assert response.status_code == 200
+
+    response = await client.get(f"/transfers?purchase_order_id={second['id']}", headers=boss)
+    assert response.status_code == 200
+    assert [t["purchase_order_id"] for t in response.json()] == [second["id"]]
