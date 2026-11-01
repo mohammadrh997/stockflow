@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import engine, AsyncSessionLocal
-from app.routers import auth, users, product, warehouse, purchase, transfers, partner, stock, sale
+from app.routers import auth, users, product, warehouse, purchase, transfers, partner, stock, sale, health
 from app.services.bootstrap import bootstrap
 
 from slowapi import _rate_limit_exceeded_handler
@@ -32,6 +32,8 @@ logging.basicConfig(
 app = FastAPI(title="Stock Flow", lifespan=lifespan)
 app.state.limiter = limiter
 
+
+app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(partner.router)
