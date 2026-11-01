@@ -16,19 +16,21 @@ export type PartnerListParams = {
   limit: number
 }
 
-export function usePartners(params: PartnerListParams) {
+export function usePartners(params: PartnerListParams, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['partners', params],
     queryFn: () => unwrap(api.GET('/partners', { params: { query: params } })),
     placeholderData: keepPreviousData,
+    enabled: options.enabled,
   })
 }
 
-export function usePartner(id: number) {
+export function usePartner(id: number, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['partner', id],
     queryFn: () =>
       unwrap(api.GET('/partners/{partner_id}', { params: { path: { partner_id: id } } })),
+    enabled: options.enabled,
   })
 }
 
