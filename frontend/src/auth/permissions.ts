@@ -22,3 +22,7 @@ export function can(
   if (module === 'admin') return false
   return RANK[user[ACCESS_FIELD[module]]] >= RANK[level ?? 'user']
 }
+
+export function canEditPartners(user: User | null | undefined): boolean {
+  return can(user, 'sales') || can(user, 'purchase')
+}

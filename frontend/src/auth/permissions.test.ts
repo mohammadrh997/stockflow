@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { can, type User } from './permissions'
+import { can, canEditPartners, type User } from './permissions'
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -72,18 +72,16 @@ describe('can', () => {
     const inventoryManager = makeUser({ inventory_access: 'manager' })
     const nobody = makeUser()
 
-    const editPartners = (user: User) => can(user, 'sales') || can(user, 'purchase')
-
     it('products: inventory manager writes', () => {
       expect(can(inventoryManager, 'inventory', 'manager')).toBe(true)
       expect(can(inventoryUser, 'inventory', 'manager')).toBe(false)
     })
 
     it('partners: sales or purchase user writes', () => {
-      expect(editPartners(salesUser)).toBe(true)
-      expect(editPartners(purchaseUser)).toBe(true)
-      expect(editPartners(inventoryManager)).toBe(false)
-      expect(editPartners(nobody)).toBe(false)
+      expect(canEditPartners(salesUser)).toBe(true)
+      expect(canEditPartners(purchaseUser)).toBe(true)
+      expect(canEditPartners(inventoryManager)).toBe(false)
+      expect(canEditPartners(nobody)).toBe(false)
     })
 
     it('purchase orders: user edits drafts, manager confirms and cancels', () => {
