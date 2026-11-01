@@ -25,6 +25,8 @@ import { NewAdjustmentPage } from '@/features/transfers/NewAdjustmentPage'
 import { NewInternalTransferPage } from '@/features/transfers/NewInternalTransferPage'
 import { TransferPage } from '@/features/transfers/TransferPage'
 import { TransfersPage } from '@/features/transfers/TransfersPage'
+import { NewUserPage } from '@/features/users/NewUserPage'
+import { UsersPage } from '@/features/users/UsersPage'
 import { WarehousePage } from '@/features/warehouses/WarehousePage'
 import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
 
@@ -115,6 +117,18 @@ export const routes: RouteObject[] = [
               },
               { path: 'warehouses', element: <WarehousesPage /> },
               { path: 'warehouses/:warehouseId', element: <WarehousePage /> },
+              {
+                path: 'users',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'admin')}>
+                    <Outlet />
+                  </RequireAccess>
+                ),
+                children: [
+                  { index: true, element: <UsersPage /> },
+                  { path: 'new', element: <NewUserPage /> },
+                ],
+              },
               { path: '*', element: <NotFoundPage /> },
             ],
           },
