@@ -4,6 +4,13 @@ import { afterAll, afterEach, beforeAll } from 'vitest'
 
 import { server } from './server'
 
+// jsdom lacks ResizeObserver, which Radix components measure with.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 
 afterEach(() => {
