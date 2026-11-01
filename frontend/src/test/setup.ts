@@ -11,6 +11,11 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 }
 
+// jsdom lacks the pointer-capture and scrolling APIs Radix Select and cmdk call.
+Element.prototype.hasPointerCapture ??= () => false
+Element.prototype.releasePointerCapture ??= () => {}
+Element.prototype.scrollIntoView ??= () => {}
+
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 
 afterEach(() => {
