@@ -22,7 +22,7 @@ async def create_user(payload: UserCreate, db: DBsession):
 async def get_users(db: DBsession, name: None | str = None):
     stmt = select(User).order_by(User.id)
     if name:
-        stmt = stmt.where(User.name.ilike(name))
+        stmt = stmt.where(User.name.ilike(f"%{name}%"))
     users = (await db.scalars(stmt)).all()
     return users
 

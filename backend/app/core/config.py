@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     access_token_exp_minutes: int = 30
     redis_url: str | None = None
     log_level: str = "INFO"
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:5173"]
     admin_email: str | None = None
     admin_name: str = "Admin"
     admin_password: SecretStr | None = Field(default=None, min_length=8, max_length=128)
