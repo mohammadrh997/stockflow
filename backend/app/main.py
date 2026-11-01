@@ -38,7 +38,7 @@ logging.basicConfig(
 )
 
 
-app = FastAPI(title="Stock Flow", lifespan=lifespan)
+app = FastAPI(title="StockFlow", lifespan=lifespan)
 app.state.limiter = limiter
 
 
