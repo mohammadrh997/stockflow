@@ -14,7 +14,10 @@ import {
 import { Button } from '@/components/ui/button'
 
 type Props = {
-  trigger: ReactNode
+  // Either a trigger, or open/onOpenChange to open it from code (e.g. after a form validates).
+  trigger?: ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   title: string
   description: ReactNode
   confirmLabel: string
@@ -25,19 +28,23 @@ type Props = {
 // Stays open on failure so the server's message is shown next to the action that caused it.
 export function ConfirmDialog({
   trigger,
+  open: controlledOpen,
+  onOpenChange,
   title,
   description,
   confirmLabel,
   destructive,
   onConfirm,
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = controlledOpen ?? uncontrolledOpen
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<unknown>(null)
 
   function handleOpenChange(next: boolean) {
     if (pending) return
-    setOpen(next)
+    setUncontrolledOpen(next)
+    onOpenChange?.(next)
     setError(null)
   }
 
@@ -46,7 +53,8 @@ export function ConfirmDialog({
     setError(null)
     try {
       await onConfirm()
-      setOpen(false)
+      setUncontrolledOpen(false)
+      onOpenChange?.(false)
     } catch (e) {
       setError(e)
     } finally {
@@ -56,7 +64,7 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

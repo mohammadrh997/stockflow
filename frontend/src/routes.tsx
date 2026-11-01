@@ -21,6 +21,7 @@ import { NewSalesOrderPage } from '@/features/sales/NewSalesOrderPage'
 import { SalesOrderPage } from '@/features/sales/SalesOrderPage'
 import { SalesOrdersPage } from '@/features/sales/SalesOrdersPage'
 import { StockPage } from '@/features/stock/StockPage'
+import { NewInternalTransferPage } from '@/features/transfers/NewInternalTransferPage'
 import { TransferPage } from '@/features/transfers/TransferPage'
 import { TransfersPage } from '@/features/transfers/TransfersPage'
 import { WarehousePage } from '@/features/warehouses/WarehousePage'
@@ -99,6 +100,7 @@ export const routes: RouteObject[] = [
                 ),
                 children: [
                   { index: true, element: <TransfersPage /> },
+                  { path: 'internal', element: <NewInternalTransferPage /> },
                   { path: ':transferId', element: <TransferPage /> },
                 ],
               },
