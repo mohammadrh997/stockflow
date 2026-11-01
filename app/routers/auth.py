@@ -1,15 +1,15 @@
-from typing import Annotated
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
+from app.core.limiter import limiter
+from app.core.security import DUMMY_HASH, create_access_token, hash_password, verify_password
 from app.dependencies import CurrentUser, DBsession
 from app.models.user import User
-from app.schemas.user import UserRead, ProfileUpdate, PasswordChange
-from app.core.security import create_access_token, hash_password, verify_password, DUMMY_HASH
-from app.core.limiter import limiter
+from app.schemas.user import PasswordChange, ProfileUpdate, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -35,6 +35,7 @@ async def login(
 async def read_me(user: CurrentUser):
     return user
 
+
 @router.patch("/me", response_model=UserRead)
 async def update_me(user: CurrentUser, payload: ProfileUpdate, db: DBsession):
     user.name = payload.name
@@ -45,7 +46,9 @@ async def update_me(user: CurrentUser, payload: ProfileUpdate, db: DBsession):
 
 @router.post("/me/password")
 @limiter.limit("5/minute")
-async def change_password(user: CurrentUser, payload: PasswordChange, db: DBsession, request: Request):
+async def change_password(
+    user: CurrentUser, payload: PasswordChange, db: DBsession, request: Request
+):
     if not await verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 

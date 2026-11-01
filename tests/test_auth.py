@@ -1,6 +1,7 @@
 from app.models.user import Access
 from tests.helpers import auth, auth_issued_ago
 
+
 async def test_login_returns_token(client, make_user):
     await make_user(email="ali@example.com", password="password123")
 
@@ -19,6 +20,7 @@ async def test_me_returns_current_user(client, make_user):
 
     assert response.status_code == 200
     assert response.json()["sales_access"] == "manager"
+
 
 async def login(client, email, password):
     return await client.post("/auth/token", data={"username": email, "password": password})
@@ -110,6 +112,7 @@ async def test_update_me_cannot_change_permissions(client, make_user):
     assert response.status_code == 200
     assert response.json()["name"] == "New Name"
     assert response.json()["is_admin"] is False
+
 
 async def test_login_is_rate_limited(client, make_user):
     await make_user(email="ali@example.com", password="password123")

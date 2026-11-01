@@ -17,8 +17,8 @@ async def create_partner(db: AsyncSession, data: PartnerCreate, created_by_id: i
         phone=data.phone,
         address=data.address,
         is_customer=data.is_customer,
-        is_supplier= data.is_supplier,
-        created_by_id=created_by_id
+        is_supplier=data.is_supplier,
+        created_by_id=created_by_id,
     )
     db.add(partner)
     await db.commit()
@@ -32,6 +32,7 @@ async def fetch_partner(db: AsyncSession, partner_id: int) -> Partner:
         raise PartnerNotFound(partner_id) from None
     return partner
 
+
 async def update_partner(db: AsyncSession, partner_id: int, data: PartnerUpdate) -> Partner:
     partner = await fetch_partner(db, partner_id)
     for field in data.model_fields_set:
@@ -42,6 +43,7 @@ async def update_partner(db: AsyncSession, partner_id: int, data: PartnerUpdate)
     await db.commit()
     await db.refresh(partner)
     return partner
+
 
 async def set_active(db: AsyncSession, partner_id: int, active: bool) -> Partner:
     partner = await fetch_partner(db, partner_id)

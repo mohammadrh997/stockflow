@@ -3,8 +3,12 @@ from decimal import Decimal
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, Field
+
 from app.schemas.common import Price
-Sku = Annotated[str, AfterValidator(lambda s: s.strip().upper()), Field(min_length=1, max_length=64)]
+
+Sku = Annotated[
+    str, AfterValidator(lambda s: s.strip().upper()), Field(min_length=1, max_length=64)
+]
 
 
 class ProductCreate(BaseModel):
@@ -12,7 +16,6 @@ class ProductCreate(BaseModel):
     sku: Sku
     sale_price: Price
     cost_price: Price = Decimal("0")
-    
 
 
 class ProductUpdate(BaseModel):

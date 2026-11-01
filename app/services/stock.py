@@ -1,13 +1,14 @@
-from decimal import Decimal
 from collections.abc import Iterable
+from decimal import Decimal
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, union_all
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.stock import StockMove
 from app.models.product import Product
-from app.models.warehouse import Location, LocationType
 from app.models.sale import SalesOrder, SalesOrderLine, SalesState
+from app.models.stock import StockMove
+from app.models.warehouse import Location, LocationType
+
 
 def _movements(product_id: int | None = None, location_id: int | None = None):
     inflow = select(
@@ -39,39 +40,48 @@ async def location_has_stock(db: AsyncSession, location_id: int) -> bool:
     )
     return await db.scalar(stmt) is not None
 
+
 async def lock_products(db: AsyncSession, product_ids: Iterable[int]) -> None:
-    (await db.scalars(
-        select(Product.id)
-        .where(Product.id.in_(set(product_ids)))
-        .order_by(Product.id)
-        .with_for_update()
-    )).all()
+    (
+        await db.scalars(
+            select(Product.id)
+            .where(Product.id.in_(set(product_ids)))
+            .order_by(Product.id)
+            .with_for_update()
+        )
+    ).all()
+
 
 async def lock_locations(db: AsyncSession, location_ids: Iterable[int]) -> None:
-    (await db.scalars(
-        select(Location.id)
-        .where(Location.id.in_(set(location_ids)))
-        .order_by(Location.id)
-        .with_for_update()
-    )).all()
+    (
+        await db.scalars(
+            select(Location.id)
+            .where(Location.id.in_(set(location_ids)))
+            .order_by(Location.id)
+            .with_for_update()
+        )
+    ).all()
 
-async def on_hand_by_location(db: AsyncSession, product_id: int, warehouse_id: int) -> dict[int, Decimal]:
+
+async def on_hand_by_location(
+    db: AsyncSession, product_id: int, warehouse_id: int
+) -> dict[int, Decimal]:
     movements = _movements(product_id)
     stmt = (
         select(movements.c.location_id, func.sum(movements.c.qty))
         .join(Location, Location.id == movements.c.location_id)
         .where(
-            Location.warehouse_id == warehouse_id,
-            Location.location_type == LocationType.internal
+            Location.warehouse_id == warehouse_id, Location.location_type == LocationType.internal
         )
         .group_by(movements.c.location_id)
     )
-    rows =( await db.execute(stmt)).all()
+    rows = (await db.execute(stmt)).all()
     return {location_id: qty for location_id, qty in rows if qty != 0}
+
 
 async def available_in_warehouse(db: AsyncSession, product_id: int, warehouse_id: int) -> Decimal:
     on_hand = sum((await on_hand_by_location(db, product_id, warehouse_id)).values(), Decimal("0"))
-    reserved = await db.scalar(
+    reserved = (await db.execute(
         select(func.coalesce(func.sum(SalesOrderLine.quantity), 0))
         .join(SalesOrder)
         .where(
@@ -79,8 +89,9 @@ async def available_in_warehouse(db: AsyncSession, product_id: int, warehouse_id
             SalesOrder.warehouse_id == warehouse_id,
             SalesOrder.state == SalesState.confirmed,
         )
-    )
+    )).scalar_one()
     return on_hand - reserved
+
 
 async def stock_report(
     db: AsyncSession, warehouse_id: int | None = None, product_id: int | None = None
@@ -93,7 +104,9 @@ async def stock_report(
         .group_by(movements.c.product_id, Location.warehouse_id)
     )
     reserved_stmt = (
-        select(SalesOrderLine.product_id, SalesOrder.warehouse_id, func.sum(SalesOrderLine.quantity))
+        select(
+            SalesOrderLine.product_id, SalesOrder.warehouse_id, func.sum(SalesOrderLine.quantity)
+        )
         .join(SalesOrder)
         .where(SalesOrder.state == SalesState.confirmed)
         .group_by(SalesOrderLine.product_id, SalesOrder.warehouse_id)
@@ -106,26 +119,34 @@ async def stock_report(
 
     totals: dict[tuple[int, int], dict[str, Decimal]] = {}
     for pid, wid, qty in (await db.execute(on_hand_stmt)).all():
-        totals.setdefault((pid, wid), {"on_hand": Decimal("0"), "reserved": Decimal("0")})["on_hand"] = qty
+        totals.setdefault((pid, wid), {"on_hand": Decimal("0"), "reserved": Decimal("0")})[
+            "on_hand"
+        ] = qty
     for pid, wid, qty in (await db.execute(reserved_stmt)).all():
-        totals.setdefault((pid, wid), {"on_hand": Decimal("0"), "reserved": Decimal("0")})["reserved"] = qty
+        totals.setdefault((pid, wid), {"on_hand": Decimal("0"), "reserved": Decimal("0")})[
+            "reserved"
+        ] = qty
     if not totals:
         return []
 
     product_ids = {pid for pid, _ in totals}
-    products = {p.id: p for p in await db.scalars(select(Product).where(Product.id.in_(product_ids)))}
+    products = {
+        p.id: p for p in await db.scalars(select(Product).where(Product.id.in_(product_ids)))
+    }
 
     rows = []
     for (pid, wid), t in totals.items():
         if t["on_hand"] == 0 and t["reserved"] == 0:
             continue
-        rows.append({
-            "product_id": pid,
-            "sku": products[pid].sku,
-            "product_name": products[pid].name,
-            "warehouse_id": wid,
-            "on_hand": t["on_hand"],
-            "reserved": t["reserved"],
-            "available": t["on_hand"] - t["reserved"],
-        })
+        rows.append(
+            {
+                "product_id": pid,
+                "sku": products[pid].sku,
+                "product_name": products[pid].name,
+                "warehouse_id": wid,
+                "on_hand": t["on_hand"],
+                "reserved": t["reserved"],
+                "available": t["on_hand"] - t["reserved"],
+            }
+        )
     return sorted(rows, key=lambda r: (r["sku"], r["warehouse_id"]))

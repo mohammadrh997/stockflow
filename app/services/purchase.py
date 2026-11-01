@@ -1,25 +1,38 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import Sequence
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.purchase import PurchaseOrder, PurchaseOrderLine, PurchaseState
 from app.models.partner import Partner
-from app.models.product import Product
-from app.models.warehouse import Warehouse
-from app.models.stock import Transfer, TransferType, TransferState
-from app.services.references import next_number, RefSequence
-from app.schemas.purchase import (PurchaseOrderCreate, PurchaseOrderUpdate, PurchaseOrderLineCreate, PurchaseOrderLineUpdate)
-from app.services.common import OrderHasNoLines, OrderNotCancellable, OrderNotEditable, InvalidReference, LineNotFound, resolve_warehouse, get_active_product
+from app.models.purchase import PurchaseOrder, PurchaseOrderLine, PurchaseState
+from app.models.stock import Transfer, TransferState, TransferType
+from app.schemas.purchase import (
+    PurchaseOrderCreate,
+    PurchaseOrderLineCreate,
+    PurchaseOrderLineUpdate,
+    PurchaseOrderUpdate,
+)
+from app.services.common import (
+    InvalidReference,
+    LineNotFound,
+    OrderHasNoLines,
+    OrderNotCancellable,
+    OrderNotEditable,
+    get_active_product,
+    resolve_warehouse,
+)
+from app.services.references import RefSequence, next_number
+from app.services.warehouse import fetch_warehouse
 
 
-
-class PurchaseOrderNotFound(Exception): ...   # 404 (from the URL)
-
+class PurchaseOrderNotFound(Exception): ...  # 404 (from the URL)
 
 
 def _ensure_draft(order: PurchaseOrder):
     if order.state != PurchaseState.draft:
         raise OrderNotEditable(order.id)
+
 
 async def _get_supplier(db: AsyncSession, partner_id: int) -> Partner:
     partner = await db.get(Partner, partner_id)
@@ -29,14 +42,15 @@ async def _get_supplier(db: AsyncSession, partner_id: int) -> Partner:
     return partner
 
 
-
 async def _build_line(db: AsyncSession, data: PurchaseOrderLineCreate) -> PurchaseOrderLine:
     product = await get_active_product(db, data.product_id)
     price = data.unit_price if data.unit_price is not None else product.cost_price
     return PurchaseOrderLine(product_id=product.id, quantity=data.quantity, unit_price=price)
 
 
-async def create_purchase_order(db: AsyncSession, data: PurchaseOrderCreate, created_by_id: int) -> PurchaseOrder:
+async def create_purchase_order(
+    db: AsyncSession, data: PurchaseOrderCreate, created_by_id: int
+) -> PurchaseOrder:
     partner = await _get_supplier(db, data.partner_id)
     warehouse = await resolve_warehouse(db, data.warehouse_id)
     lines = [await _build_line(db, line) for line in data.lines]
@@ -52,6 +66,7 @@ async def create_purchase_order(db: AsyncSession, data: PurchaseOrderCreate, cre
     await db.commit()
     return await fetch_purchase_order(db, order.id)
 
+
 async def fetch_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
     order = await db.scalar(
         select(PurchaseOrder)
@@ -62,6 +77,7 @@ async def fetch_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder
     if order is None:
         raise PurchaseOrderNotFound(order_id)
     return order
+
 
 async def lock_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
     order = await db.scalar(
@@ -75,13 +91,14 @@ async def lock_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
         raise PurchaseOrderNotFound(order_id)
     return order
 
+
 async def list_purchase_orders(
-        db: AsyncSession, 
-        state: PurchaseState | None = None, 
-        partner_id: int | None = None, 
-        skip: int | None = None, 
-        limit: int | None = None
-        ) -> list[PurchaseOrder]:
+    db: AsyncSession,
+    state: PurchaseState | None = None,
+    partner_id: int | None = None,
+    skip: int | None = None,
+    limit: int | None = None,
+) -> Sequence[PurchaseOrder]:
     stmt = select(PurchaseOrder).order_by(PurchaseOrder.id)
     if state:
         stmt = stmt.where(PurchaseOrder.state == state)
@@ -96,7 +113,9 @@ async def list_purchase_orders(
     return orders
 
 
-async def update_purchase_order(db: AsyncSession, order_id: int, data: PurchaseOrderUpdate) -> PurchaseOrder:
+async def update_purchase_order(
+    db: AsyncSession, order_id: int, data: PurchaseOrderUpdate
+) -> PurchaseOrder:
     order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     for field in data.model_fields_set:
@@ -110,6 +129,7 @@ async def update_purchase_order(db: AsyncSession, order_id: int, data: PurchaseO
         setattr(order, field, value)
     await db.commit()
     return await fetch_purchase_order(db, order.id)
+
 
 async def add_line(db: AsyncSession, order_id: int, data: PurchaseOrderLineCreate) -> PurchaseOrder:
     order = await lock_purchase_order(db, order_id)
@@ -132,7 +152,10 @@ async def _fetch_line(db: AsyncSession, order_id: int, line_id: int) -> Purchase
         raise LineNotFound(line_id)
     return line
 
-async def update_line(db: AsyncSession, order_id: int, line_id: int, data: PurchaseOrderLineUpdate) -> PurchaseOrder:
+
+async def update_line(
+    db: AsyncSession, order_id: int, line_id: int, data: PurchaseOrderLineUpdate
+) -> PurchaseOrder:
     order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     order_line = await _fetch_line(db, order_id, line_id)
@@ -153,13 +176,14 @@ async def delete_line(db: AsyncSession, order_id: int, line_id: int) -> Purchase
     await db.commit()
     return await fetch_purchase_order(db, order_id)
 
+
 async def confirm_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
     order = await lock_purchase_order(db, order_id)
     _ensure_draft(order)
     if not order.lines:
         raise OrderHasNoLines()
     order.state = PurchaseState.confirmed
-    warehouse = await db.get(Warehouse, order.warehouse_id)
+    warehouse = await fetch_warehouse(db, order.warehouse_id)
     number = await next_number(db, RefSequence.receipt)
     db.add(
         Transfer(
@@ -171,6 +195,7 @@ async def confirm_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrd
     )
     await db.commit()
     return await fetch_purchase_order(db, order_id)
+
 
 async def cancel_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
     order = await lock_purchase_order(db, order_id)

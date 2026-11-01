@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -5,14 +7,18 @@ from app.core.security import hash_password
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
-from datetime import datetime, UTC
 
 class EmailAlreadyExists(Exception):
     pass
+
+
 class UserNotFound(Exception):
     pass
+
+
 class CannotModifySelf(Exception):
-       pass
+    pass
+
 
 async def create_user(db: AsyncSession, data: UserCreate) -> User:
     user = User(
@@ -34,13 +40,17 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
     await db.refresh(user)
     return user
 
+
 async def fetch_user(db: AsyncSession, user_id: int) -> User:
     user = await db.get(User, user_id)
     if not user:
         raise UserNotFound(user_id) from None
     return user
 
-async def update_user(db: AsyncSession, user_id: int, data: UserUpdate, acting_user_id: int) -> User:
+
+async def update_user(
+    db: AsyncSession, user_id: int, data: UserUpdate, acting_user_id: int
+) -> User:
     user = await fetch_user(db, user_id)
     if user.id == acting_user_id and data.is_admin is False:
         raise CannotModifySelf("You cannot remove your own admin access")
@@ -52,11 +62,12 @@ async def update_user(db: AsyncSession, user_id: int, data: UserUpdate, acting_u
     try:
         await db.commit()
     except IntegrityError as exc:
-            await db.rollback()
-            if "uq_users_email" in str(exc.orig):
-                raise EmailAlreadyExists(data.email) from None
+        await db.rollback()
+        if "uq_users_email" in str(exc.orig):
+            raise EmailAlreadyExists(data.email) from None
     await db.refresh(user)
     return user
+
 
 async def set_active(db: AsyncSession, user_id: int, active: bool, acting_user_id: int) -> User:
     user = await fetch_user(db, user_id)
@@ -67,10 +78,10 @@ async def set_active(db: AsyncSession, user_id: int, active: bool, acting_user_i
     await db.refresh(user)
     return user
 
+
 async def reset_password(db: AsyncSession, user_id: int, new_password: str) -> User:
     user = await fetch_user(db, user_id)
     user.hashed_password = await hash_password(new_password)
     user.password_changed_at = datetime.now(UTC)
     await db.commit()
     return user
-    

@@ -1,10 +1,10 @@
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Annotated
+from decimal import ROUND_HALF_UP, Decimal
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, computed_field
+
 from app.models.purchase import PurchaseState
-from app.schemas.common import Quantity, Price
+from app.schemas.common import Price, Quantity
 
 
 class PurchaseOrderLineCreate(BaseModel):
@@ -12,22 +12,24 @@ class PurchaseOrderLineCreate(BaseModel):
     quantity: Quantity
     unit_price: Price | None = None
 
+
 class PurchaseOrderLineUpdate(BaseModel):
     quantity: Quantity | None = None
     unit_price: Price | None = None
 
+
 class PurchaseOrderLineRead(BaseModel):
     model_config = {"from_attributes": True}
 
-    id:int
+    id: int
     product_id: int
     quantity: Decimal
     unit_price: Decimal
-    @computed_field
+
+    @computed_field # type: ignore[prop-decorator]
     @property
     def subtotal(self) -> Decimal:
         return (self.quantity * self.unit_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
 
 
 class PurchaseOrderCreate(BaseModel):
@@ -35,9 +37,11 @@ class PurchaseOrderCreate(BaseModel):
     warehouse_id: int | None = None
     lines: list[PurchaseOrderLineCreate] = []
 
+
 class PurchaseOrderUpdate(BaseModel):
     partner_id: int | None = None
     warehouse_id: int | None = None
+
 
 class PurchaseOrderRead(BaseModel):
     model_config = {"from_attributes": True}
@@ -50,7 +54,8 @@ class PurchaseOrderRead(BaseModel):
     created_by_id: int
     created_at: datetime
     lines: list[PurchaseOrderLineRead]
-    @computed_field
+
+    @computed_field # type: ignore[prop-decorator]
     @property
     def total(self) -> Decimal:
         return sum((line.subtotal for line in self.lines), Decimal("0"))

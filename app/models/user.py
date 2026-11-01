@@ -1,19 +1,17 @@
 import enum
-from sqlalchemy import false, true, func, DateTime, Enum
-from sqlalchemy.orm import Mapped, mapped_column
-from app.models.checks import enum_check
-
-
 from datetime import datetime
 
+from sqlalchemy import DateTime, Enum, false, func, true
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.database import Base
+from app.models.checks import enum_check
+
 
 class Access(enum.IntEnum):
     none = 0
     user = 1
     manager = 2
-
-
 
 
 class User(Base):
@@ -28,9 +26,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(unique=True)
     name: Mapped[str]
     hashed_password: Mapped[str]
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-        )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_admin: Mapped[bool] = mapped_column(server_default=false())
     is_active: Mapped[bool] = mapped_column(server_default=true())

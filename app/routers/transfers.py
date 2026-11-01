@@ -4,15 +4,23 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.models.user import User, Access
-from app.models.stock import Transfer, TransferType, TransferState
-from app.dependencies import DBsession, Module, require_access, CurrentUser, pagination_params
-from app.schemas.stock import TransferRead, TransferValidate, InternalTransferCreate
+from app.dependencies import CurrentUser, DBsession, Module, pagination_params, require_access
+from app.models.stock import Transfer, TransferState, TransferType
+from app.models.user import Access, User
+from app.schemas.stock import (
+    AdjustmentCreate,
+    InternalTransferCreate,
+    TransferRead,
+    TransferValidate,
+)
 from app.services import transfers as transfer_service
-from app.services.transfers import TransferNotFound, TransferNotReady, InvalidReference, InsufficientStock
-from app.schemas.stock import AdjustmentCreate
-from app.services.transfers import NothingToAdjust
-
+from app.services.transfers import (
+    InsufficientStock,
+    InvalidReference,
+    NothingToAdjust,
+    TransferNotFound,
+    TransferNotReady,
+)
 
 InventoryManager = Annotated[User, Depends(require_access(Module.inventory, Access.manager))]
 PaginationDep = Annotated[dict, Depends(pagination_params)]
@@ -28,8 +36,8 @@ router = APIRouter(
 async def list_transfer(
     db: DBsession,
     pagination: PaginationDep,
-    transfer_type: TransferType| None = None, 
-    state: TransferState | None = None, 
+    transfer_type: TransferType | None = None,
+    state: TransferState | None = None,
     warehouse_id: int | None = None,
 ):
     skip, limit = pagination["skip"], pagination["limit"]
@@ -48,7 +56,8 @@ async def list_transfer(
     transfers = (await db.scalars(stmt)).all()
     return transfers
 
-@router.get("/{transfer_id}", response_model= TransferRead)
+
+@router.get("/{transfer_id}", response_model=TransferRead)
 async def get_transfer(db: DBsession, transfer_id: int):
     try:
         return await transfer_service.fetch_transfer(db, transfer_id)
@@ -56,10 +65,14 @@ async def get_transfer(db: DBsession, transfer_id: int):
         raise HTTPException(status_code=404, detail="Transfer Was Not Found") from None
 
 
-@router.post("/{transfer_id}/validate", response_model= TransferRead)
-async def validate_transfer(db: DBsession, transfer_id: int, payload: TransferValidate, user: CurrentUser):
+@router.post("/{transfer_id}/validate", response_model=TransferRead)
+async def validate_transfer(
+    db: DBsession, transfer_id: int, payload: TransferValidate, user: CurrentUser
+):
     try:
-        return await transfer_service.validate_transfer(db, transfer_id=transfer_id, location_id=payload.location_id, user_id= user.id)
+        return await transfer_service.validate_transfer(
+            db, transfer_id=transfer_id, location_id=payload.location_id, user_id=user.id
+        )
     except TransferNotFound:
         raise HTTPException(status_code=404, detail="Transfer Was Not Found") from None
     except TransferNotReady as exc:
@@ -70,19 +83,16 @@ async def validate_transfer(db: DBsession, transfer_id: int, payload: TransferVa
         raise HTTPException(status_code=409, detail=str(exc)) from None
 
 
-
-
-
 @router.post("/internal", response_model=TransferRead, status_code=201)
-async def create_internal_transfer(db: DBsession, payload: InternalTransferCreate, user: CurrentUser):
+async def create_internal_transfer(
+    db: DBsession, payload: InternalTransferCreate, user: CurrentUser
+):
     try:
         return await transfer_service.create_internal_transfer(db, payload, user.id)
     except InvalidReference as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     except InsufficientStock as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
-
-
 
 
 @router.post("/adjustments", response_model=TransferRead, status_code=201)

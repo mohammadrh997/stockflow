@@ -1,29 +1,44 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections import defaultdict
+from collections.abc import Sequence
+from decimal import Decimal
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.sale import SalesOrder, SalesOrderLine, SalesState
 from app.models.partner import Partner
-from app.models.warehouse import Warehouse
-from app.models.stock import Transfer, TransferType, TransferState
-from app.services.references import next_number, RefSequence
-from app.schemas.sale import (SalesOrderCreate, SalesOrderLineUpdate, SalesOrderLineCreate, SalesOrderUpdate)
-from app.services.common import OrderHasNoLines, OrderNotCancellable, OrderNotEditable, InvalidReference, LineNotFound, resolve_warehouse, get_active_product
-from collections import defaultdict
-from decimal import Decimal
-from app.services.stock import lock_products
+from app.models.sale import SalesOrder, SalesOrderLine, SalesState
+from app.models.stock import Transfer, TransferState, TransferType
+from app.schemas.sale import (
+    SalesOrderCreate,
+    SalesOrderLineCreate,
+    SalesOrderLineUpdate,
+    SalesOrderUpdate,
+)
+from app.services.common import (
+    InvalidReference,
+    LineNotFound,
+    OrderHasNoLines,
+    OrderNotCancellable,
+    OrderNotEditable,
+    get_active_product,
+    resolve_warehouse,
+)
+from app.services.references import RefSequence, next_number
+from app.services.stock import available_in_warehouse, lock_products
+from app.services.warehouse import fetch_warehouse
 
-from app.models.product import Product
-from app.services.stock import available_in_warehouse
 
-class SalesOrderNotFound(Exception): ...       # 404 (from the URL)
+class SalesOrderNotFound(Exception): ...  # 404 (from the URL)
+
+
 class InsufficientStock(Exception): ...  # 409
-
 
 
 def _ensure_draft(order: SalesOrder):
     if order.state != SalesState.draft:
         raise OrderNotEditable(order.id)
+
 
 async def _get_customer(db: AsyncSession, partner_id: int) -> Partner:
     partner = await db.get(Partner, partner_id)
@@ -33,16 +48,15 @@ async def _get_customer(db: AsyncSession, partner_id: int) -> Partner:
     return partner
 
 
-
-
-
 async def _build_line(db: AsyncSession, data: SalesOrderLineCreate) -> SalesOrderLine:
     product = await get_active_product(db, data.product_id)
     price = data.unit_price if data.unit_price is not None else product.sale_price
     return SalesOrderLine(product_id=product.id, quantity=data.quantity, unit_price=price)
 
 
-async def create_sales_order(db: AsyncSession, data: SalesOrderCreate, created_by_id: int) -> SalesOrder:
+async def create_sales_order(
+    db: AsyncSession, data: SalesOrderCreate, created_by_id: int
+) -> SalesOrder:
     partner = await _get_customer(db, data.partner_id)
     warehouse = await resolve_warehouse(db, data.warehouse_id)
     lines = [await _build_line(db, line) for line in data.lines]
@@ -58,6 +72,7 @@ async def create_sales_order(db: AsyncSession, data: SalesOrderCreate, created_b
     await db.commit()
     return await fetch_sales_order(db, order.id)
 
+
 async def fetch_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
     order = await db.scalar(
         select(SalesOrder)
@@ -68,6 +83,7 @@ async def fetch_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
     if order is None:
         raise SalesOrderNotFound(order_id)
     return order
+
 
 async def lock_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
     order = await db.scalar(
@@ -81,13 +97,14 @@ async def lock_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
         raise SalesOrderNotFound(order_id)
     return order
 
+
 async def list_sales_orders(
-        db: AsyncSession, 
-        state: SalesState | None = None, 
-        partner_id: int | None = None, 
-        skip: int | None = None, 
-        limit: int | None = None
-        ) -> list[SalesOrder]:
+    db: AsyncSession,
+    state: SalesState | None = None,
+    partner_id: int | None = None,
+    skip: int | None = None,
+    limit: int | None = None,
+) -> Sequence[SalesOrder]:
     stmt = select(SalesOrder).order_by(SalesOrder.id)
     if state:
         stmt = stmt.where(SalesOrder.state == state)
@@ -117,6 +134,7 @@ async def update_sales_order(db: AsyncSession, order_id: int, data: SalesOrderUp
     await db.commit()
     return await fetch_sales_order(db, order.id)
 
+
 async def add_line(db: AsyncSession, order_id: int, data: SalesOrderLineCreate) -> SalesOrder:
     order = await lock_sales_order(db, order_id)
     _ensure_draft(order)
@@ -138,7 +156,10 @@ async def _fetch_line(db: AsyncSession, order_id: int, line_id: int) -> SalesOrd
         raise LineNotFound(line_id)
     return line
 
-async def update_line(db: AsyncSession, order_id: int, line_id: int, data: SalesOrderLineUpdate) -> SalesOrder:
+
+async def update_line(
+    db: AsyncSession, order_id: int, line_id: int, data: SalesOrderLineUpdate
+) -> SalesOrder:
     order = await lock_sales_order(db, order_id)
     _ensure_draft(order)
     order_line = await _fetch_line(db, order_id, line_id)
@@ -159,6 +180,7 @@ async def delete_line(db: AsyncSession, order_id: int, line_id: int) -> SalesOrd
     await db.commit()
     return await fetch_sales_order(db, order_id)
 
+
 async def confirm_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
     order = await lock_sales_order(db, order_id)
     _ensure_draft(order)
@@ -178,9 +200,9 @@ async def confirm_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
             shortages.append(f"product {product_id}: requested {quantity}, available {available}")
     if shortages:
         raise InsufficientStock("; ".join(shortages))
-    
+
     order.state = SalesState.confirmed
-    warehouse = await db.get(Warehouse, order.warehouse_id)
+    warehouse = await fetch_warehouse(db, order.warehouse_id)
     number = await next_number(db, RefSequence.delivery)
     db.add(
         Transfer(
@@ -192,6 +214,7 @@ async def confirm_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
     )
     await db.commit()
     return await fetch_sales_order(db, order_id)
+
 
 async def cancel_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
     order = await lock_sales_order(db, order_id)

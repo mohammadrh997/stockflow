@@ -46,7 +46,12 @@ async def test_unknown_access_level_is_rejected(client, make_user):
     admin = await make_user(is_admin=True)
     response = await client.post(
         "/users",
-        json={"email": "x@example.com", "name": "X", "password": "password123", "sales_access": "boss"},
+        json={
+            "email": "x@example.com",
+            "name": "X",
+            "password": "password123",
+            "sales_access": "boss",
+        },
         headers=auth(admin),
     )
     assert response.status_code == 422
@@ -54,7 +59,9 @@ async def test_unknown_access_level_is_rejected(client, make_user):
 
 async def test_admin_cannot_remove_own_admin_flag(client, make_user):
     admin = await make_user(is_admin=True)
-    response = await client.patch(f"/users/{admin.id}", json={"is_admin": False}, headers=auth(admin))
+    response = await client.patch(
+        f"/users/{admin.id}", json={"is_admin": False}, headers=auth(admin)
+    )
     assert response.status_code == 400
 
 
@@ -81,7 +88,9 @@ async def test_reset_password_ends_old_sessions(client, make_user):
     old_headers = auth_issued_ago(user, seconds=60)
 
     response = await client.post(
-        f"/users/{user.id}/reset-password", json={"new_password": "new-password-456"}, headers=auth(admin)
+        f"/users/{user.id}/reset-password",
+        json={"new_password": "new-password-456"},
+        headers=auth(admin),
     )
     assert response.status_code == 204
     assert (await client.get("/auth/me", headers=old_headers)).status_code == 401

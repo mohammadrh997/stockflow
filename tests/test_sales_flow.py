@@ -2,10 +2,15 @@ from decimal import Decimal
 
 from app.models.user import Access
 from tests.helpers import (
-    auth, create_location, create_so, delivery_of, create_product, main_warehouse, receive_stock, stock_of,
+    auth,
+    create_location,
+    create_product,
+    create_so,
+    delivery_of,
+    main_warehouse,
+    receive_stock,
+    stock_of,
 )
-
-
 
 
 async def test_confirm_reserves_stock(client, boss):
@@ -17,12 +22,16 @@ async def test_confirm_reserves_stock(client, boss):
     response = await client.post(f"/sales-orders/{so['id']}/confirm", headers=boss)
     assert response.status_code == 200
     assert await stock_of(client, boss, product["id"]) == {
-        "on_hand": Decimal(10), "reserved": Decimal(6), "available": Decimal(4),
+        "on_hand": Decimal(10),
+        "reserved": Decimal(6),
+        "available": Decimal(4),
     }
     delivery = await delivery_of(client, boss, so["id"])
     assert delivery["reference"] == "WH/OUT/00001"
     assert delivery["state"] == "ready"
-    assert (await client.get(f"/partners/{customer['id']}", headers=boss)).json()["is_customer"] is True
+    assert (await client.get(f"/partners/{customer['id']}", headers=boss)).json()[
+        "is_customer"
+    ] is True
 
 
 async def test_confirm_refuses_to_oversell(client, boss):
@@ -36,7 +45,9 @@ async def test_confirm_refuses_to_oversell(client, boss):
     assert response.status_code == 409
     assert "requested 5" in response.json()["detail"]
     assert "available 4" in response.json()["detail"]
-    assert (await client.get(f"/sales-orders/{second['id']}", headers=boss)).json()["state"] == "draft"
+    assert (await client.get(f"/sales-orders/{second['id']}", headers=boss)).json()[
+        "state"
+    ] == "draft"
 
 
 async def test_lines_of_the_same_product_are_checked_together(client, boss):
@@ -62,7 +73,7 @@ async def test_delivery_splits_default_location_first(client, boss):
     product = await create_product(client, boss)
     warehouse = await main_warehouse(client, boss)
     shelf = await create_location(client, boss, "Shelf A", warehouse["id"])
-    await receive_stock(client, boss, product["id"], 5)                          # → Stock (default)
+    await receive_stock(client, boss, product["id"], 5)  # → Stock (default)
     await receive_stock(client, boss, product["id"], 5, location_id=shelf["id"])  # → Shelf A
 
     so, _ = await create_so(client, boss, [(product["id"], 9)])
@@ -71,12 +82,20 @@ async def test_delivery_splits_default_location_first(client, boss):
     response = await client.post(f"/transfers/{delivery['id']}/validate", json={}, headers=boss)
     assert response.status_code == 200
 
-    picks = sorted((m["from_location_id"], Decimal(m["quantity"])) for m in response.json()["moves"])
-    assert picks == sorted([(warehouse["default_location_id"], Decimal(5)), (shelf["id"], Decimal(4))])
+    picks = sorted(
+        (m["from_location_id"], Decimal(m["quantity"])) for m in response.json()["moves"]
+    )
+    assert picks == sorted(
+        [(warehouse["default_location_id"], Decimal(5)), (shelf["id"], Decimal(4))]
+    )
     assert await stock_of(client, boss, product["id"]) == {
-        "on_hand": Decimal(1), "reserved": Decimal(0), "available": Decimal(1),
+        "on_hand": Decimal(1),
+        "reserved": Decimal(0),
+        "available": Decimal(1),
     }
-    assert (await client.get(f"/sales-orders/{so['id']}", headers=boss)).json()["state"] == "delivered"
+    assert (await client.get(f"/sales-orders/{so['id']}", headers=boss)).json()[
+        "state"
+    ] == "delivered"
 
 
 async def test_chosen_location_must_hold_everything_and_nothing_moves_on_failure(client, boss):

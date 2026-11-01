@@ -2,7 +2,15 @@ import asyncio
 from collections import Counter
 from decimal import Decimal
 
-from tests.helpers import create_product, create_so, delivery_of, receive_stock, stock_of, main_warehouse, create_location
+from tests.helpers import (
+    create_location,
+    create_product,
+    create_so,
+    delivery_of,
+    main_warehouse,
+    receive_stock,
+    stock_of,
+)
 
 
 async def test_concurrent_confirmations_never_oversell(client, boss):
@@ -16,7 +24,9 @@ async def test_concurrent_confirmations_never_oversell(client, boss):
 
     assert Counter(r.status_code for r in responses) == {200: 3, 409: 2}
     assert await stock_of(client, boss, product["id"]) == {
-        "on_hand": Decimal(10), "reserved": Decimal(9), "available": Decimal(1),
+        "on_hand": Decimal(10),
+        "reserved": Decimal(9),
+        "available": Decimal(1),
     }
 
 
@@ -28,7 +38,10 @@ async def test_concurrent_delivery_validations_move_stock_once(client, boss):
     delivery = await delivery_of(client, boss, so["id"])
 
     responses = await asyncio.gather(
-        *(client.post(f"/transfers/{delivery['id']}/validate", json={}, headers=boss) for _ in range(3))
+        *(
+            client.post(f"/transfers/{delivery['id']}/validate", json={}, headers=boss)
+            for _ in range(3)
+        )
     )
 
     assert Counter(r.status_code for r in responses) == {200: 1, 409: 2}
@@ -41,7 +54,10 @@ async def test_concurrent_receipt_validations_add_stock_once(client, boss):
     po = (
         await client.post(
             "/purchase-orders",
-            json={"partner_id": supplier["id"], "lines": [{"product_id": product["id"], "quantity": "10"}]},
+            json={
+                "partner_id": supplier["id"],
+                "lines": [{"product_id": product["id"], "quantity": "10"}],
+            },
             headers=boss,
         )
     ).json()
@@ -50,7 +66,10 @@ async def test_concurrent_receipt_validations_add_stock_once(client, boss):
     receipt = next(t for t in transfers if t["purchase_order_id"] == po["id"])
 
     responses = await asyncio.gather(
-        *(client.post(f"/transfers/{receipt['id']}/validate", json={}, headers=boss) for _ in range(3))
+        *(
+            client.post(f"/transfers/{receipt['id']}/validate", json={}, headers=boss)
+            for _ in range(3)
+        )
     )
 
     assert Counter(r.status_code for r in responses) == {200: 1, 409: 2}
@@ -71,6 +90,7 @@ async def test_opposite_product_order_does_not_deadlock(client, boss):
     )
 
     assert [r.status_code for r in responses] == [200, 200]
+
 
 async def test_opposite_internal_transfers_do_not_deadlock(client, boss):
     product = await create_product(client, boss)

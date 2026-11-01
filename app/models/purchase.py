@@ -1,20 +1,19 @@
 import enum
-from sqlalchemy import CheckConstraint, func, DateTime, Enum, ForeignKey, Numeric
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.models.checks import enum_check
 from datetime import datetime
 from decimal import Decimal
-
-
-from app.core.database import Base
-
 from typing import TYPE_CHECKING
 
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Numeric, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
+from app.models.checks import enum_check
+
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.partner import Partner
-    from app.models.warehouse import Warehouse
     from app.models.product import Product
+    from app.models.user import User
+    from app.models.warehouse import Warehouse
 
 
 class PurchaseState(enum.StrEnum):
@@ -34,13 +33,15 @@ class PurchaseOrder(Base):
     partner: Mapped["Partner"] = relationship()
     warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"))
     warehouse: Mapped["Warehouse"] = relationship()
-    state: Mapped[PurchaseState] = mapped_column(Enum(PurchaseState, native_enum=False), server_default= "draft")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    state: Mapped[PurchaseState] = mapped_column(
+        Enum(PurchaseState, native_enum=False), server_default="draft"
     )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_by: Mapped["User"] = relationship()
-    lines: Mapped[list["PurchaseOrderLine"]] = relationship(back_populates="order", cascade="all, delete-orphan")
+    lines: Mapped[list["PurchaseOrderLine"]] = relationship(
+        back_populates="order", cascade="all, delete-orphan"
+    )
 
 
 class PurchaseOrderLine(Base):
@@ -54,4 +55,3 @@ class PurchaseOrderLine(Base):
     product: Mapped["Product"] = relationship()
     quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3))
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
-

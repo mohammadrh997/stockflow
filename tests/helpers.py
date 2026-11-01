@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import jwt
 
@@ -21,7 +22,6 @@ def auth_issued_ago(user: User, seconds: int) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-from decimal import Decimal
 
 
 async def create_product(client, headers, sku="CHR-001", sale_price="50.00", cost_price="30.00"):
@@ -45,7 +45,9 @@ async def main_warehouse(client, headers):
 
 
 async def create_location(client, headers, name, warehouse_id):
-    response = await client.post("/locations", json={"name": name, "warehouse_id": warehouse_id}, headers=headers)
+    response = await client.post(
+        "/locations", json={"name": name, "warehouse_id": warehouse_id}, headers=headers
+    )
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -55,12 +57,17 @@ async def receive_stock(client, headers, product_id, quantity, location_id=None)
     po = (
         await client.post(
             "/purchase-orders",
-            json={"partner_id": supplier["id"], "lines": [{"product_id": product_id, "quantity": str(quantity)}]},
+            json={
+                "partner_id": supplier["id"],
+                "lines": [{"product_id": product_id, "quantity": str(quantity)}],
+            },
             headers=headers,
         )
     ).json()
     await client.post(f"/purchase-orders/{po['id']}/confirm", headers=headers)
-    transfers = (await client.get("/transfers?transfer_type=receipt&state=ready", headers=headers)).json()
+    transfers = (
+        await client.get("/transfers?transfer_type=receipt&state=ready", headers=headers)
+    ).json()
     receipt = next(t for t in transfers if t["purchase_order_id"] == po["id"])
     body = {"location_id": location_id} if location_id else {}
     response = await client.post(f"/transfers/{receipt['id']}/validate", json=body, headers=headers)

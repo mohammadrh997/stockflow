@@ -1,13 +1,13 @@
 import logging
 
 from sqlalchemy import exists, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.user import User
+from app.models.warehouse import Location, LocationType, Warehouse
 from app.schemas.user import UserCreate
-from app.models.warehouse import Warehouse, Location, LocationType
 from app.schemas.warehouse import WarehouseCreate
 from app.services.users import EmailAlreadyExists, create_user
 from app.services.warehouse import CodeAlreadyExists, create_warehouse
@@ -53,15 +53,17 @@ async def ensure_virtual_locations(db: AsyncSession) -> None:
         except IntegrityError:
             await db.rollback()
 
+
 async def ensure_defaults(db: AsyncSession) -> None:
     await ensure_virtual_locations(db)
     if await db.scalar(select(exists().select_from(Warehouse))):
-            return
+        return
     try:
         await create_warehouse(db, WarehouseCreate(name="Main Warehouse", code="WH"))
         logger.info("Created default warehouse WH")
     except CodeAlreadyExists:
-        pass # another worker created it at the same moment
+        pass  # another worker created it at the same moment
+
 
 async def bootstrap(db: AsyncSession) -> None:
     await ensure_admin(db)

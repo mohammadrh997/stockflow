@@ -1,15 +1,18 @@
 import enum
-from sqlalchemy import true, ForeignKey, Enum, Index, text, UniqueConstraint
+
+from sqlalchemy import Enum, ForeignKey, Index, UniqueConstraint, text, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.checks import enum_check
+
 
 class LocationType(enum.StrEnum):
     internal = "internal"
     supplier = "supplier"
     customer = "customer"
     loss = "loss"
+
 
 class Warehouse(Base):
     __tablename__ = "warehouses"
@@ -38,12 +41,13 @@ class Location(Base):
     __table_args__ = (
         enum_check("location_type", LocationType),
         Index(
-        "uq_locations_virtual_type",
-        "location_type",
-        unique=True,
-        postgresql_where=text("location_type <> 'internal'"),),
+            "uq_locations_virtual_type",
+            "location_type",
+            unique=True,
+            postgresql_where=text("location_type <> 'internal'"),
+        ),
         UniqueConstraint("warehouse_id", "name", name="uq_locations_warehouse_id_name"),
-                      )
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]

@@ -14,4 +14,5 @@ class RefSequence(enum.StrEnum):
 
 
 async def next_number(db: AsyncSession, sequence: RefSequence) -> int:
-    return await db.scalar(select(func.nextval(sequence.value)))
+    result = await db.execute(select(func.nextval(sequence.value)))
+    return result.scalar_one()

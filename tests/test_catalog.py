@@ -6,6 +6,7 @@ CHAIR = {"name": "Chair", "sku": "  chr-001 ", "sale_price": "50.00", "cost_pric
 
 # ---------- products ----------
 
+
 async def test_products_require_login(client):
     assert (await client.get("/products")).status_code == 401
 
@@ -38,8 +39,12 @@ async def test_duplicate_sku_is_rejected(client, make_user):
 
 async def test_invalid_prices_are_rejected(client, make_user):
     manager = await make_user(inventory_access=Access.manager)
-    negative = await client.post("/products", json={**CHAIR, "sale_price": "-1"}, headers=auth(manager))
-    too_precise = await client.post("/products", json={**CHAIR, "sale_price": "12.999"}, headers=auth(manager))
+    negative = await client.post(
+        "/products", json={**CHAIR, "sale_price": "-1"}, headers=auth(manager)
+    )
+    too_precise = await client.post(
+        "/products", json={**CHAIR, "sale_price": "12.999"}, headers=auth(manager)
+    )
     assert negative.status_code == 422
     assert too_precise.status_code == 422
 
@@ -56,6 +61,7 @@ async def test_archived_products_are_hidden_by_default(client, make_user):
 
 
 # ---------- partners ----------
+
 
 async def test_any_user_can_read_partners_but_only_sales_or_purchase_can_write(client, make_user):
     worker = await make_user(inventory_access=Access.user)
@@ -91,8 +97,12 @@ async def test_partner_null_clears_optional_fields_but_not_name(client, make_use
 
 async def test_partner_filters(client, make_user):
     seller = await make_user(sales_access=Access.user)
-    await client.post("/partners", json={"name": "Customer Co", "is_customer": True}, headers=auth(seller))
-    await client.post("/partners", json={"name": "Supplier Co", "is_supplier": True}, headers=auth(seller))
+    await client.post(
+        "/partners", json={"name": "Customer Co", "is_customer": True}, headers=auth(seller)
+    )
+    await client.post(
+        "/partners", json={"name": "Supplier Co", "is_supplier": True}, headers=auth(seller)
+    )
 
     customers = (await client.get("/partners?is_customer=true", headers=auth(seller))).json()
     assert [p["name"] for p in customers] == ["Customer Co"]

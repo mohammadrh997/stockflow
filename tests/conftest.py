@@ -5,30 +5,33 @@ TEST_DATABASE_URL = os.environ.get(
     "postgresql+asyncpg://stockflow:stockflow@localhost:5432/stockflow_test",
 )
 if "test" not in TEST_DATABASE_URL.rsplit("/", 1)[-1]:
-    raise RuntimeError("Refusing to run: the test database name must contain 'test' (tests delete all data)")
+    raise RuntimeError(
+        "Refusing to run: the test database name must contain 'test' (tests delete all data)"
+    )
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL  # before any app import, so app and Alembic use it
 
 from collections.abc import AsyncIterator, Awaitable, Callable  # noqa: E402
 
 import pytest  # noqa: E402
-from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
 
+from alembic import command  # noqa: E402
 from app.core.database import Base  # noqa: E402
+from app.core.limiter import limiter  # noqa: E402
 from app.dependencies import get_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models.user import User  # noqa: E402
+from app.models.user import (
+    Access,  # noqa: E402
+    User,  # noqa: E402
+)
 from app.schemas.user import UserCreate  # noqa: E402
 from app.services.bootstrap import ensure_defaults  # noqa: E402
 from app.services.users import create_user  # noqa: E402
-from app.models.user import Access # noqa: E402
-from tests.helpers import auth # noqa: E402
-from app.core.limiter import limiter # noqa: E402
-
+from tests.helpers import auth  # noqa: E402
 
 engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
@@ -100,8 +103,6 @@ def make_user(db: AsyncSession) -> UserFactory:
         return await create_user(db, data)
 
     return _make
-
-
 
 
 @pytest.fixture

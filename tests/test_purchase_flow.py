@@ -1,14 +1,22 @@
 from decimal import Decimal
 
 from app.models.user import Access
-from tests.helpers import auth, create_location, create_partner, create_product, main_warehouse, stock_of
+from tests.helpers import (
+    auth,
+    create_partner,
+    create_product,
+    stock_of,
+)
 
 
 async def create_po(client, headers, product_id, quantity="10"):
     supplier = await create_partner(client, headers, name="Acme")
     response = await client.post(
         "/purchase-orders",
-        json={"partner_id": supplier["id"], "lines": [{"product_id": product_id, "quantity": quantity}]},
+        json={
+            "partner_id": supplier["id"],
+            "lines": [{"product_id": product_id, "quantity": quantity}],
+        },
         headers=headers,
     )
     assert response.status_code == 201, response.text
@@ -43,7 +51,9 @@ async def test_full_purchase_flow(client, boss):
     assert Decimal(moves[0]["quantity"]) == 10
 
     assert await stock_of(client, boss, product["id"]) == {
-        "on_hand": Decimal(10), "reserved": Decimal(0), "available": Decimal(10),
+        "on_hand": Decimal(10),
+        "reserved": Decimal(0),
+        "available": Decimal(10),
     }
     order = (await client.get(f"/purchase-orders/{po['id']}", headers=boss)).json()
     assert order["state"] == "received"
@@ -51,7 +61,9 @@ async def test_full_purchase_flow(client, boss):
 
 async def test_empty_order_cannot_be_confirmed(client, boss):
     supplier = await create_partner(client, boss)
-    po = (await client.post("/purchase-orders", json={"partner_id": supplier["id"]}, headers=boss)).json()
+    po = (
+        await client.post("/purchase-orders", json={"partner_id": supplier["id"]}, headers=boss)
+    ).json()
     response = await client.post(f"/purchase-orders/{po['id']}/confirm", headers=boss)
     assert response.status_code == 409
 
@@ -61,7 +73,9 @@ async def test_confirmed_order_cannot_be_edited(client, boss):
     po, _ = await create_po(client, boss, product["id"])
     await client.post(f"/purchase-orders/{po['id']}/confirm", headers=boss)
     response = await client.post(
-        f"/purchase-orders/{po['id']}/lines", json={"product_id": product["id"], "quantity": "1"}, headers=boss
+        f"/purchase-orders/{po['id']}/lines",
+        json={"product_id": product["id"], "quantity": "1"},
+        headers=boss,
     )
     assert response.status_code == 409
 
@@ -71,7 +85,9 @@ async def test_line_of_another_order_is_not_found(client, boss):
     first, _ = await create_po(client, boss, product["id"])
     second, _ = await create_po(client, boss, product["id"])
     other_line_id = second["lines"][0]["id"]
-    response = await client.delete(f"/purchase-orders/{first['id']}/lines/{other_line_id}", headers=boss)
+    response = await client.delete(
+        f"/purchase-orders/{first['id']}/lines/{other_line_id}", headers=boss
+    )
     assert response.status_code == 404
 
 
@@ -123,7 +139,9 @@ async def test_receipt_into_another_warehouses_location_is_rejected(client, boss
     po, _ = await create_po(client, boss, product["id"])
     await client.post(f"/purchase-orders/{po['id']}/confirm", headers=boss)
     receipt = await ready_receipt(client, boss, po["id"])
-    erbil = (await client.post("/warehouses", json={"name": "Erbil", "code": "ERB"}, headers=boss)).json()
+    erbil = (
+        await client.post("/warehouses", json={"name": "Erbil", "code": "ERB"}, headers=boss)
+    ).json()
 
     response = await client.post(
         f"/transfers/{receipt['id']}/validate",
@@ -133,13 +151,17 @@ async def test_receipt_into_another_warehouses_location_is_rejected(client, boss
     assert response.status_code == 400
     assert (await stock_of(client, boss, product["id"]))["on_hand"] == 0
 
+
 async def test_warehouse_is_required_when_there_are_several(client, boss):
     product = await create_product(client, boss)
     await client.post("/warehouses", json={"name": "Erbil", "code": "ERB"}, headers=boss)
     supplier = await create_partner(client, boss)
     response = await client.post(
         "/purchase-orders",
-        json={"partner_id": supplier["id"], "lines": [{"product_id": product["id"], "quantity": "1"}]},
+        json={
+            "partner_id": supplier["id"],
+            "lines": [{"product_id": product["id"], "quantity": "1"}],
+        },
         headers=boss,
     )
     assert response.status_code == 400

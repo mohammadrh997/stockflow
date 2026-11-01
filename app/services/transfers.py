@@ -1,24 +1,23 @@
+from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.product import Product
 from app.models.purchase import PurchaseState
 from app.models.sale import SalesState
-from app.models.product import Product
 from app.models.stock import StockMove, Transfer, TransferState, TransferType
 from app.models.warehouse import Location, LocationType, Warehouse
-from app.services.stock import on_hand_by_location
-from app.services.purchase import lock_purchase_order
-from app.services.warehouse import get_virtual_location
-from app.services.common import InvalidReference
-from app.services.sale import InsufficientStock, lock_sales_order
-from app.services.stock import lock_products, lock_locations
-from collections import defaultdict
 from app.schemas.stock import AdjustmentCreate, InternalTransferCreate
-
+from app.services.common import InvalidReference
+from app.services.purchase import lock_purchase_order
 from app.services.references import RefSequence, next_number
+from app.services.sale import InsufficientStock, lock_sales_order
+from app.services.stock import lock_locations, lock_products, on_hand_by_location
+from app.services.warehouse import fetch_warehouse, get_virtual_location
 
 _DONE_TYPES = {
     TransferType.internal: ("INT", RefSequence.internal),
@@ -26,9 +25,12 @@ _DONE_TYPES = {
 }
 
 
-
 class NothingToAdjust(Exception): ...  # 409
+
+
 class TransferNotFound(Exception): ...  # 404
+
+
 class TransferNotReady(Exception): ...  # 409
 
 
@@ -39,6 +41,7 @@ def _transfer_query(transfer_id: int):
         .options(selectinload(Transfer.moves))
         .execution_options(populate_existing=True)
     )
+
 
 def _allocate(
     needed: Decimal,
@@ -57,6 +60,7 @@ def _allocate(
     if needed > 0:
         raise InsufficientStock("not enough stock in the chosen location(s)")
     return picks
+
 
 async def _create_done_transfer(
     db: AsyncSession, transfer_type: TransferType, warehouse: Warehouse, user_id: int
@@ -77,7 +81,11 @@ async def _create_done_transfer(
 
 async def _get_internal_location(db: AsyncSession, location_id: int) -> Location:
     location = await db.get(Location, location_id, with_for_update=True)
-    if location is None or location.location_type != LocationType.internal or not location.is_active:
+    if (
+        location is None
+        or location.location_type != LocationType.internal
+        or not location.is_active
+    ):
         raise InvalidReference(f"location {location_id} is not an active internal location")
     return location
 
@@ -87,7 +95,7 @@ async def _ensure_products_exist(db: AsyncSession, product_ids: set[int]) -> Non
     missing = product_ids - found
     if missing:
         raise InvalidReference(f"products not found: {sorted(missing)}")
-    
+
 
 async def fetch_transfer(db: AsyncSession, transfer_id: int) -> Transfer:
     transfer = await db.scalar(_transfer_query(transfer_id))
@@ -103,9 +111,11 @@ async def _lock_transfer(db: AsyncSession, transfer_id: int) -> Transfer:
     return transfer
 
 
-async def _resolve_destination(db: AsyncSession, warehouse_id: int, location_id: int | None) -> Location:
+async def _resolve_destination(
+    db: AsyncSession, warehouse_id: int, location_id: int | None
+) -> Location:
     if location_id is None:
-        warehouse = await db.get(Warehouse, warehouse_id)
+        warehouse = await fetch_warehouse(db, warehouse_id)
         location_id = warehouse.default_location_id
     location = await db.get(Location, location_id, with_for_update=True)
     if (
@@ -114,7 +124,9 @@ async def _resolve_destination(db: AsyncSession, warehouse_id: int, location_id:
         or location.warehouse_id != warehouse_id
         or not location.is_active
     ):
-        raise InvalidReference(f"location {location_id} is not an active internal location of this warehouse")
+        raise InvalidReference(
+            f"location {location_id} is not an active internal location of this warehouse"
+        )
     return location
 
 
@@ -122,6 +134,10 @@ async def validate_receipt(
     db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int
 ) -> Transfer:
     transfer = await fetch_transfer(db, transfer_id)
+    # validate_receipt
+    if transfer.purchase_order_id is None:
+        raise TransferNotReady(f"{transfer.reference} has no purchase order")
+    order = await lock_purchase_order(db, transfer.purchase_order_id)
     order = await lock_purchase_order(db, transfer.purchase_order_id)
     transfer = await _lock_transfer(db, transfer_id)
     if transfer.state != TransferState.ready or order.state != PurchaseState.confirmed:
@@ -147,11 +163,14 @@ async def validate_receipt(
     await db.commit()
     return await fetch_transfer(db, transfer_id)
 
+
 async def validate_delivery(
     db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int
 ) -> Transfer:
     # Lock order → transfer → locations → products (the same order as confirm and cancel)
     transfer = await fetch_transfer(db, transfer_id)
+    if transfer.sales_order_id is None:
+        raise TransferNotReady(f"{transfer.reference} has no sale order")
     order = await lock_sales_order(db, transfer.sales_order_id)
     transfer = await _lock_transfer(db, transfer_id)
     if transfer.state != TransferState.ready or order.state != SalesState.confirmed:
@@ -162,7 +181,7 @@ async def validate_delivery(
         chosen = await _resolve_destination(db, transfer.warehouse_id, location_id)
         fixed_order = [chosen.id]
     else:
-        warehouse = await db.get(Warehouse, transfer.warehouse_id)
+        warehouse = await fetch_warehouse(db, transfer.warehouse_id)
         fixed_order = None
 
     product_ids = sorted({line.product_id for line in order.lines})
@@ -179,6 +198,7 @@ async def validate_delivery(
         if fixed_order is not None:
             location_order = fixed_order
         else:
+            assert warehouse.default_location_id is not None  # set when the warehouse is created
             others = sorted(loc for loc in stock if loc != warehouse.default_location_id)
             location_order = [warehouse.default_location_id, *others]
 
@@ -203,7 +223,9 @@ async def validate_delivery(
     return await fetch_transfer(db, transfer_id)
 
 
-async def validate_transfer(db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int) -> Transfer:
+async def validate_transfer(
+    db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int
+) -> Transfer:
     transfer = await fetch_transfer(db, transfer_id)
     if transfer.transfer_type == TransferType.receipt:
         return await validate_receipt(db, transfer_id, location_id, user_id)
@@ -211,12 +233,14 @@ async def validate_transfer(db: AsyncSession, transfer_id: int, location_id: int
         return await validate_delivery(db, transfer_id, location_id, user_id)
     raise TransferNotReady(f"{transfer.reference} is created already validated")
 
+
 async def create_internal_transfer(
     db: AsyncSession, data: InternalTransferCreate, user_id: int
 ) -> Transfer:
     # Locations: both internal and active, same warehouse, not the same one
     await lock_locations(db, [data.from_location_id, data.to_location_id])
     source = await _get_internal_location(db, data.from_location_id)
+    assert source.warehouse_id is not None
     destination = await _resolve_destination(db, source.warehouse_id, data.to_location_id)
     if source.id == destination.id:
         raise InvalidReference("source and destination must be different locations")
@@ -239,7 +263,7 @@ async def create_internal_transfer(
         raise InsufficientStock("; ".join(shortages))
 
     # The document and its moves, saved together
-    warehouse = await db.get(Warehouse, source.warehouse_id)
+    warehouse = await fetch_warehouse(db, source.warehouse_id)
     transfer = await _create_done_transfer(db, TransferType.internal, warehouse, user_id)
     for line in data.lines:
         db.add(
@@ -257,8 +281,6 @@ async def create_internal_transfer(
     return await fetch_transfer(db, transfer.id)
 
 
-
-
 async def create_adjustment(db: AsyncSession, data: AdjustmentCreate, user_id: int) -> Transfer:
     location = await _get_internal_location(db, data.location_id)
     product_ids = {line.product_id for line in data.lines}
@@ -270,6 +292,7 @@ async def create_adjustment(db: AsyncSession, data: AdjustmentCreate, user_id: i
 
     moves = []
     for line in data.lines:
+        assert location.warehouse_id is not None  # internal locations always belong to a warehouse
         stock = await on_hand_by_location(db, line.product_id, location.warehouse_id)
         current = stock.get(location.id, Decimal("0"))
         difference = line.counted_quantity - current
@@ -292,8 +315,8 @@ async def create_adjustment(db: AsyncSession, data: AdjustmentCreate, user_id: i
 
     if not moves:
         raise NothingToAdjust("counted quantities match current stock")
-
-    warehouse = await db.get(Warehouse, location.warehouse_id)
+    assert location.warehouse_id is not None  # internal locations always belong to a warehouse
+    warehouse = await fetch_warehouse(db, location.warehouse_id)
     transfer = await _create_done_transfer(db, TransferType.adjustment, warehouse, user_id)
     for move in moves:
         move.transfer = transfer

@@ -1,8 +1,11 @@
-from pydantic import BaseModel, Field, model_validator
-from decimal import Decimal
 from datetime import datetime
-from app.models.stock import TransferType, TransferState
+from decimal import Decimal
+
+from pydantic import BaseModel, Field, model_validator
+
+from app.models.stock import TransferState, TransferType
 from app.schemas.common import Quantity
+
 
 class StockRow(BaseModel):
     product_id: int
@@ -29,9 +32,9 @@ class StockMoveRead(BaseModel):
     created_at: datetime
 
 
-
 class TransferValidate(BaseModel):
     location_id: int | None = None
+
 
 class TransferRead(BaseModel):
     model_config = {"from_attributes": True}

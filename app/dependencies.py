@@ -1,17 +1,14 @@
 import enum
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status, Query
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import AsyncSessionLocal
 from app.core.security import decode_token
 from app.models.user import Access, User
-from collections.abc import AsyncGenerator
-
-from app.core.database import AsyncSessionLocal
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
@@ -23,14 +20,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 DBsession = Annotated[AsyncSession, Depends(get_db)]
 
+
 class Module(enum.StrEnum):
     sales = "sales"
     purchase = "purchase"
     inventory = "inventory"
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], db: DBsession
-) -> User:
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DBsession) -> User:
     credentials_error = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
@@ -44,7 +41,9 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise credentials_error
 
-    if user.password_changed_at and token_data.issued_at < int(user.password_changed_at.timestamp()):
+    if user.password_changed_at and token_data.issued_at < int(
+        user.password_changed_at.timestamp()
+    ):
         raise credentials_error
     return user
 
@@ -57,12 +56,14 @@ async def require_admin(user: CurrentUser) -> User:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 
+
 def _access_level(user: User, module: Module) -> Access:
     return {
         Module.sales: user.sales_access,
         Module.purchase: user.purchase_access,
         Module.inventory: user.inventory_access,
     }[module]
+
 
 def require_access(module: Module, level: Access) -> Callable[[User], Awaitable[User]]:
     async def checker(user: CurrentUser) -> User:
@@ -72,6 +73,7 @@ def require_access(module: Module, level: Access) -> Callable[[User], Awaitable[
 
     return checker
 
+
 def require_any_access(*modules: Module, level: Access) -> Callable[[User], Awaitable[User]]:
     async def checker(user: CurrentUser) -> User:
         if user.is_admin or any(_access_level(user, m) >= level for m in modules):
@@ -79,6 +81,7 @@ def require_any_access(*modules: Module, level: Access) -> Callable[[User], Awai
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient permissions")
 
     return checker
+
 
 def pagination_params(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, le=100)):
     return {"skip": skip, "limit": limit}

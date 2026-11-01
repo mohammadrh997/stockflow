@@ -1,7 +1,14 @@
 from decimal import Decimal
 
 from app.models.user import Access
-from tests.helpers import auth, create_location, create_product, main_warehouse, receive_stock, stock_of
+from tests.helpers import (
+    auth,
+    create_location,
+    create_product,
+    main_warehouse,
+    receive_stock,
+    stock_of,
+)
 
 
 async def loss_location(client, headers):
@@ -23,6 +30,7 @@ async def adjust(client, headers, location_id, product_id, counted, note="cycle 
 
 # ---------- internal transfers ----------
 
+
 async def test_internal_transfer_moves_stock_between_shelves(client, boss):
     product = await create_product(client, boss)
     warehouse = await main_warehouse(client, boss)
@@ -43,8 +51,13 @@ async def test_internal_transfer_moves_stock_between_shelves(client, boss):
     assert body["reference"] == "WH/INT/00001"
     assert body["state"] == "done"
     [move] = body["moves"]
-    assert (move["from_location_id"], move["to_location_id"]) == (warehouse["default_location_id"], shelf["id"])
-    assert (await stock_of(client, boss, product["id"]))["on_hand"] == 5  # warehouse total unchanged
+    assert (move["from_location_id"], move["to_location_id"]) == (
+        warehouse["default_location_id"],
+        shelf["id"],
+    )
+    assert (await stock_of(client, boss, product["id"]))[
+        "on_hand"
+    ] == 5  # warehouse total unchanged
 
 
 async def test_internal_transfer_needs_stock_at_the_source(client, boss):
@@ -58,7 +71,10 @@ async def test_internal_transfer_needs_stock_at_the_source(client, boss):
         json={
             "from_location_id": warehouse["default_location_id"],
             "to_location_id": shelf["id"],
-            "lines": [{"product_id": product["id"], "quantity": "1"}, {"product_id": product["id"], "quantity": "2"}],
+            "lines": [
+                {"product_id": product["id"], "quantity": "1"},
+                {"product_id": product["id"], "quantity": "2"},
+            ],
         },
         headers=boss,
     )
@@ -72,13 +88,21 @@ async def test_internal_transfer_rejects_same_location_and_unknown_product(clien
 
     same = await client.post(
         "/transfers/internal",
-        json={"from_location_id": stock, "to_location_id": stock, "lines": [{"product_id": product["id"], "quantity": "1"}]},
+        json={
+            "from_location_id": stock,
+            "to_location_id": stock,
+            "lines": [{"product_id": product["id"], "quantity": "1"}],
+        },
         headers=boss,
     )
     shelf = await create_location(client, boss, "Shelf A", warehouse["id"])
     unknown = await client.post(
         "/transfers/internal",
-        json={"from_location_id": stock, "to_location_id": shelf["id"], "lines": [{"product_id": 9999, "quantity": "1"}]},
+        json={
+            "from_location_id": stock,
+            "to_location_id": shelf["id"],
+            "lines": [{"product_id": 9999, "quantity": "1"}],
+        },
         headers=boss,
     )
     assert same.status_code == 400
@@ -107,6 +131,7 @@ async def test_done_transfers_cannot_be_validated(client, boss):
 
 
 # ---------- adjustments ----------
+
 
 async def test_counting_less_moves_the_difference_to_loss(client, boss):
     product = await create_product(client, boss)
@@ -141,7 +166,9 @@ async def test_counting_more_brings_the_difference_from_loss(client, boss):
 async def test_adjustment_records_opening_stock(client, boss):
     product = await create_product(client, boss)
     warehouse = await main_warehouse(client, boss)
-    response = await adjust(client, boss, warehouse["default_location_id"], product["id"], 7, note="opening stock")
+    response = await adjust(
+        client, boss, warehouse["default_location_id"], product["id"], 7, note="opening stock"
+    )
     assert response.status_code == 201
     assert (await stock_of(client, boss, product["id"]))["on_hand"] == 7
 
@@ -163,14 +190,20 @@ async def test_adjustment_input_rules(client, boss):
         "/transfers/adjustments",
         json={
             "location_id": location_id,
-            "lines": [{"product_id": product["id"], "counted_quantity": "1"}, {"product_id": product["id"], "counted_quantity": "2"}],
+            "lines": [
+                {"product_id": product["id"], "counted_quantity": "1"},
+                {"product_id": product["id"], "counted_quantity": "2"},
+            ],
             "note": "count",
         },
         headers=boss,
     )
     no_note = await client.post(
         "/transfers/adjustments",
-        json={"location_id": location_id, "lines": [{"product_id": product["id"], "counted_quantity": "1"}]},
+        json={
+            "location_id": location_id,
+            "lines": [{"product_id": product["id"], "counted_quantity": "1"}],
+        },
         headers=boss,
     )
     assert duplicate.status_code == 422

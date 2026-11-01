@@ -3,12 +3,27 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.models.user import User, Access
+from app.dependencies import DBsession, Module, get_current_user, require_access
+from app.models.user import Access, User
 from app.models.warehouse import Location, LocationType, Warehouse
-from app.dependencies import DBsession, Module, require_access, get_current_user
-from app.schemas.warehouse import WarehouseUpdate,WarehouseCreate,WarehouseRead,WarehouseDetail, LocationRead,LocationUpdate,LocationCreate
+from app.schemas.warehouse import (
+    LocationCreate,
+    LocationRead,
+    LocationUpdate,
+    WarehouseCreate,
+    WarehouseDetail,
+    WarehouseRead,
+    WarehouseUpdate,
+)
 from app.services import warehouse as warehouse_service
-from app.services.warehouse import (CodeAlreadyExists, WarehouseNotFound, LocationNotFound, InvalidDefaultLocation, CannotArchiveLocation, LocationNameExists)
+from app.services.warehouse import (
+    CannotArchiveLocation,
+    CodeAlreadyExists,
+    InvalidDefaultLocation,
+    LocationNameExists,
+    LocationNotFound,
+    WarehouseNotFound,
+)
 
 InventoryManager = Annotated[User, Depends(require_access(Module.inventory, Access.manager))]
 
@@ -18,11 +33,13 @@ warehouse_router = APIRouter(
     dependencies=[Depends(get_current_user)],
 )
 
+
 @warehouse_router.get("", response_model=list[WarehouseRead])
 async def get_warehouses(db: DBsession):
     stmt = select(Warehouse).order_by(Warehouse.id)
     warehouses = (await db.scalars(stmt)).all()
     return warehouses
+
 
 @warehouse_router.get("/{warehouse_id}", response_model=WarehouseDetail)
 async def get_warehouse(db: DBsession, warehouse_id: int):
@@ -31,31 +48,39 @@ async def get_warehouse(db: DBsession, warehouse_id: int):
         await db.refresh(warehouse, attribute_names=["locations"])
         return warehouse
     except WarehouseNotFound:
-            raise HTTPException(status_code=404, detail="Warehouse was not Found") from None
+        raise HTTPException(status_code=404, detail="Warehouse was not Found") from None
 
-@warehouse_router.post("", response_model=WarehouseRead, status_code= status.HTTP_201_CREATED)
+
+@warehouse_router.post("", response_model=WarehouseRead, status_code=status.HTTP_201_CREATED)
 async def create_warehouses(db: DBsession, payload: WarehouseCreate, user: InventoryManager):
     try:
         return await warehouse_service.create_warehouse(db, payload)
     except CodeAlreadyExists:
         raise HTTPException(status_code=409, detail="Code already registered") from None
 
+
 @warehouse_router.patch("/{warehouse_id}", response_model=WarehouseRead)
-async def update_warehouse(db: DBsession, warehouse_id: int, payload: WarehouseUpdate, user: InventoryManager):
+async def update_warehouse(
+    db: DBsession, warehouse_id: int, payload: WarehouseUpdate, user: InventoryManager
+):
     try:
         return await warehouse_service.update_warehouse(db, warehouse_id, payload)
     except WarehouseNotFound:
-            raise HTTPException(status_code=404, detail="Warehouse was not Found") from None
+        raise HTTPException(status_code=404, detail="Warehouse was not Found") from None
     except InvalidDefaultLocation as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     except LocationNotFound:
-            raise HTTPException(status_code=404, detail="default_location_id: location not found") from None
+        raise HTTPException(
+            status_code=404, detail="default_location_id: location not found"
+        ) from None
+
 
 location_router = APIRouter(
     prefix="/locations",
     tags=["locations"],
     dependencies=[Depends(get_current_user)],
 )
+
 
 @location_router.get("", response_model=list[LocationRead])
 async def list_locations(
@@ -75,23 +100,27 @@ async def list_locations(
     return locations
 
 
-@location_router.post("", response_model=LocationRead, status_code= status.HTTP_201_CREATED)
+@location_router.post("", response_model=LocationRead, status_code=status.HTTP_201_CREATED)
 async def create_location(db: DBsession, payload: LocationCreate, user: InventoryManager):
     try:
         return await warehouse_service.create_location(db, payload)
     except WarehouseNotFound:
-            raise HTTPException(status_code=400, detail="warehouse_id: warehouse not found") from None
+        raise HTTPException(status_code=400, detail="warehouse_id: warehouse not found") from None
     except LocationNameExists:
         raise HTTPException(status_code=409, detail="Location Name already Exists") from None
-    
+
+
 @location_router.patch("/{location_id}", response_model=LocationRead)
-async def update_location(db: DBsession, location_id: int, payload: LocationUpdate, user: InventoryManager):
+async def update_location(
+    db: DBsession, location_id: int, payload: LocationUpdate, user: InventoryManager
+):
     try:
         return await warehouse_service.update_location(db, location_id, payload)
     except LocationNotFound:
-            raise HTTPException(status_code=404, detail="Location Was Not Found") from None
+        raise HTTPException(status_code=404, detail="Location Was Not Found") from None
     except LocationNameExists:
         raise HTTPException(status_code=409, detail="Location Name already Exists") from None
+
 
 @location_router.post("/{location_id}/archive", response_model=LocationRead)
 async def archive_location(db: DBsession, location_id: int, user: InventoryManager):
@@ -100,7 +129,8 @@ async def archive_location(db: DBsession, location_id: int, user: InventoryManag
     except LocationNotFound:
         raise HTTPException(status_code=404, detail="Location Was Not Found") from None
     except CannotArchiveLocation as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from None 
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
 
 @location_router.post("/{location_id}/unarchive", response_model=LocationRead)
 async def unarchive_location(db: DBsession, location_id: int, user: InventoryManager):

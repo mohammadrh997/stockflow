@@ -1,11 +1,10 @@
-from app.models.product import Product
-from app.models.user import User
-from app.models.warehouse import Location, Warehouse
 from app.models.partner import Partner
+from app.models.product import Product
 from app.models.purchase import PurchaseOrder, PurchaseOrderLine
 from app.models.sale import SalesOrder, SalesOrderLine
-from app.models.stock import Transfer, StockMove
-
+from app.models.stock import StockMove, Transfer
+from app.models.user import User
+from app.models.warehouse import Location, Warehouse
 
 __all__ = [
     "Location",

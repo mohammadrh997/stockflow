@@ -1,22 +1,22 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import jwt
+from fastapi.concurrency import run_in_threadpool
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 
-from fastapi.concurrency import run_in_threadpool
-
 from app.core.config import settings
-
-from dataclasses import dataclass
 
 password_hash = PasswordHash.recommended()
 DUMMY_HASH = password_hash.hash("dummy-password-for-timing")
+
 
 @dataclass(frozen=True)
 class TokenData:
     user_id: int
     issued_at: int
+
 
 async def hash_password(password: str) -> str:
     return await run_in_threadpool(password_hash.hash, password)

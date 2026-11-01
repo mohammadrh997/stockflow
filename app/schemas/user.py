@@ -1,8 +1,19 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field, BeforeValidator, PlainSerializer, WithJsonSchema, AfterValidator, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    EmailStr,
+    Field,
+    PlainSerializer,
+    WithJsonSchema,
+    model_validator,
+)
+
 from app.models.user import Access
+
 
 def _access_from_name(value: object) -> object:
     if isinstance(value, str):
@@ -20,6 +31,7 @@ AccessName = Annotated[
     WithJsonSchema({"type": "string", "enum": list(Access.__members__)}),
 ]
 
+
 class UserBase(BaseModel):
     email: Annotated[EmailStr, AfterValidator(str.lower)]
     name: str = Field(min_length=1, max_length=30)
@@ -27,6 +39,7 @@ class UserBase(BaseModel):
     sales_access: AccessName = Access.none
     purchase_access: AccessName = Access.none
     inventory_access: AccessName = Access.none
+
 
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
@@ -40,11 +53,14 @@ class UserUpdate(BaseModel):
     purchase_access: AccessName | None = None
     inventory_access: AccessName | None = None
 
+
 class PasswordReset(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
+
 class ProfileUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=30)
+
 
 class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
@@ -55,6 +71,7 @@ class PasswordChange(BaseModel):
         if self.new_password == self.current_password:
             raise ValueError("New password must be different from the current password")
         return self
+
 
 class UserRead(UserBase):
     model_config = {"from_attributes": True}
