@@ -15,6 +15,7 @@ import { NewProductPage } from '@/features/products/NewProductPage'
 import { ProductPage } from '@/features/products/ProductPage'
 import { ProductsPage } from '@/features/products/ProductsPage'
 import { NewPurchaseOrderPage } from '@/features/purchase/NewPurchaseOrderPage'
+import { ProfilePage } from '@/features/profile/ProfilePage'
 import { PurchaseOrderPage } from '@/features/purchase/PurchaseOrderPage'
 import { PurchaseOrdersPage } from '@/features/purchase/PurchaseOrdersPage'
 import { NewSalesOrderPage } from '@/features/sales/NewSalesOrderPage'
@@ -48,6 +49,7 @@ export const routes: RouteObject[] = [
             element: <AppLayout />,
             children: [
               { index: true, element: <HomePage /> },
+              { path: 'profile', element: <ProfilePage /> },
               { path: 'products', element: <ProductsPage /> },
               {
                 path: 'products/new',

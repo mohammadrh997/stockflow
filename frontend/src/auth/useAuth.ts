@@ -10,6 +10,8 @@ export type AuthContextValue = {
   sessionExpired: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  // A password change returns a new token; the old one stops working at once.
+  replaceToken: (token: string) => void
 }
 
 export const meQueryKey = ['me'] as const
