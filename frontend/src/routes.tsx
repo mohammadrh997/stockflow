@@ -26,6 +26,7 @@ import { NewInternalTransferPage } from '@/features/transfers/NewInternalTransfe
 import { TransferPage } from '@/features/transfers/TransferPage'
 import { TransfersPage } from '@/features/transfers/TransfersPage'
 import { NewUserPage } from '@/features/users/NewUserPage'
+import { UserPage } from '@/features/users/UserPage'
 import { UsersPage } from '@/features/users/UsersPage'
 import { WarehousePage } from '@/features/warehouses/WarehousePage'
 import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
@@ -127,6 +128,7 @@ export const routes: RouteObject[] = [
                 children: [
                   { index: true, element: <UsersPage /> },
                   { path: 'new', element: <NewUserPage /> },
+                  { path: ':userId', element: <UserPage /> },
                 ],
               },
               { path: '*', element: <NotFoundPage /> },
