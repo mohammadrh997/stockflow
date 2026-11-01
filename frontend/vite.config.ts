@@ -19,5 +19,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     clearMocks: true,
+    env: { VITE_API_URL: 'http://api.test' },
   },
 })
