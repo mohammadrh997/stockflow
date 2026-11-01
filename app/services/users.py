@@ -27,9 +27,10 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
     db.add(user)
     try:
         await db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         await db.rollback()
-        raise EmailAlreadyExists(data.email) from None
+        if "uq_users_email" in str(exc.orig):
+            raise EmailAlreadyExists(data.email) from None
     await db.refresh(user)
     return user
 
@@ -50,9 +51,10 @@ async def update_user(db: AsyncSession, user_id: int, data: UserUpdate, acting_u
         setattr(user, field, value)
     try:
         await db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
             await db.rollback()
-            raise EmailAlreadyExists(data.email) from None
+            if "uq_users_email" in str(exc.orig):
+                raise EmailAlreadyExists(data.email) from None
     await db.refresh(user)
     return user
 
