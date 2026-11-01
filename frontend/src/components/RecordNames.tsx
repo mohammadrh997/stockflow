@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 
 import { usePartner } from '@/features/partners/queries'
 import { useProduct } from '@/features/products/queries'
-import { useWarehouses } from '@/features/warehouses/queries'
+import { useLocations, useWarehouses } from '@/features/warehouses/queries'
 
 // Records reference each other by id; these resolve a name through the shared query cache.
 
@@ -22,6 +22,12 @@ export function PartnerName({ id }: { id: number }) {
       {partner.data?.name ?? `Partner #${id}`}
     </Link>
   )
+}
+
+export function LocationName({ id }: { id: number }) {
+  const locations = useLocations({ include_archived: true })
+  const location = locations.data?.find((l) => l.id === id)
+  return <>{location ? location.name : `Location #${id}`}</>
 }
 
 export function WarehouseName({ id }: { id: number }) {
