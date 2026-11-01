@@ -1,9 +1,15 @@
-name: CI
+name: Backend
 
 on:
   push:
     branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
   pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
 
 concurrency:
   group: ci-${{ github.ref }}
