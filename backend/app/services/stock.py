@@ -81,15 +81,17 @@ async def on_hand_by_location(
 
 async def available_in_warehouse(db: AsyncSession, product_id: int, warehouse_id: int) -> Decimal:
     on_hand = sum((await on_hand_by_location(db, product_id, warehouse_id)).values(), Decimal("0"))
-    reserved = (await db.execute(
-        select(func.coalesce(func.sum(SalesOrderLine.quantity), 0))
-        .join(SalesOrder)
-        .where(
-            SalesOrderLine.product_id == product_id,
-            SalesOrder.warehouse_id == warehouse_id,
-            SalesOrder.state == SalesState.confirmed,
+    reserved = (
+        await db.execute(
+            select(func.coalesce(func.sum(SalesOrderLine.quantity), 0))
+            .join(SalesOrder)
+            .where(
+                SalesOrderLine.product_id == product_id,
+                SalesOrder.warehouse_id == warehouse_id,
+                SalesOrder.state == SalesState.confirmed,
+            )
         )
-    )).scalar_one()
+    ).scalar_one()
     return on_hand - reserved
 
 

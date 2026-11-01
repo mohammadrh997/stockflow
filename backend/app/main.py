@@ -54,7 +54,7 @@ app.include_router(product.router)
 app.include_router(warehouse.warehouse_router)
 app.include_router(warehouse.location_router)
 
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler) # type: ignore[arg-type]
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 
 app.add_middleware(

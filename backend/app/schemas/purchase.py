@@ -26,7 +26,7 @@ class PurchaseOrderLineRead(BaseModel):
     quantity: Decimal
     unit_price: Decimal
 
-    @computed_field # type: ignore[prop-decorator]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def subtotal(self) -> Decimal:
         return (self.quantity * self.unit_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -55,7 +55,7 @@ class PurchaseOrderRead(BaseModel):
     created_at: datetime
     lines: list[PurchaseOrderLineRead]
 
-    @computed_field # type: ignore[prop-decorator]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def total(self) -> Decimal:
         return sum((line.subtotal for line in self.lines), Decimal("0"))

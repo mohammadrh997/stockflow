@@ -22,8 +22,6 @@ def auth_issued_ago(user: User, seconds: int) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-
-
 async def create_product(client, headers, sku="CHR-001", sale_price="50.00", cost_price="30.00"):
     response = await client.post(
         "/products",
