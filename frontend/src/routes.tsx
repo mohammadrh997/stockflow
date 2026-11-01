@@ -21,6 +21,7 @@ import { NewSalesOrderPage } from '@/features/sales/NewSalesOrderPage'
 import { SalesOrderPage } from '@/features/sales/SalesOrderPage'
 import { SalesOrdersPage } from '@/features/sales/SalesOrdersPage'
 import { StockPage } from '@/features/stock/StockPage'
+import { TransfersPage } from '@/features/transfers/TransfersPage'
 import { WarehousePage } from '@/features/warehouses/WarehousePage'
 import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
 
@@ -87,6 +88,15 @@ export const routes: RouteObject[] = [
                   { path: 'new', element: <NewSalesOrderPage /> },
                   { path: ':orderId', element: <SalesOrderPage /> },
                 ],
+              },
+              {
+                path: 'transfers',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'inventory')}>
+                    <Outlet />
+                  </RequireAccess>
+                ),
+                children: [{ index: true, element: <TransfersPage /> }],
               },
               { path: 'warehouses', element: <WarehousesPage /> },
               { path: 'warehouses/:warehouseId', element: <WarehousePage /> },
