@@ -1,3 +1,4 @@
+import { lazy, type ComponentType } from 'react'
 import { Outlet, type RouteObject } from 'react-router'
 
 import { AuthProvider } from '@/auth/AuthProvider'
@@ -9,29 +10,65 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { RouteErrorPage } from '@/components/RouteErrorPage'
 import { HomePage } from '@/features/home/HomePage'
-import { NewPartnerPage } from '@/features/partners/NewPartnerPage'
-import { PartnerPage } from '@/features/partners/PartnerPage'
-import { PartnersPage } from '@/features/partners/PartnersPage'
-import { NewProductPage } from '@/features/products/NewProductPage'
-import { ProductPage } from '@/features/products/ProductPage'
-import { ProductsPage } from '@/features/products/ProductsPage'
-import { NewPurchaseOrderPage } from '@/features/purchase/NewPurchaseOrderPage'
-import { ProfilePage } from '@/features/profile/ProfilePage'
-import { PurchaseOrderPage } from '@/features/purchase/PurchaseOrderPage'
-import { PurchaseOrdersPage } from '@/features/purchase/PurchaseOrdersPage'
-import { NewSalesOrderPage } from '@/features/sales/NewSalesOrderPage'
-import { SalesOrderPage } from '@/features/sales/SalesOrderPage'
-import { SalesOrdersPage } from '@/features/sales/SalesOrdersPage'
-import { StockPage } from '@/features/stock/StockPage'
-import { NewAdjustmentPage } from '@/features/transfers/NewAdjustmentPage'
-import { NewInternalTransferPage } from '@/features/transfers/NewInternalTransferPage'
-import { TransferPage } from '@/features/transfers/TransferPage'
-import { TransfersPage } from '@/features/transfers/TransfersPage'
-import { NewUserPage } from '@/features/users/NewUserPage'
-import { UserPage } from '@/features/users/UserPage'
-import { UsersPage } from '@/features/users/UsersPage'
-import { WarehousePage } from '@/features/warehouses/WarehousePage'
-import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
+
+// Feature pages load on demand, so the first page only downloads what it needs.
+function lazyPage<K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) {
+  return lazy(() => load().then((module) => ({ default: module[name] })))
+}
+
+const NewPartnerPage = lazyPage(
+  () => import('@/features/partners/NewPartnerPage'),
+  'NewPartnerPage',
+)
+const PartnerPage = lazyPage(() => import('@/features/partners/PartnerPage'), 'PartnerPage')
+const PartnersPage = lazyPage(() => import('@/features/partners/PartnersPage'), 'PartnersPage')
+const NewProductPage = lazyPage(
+  () => import('@/features/products/NewProductPage'),
+  'NewProductPage',
+)
+const ProductPage = lazyPage(() => import('@/features/products/ProductPage'), 'ProductPage')
+const ProductsPage = lazyPage(() => import('@/features/products/ProductsPage'), 'ProductsPage')
+const NewPurchaseOrderPage = lazyPage(
+  () => import('@/features/purchase/NewPurchaseOrderPage'),
+  'NewPurchaseOrderPage',
+)
+const ProfilePage = lazyPage(() => import('@/features/profile/ProfilePage'), 'ProfilePage')
+const PurchaseOrderPage = lazyPage(
+  () => import('@/features/purchase/PurchaseOrderPage'),
+  'PurchaseOrderPage',
+)
+const PurchaseOrdersPage = lazyPage(
+  () => import('@/features/purchase/PurchaseOrdersPage'),
+  'PurchaseOrdersPage',
+)
+const NewSalesOrderPage = lazyPage(
+  () => import('@/features/sales/NewSalesOrderPage'),
+  'NewSalesOrderPage',
+)
+const SalesOrderPage = lazyPage(() => import('@/features/sales/SalesOrderPage'), 'SalesOrderPage')
+const SalesOrdersPage = lazyPage(
+  () => import('@/features/sales/SalesOrdersPage'),
+  'SalesOrdersPage',
+)
+const StockPage = lazyPage(() => import('@/features/stock/StockPage'), 'StockPage')
+const NewAdjustmentPage = lazyPage(
+  () => import('@/features/transfers/NewAdjustmentPage'),
+  'NewAdjustmentPage',
+)
+const NewInternalTransferPage = lazyPage(
+  () => import('@/features/transfers/NewInternalTransferPage'),
+  'NewInternalTransferPage',
+)
+const TransferPage = lazyPage(() => import('@/features/transfers/TransferPage'), 'TransferPage')
+const TransfersPage = lazyPage(() => import('@/features/transfers/TransfersPage'), 'TransfersPage')
+const NewUserPage = lazyPage(() => import('@/features/users/NewUserPage'), 'NewUserPage')
+const UserPage = lazyPage(() => import('@/features/users/UserPage'), 'UserPage')
+const UsersPage = lazyPage(() => import('@/features/users/UsersPage'), 'UsersPage')
+const WarehousePage = lazyPage(() => import('@/features/warehouses/WarehousePage'), 'WarehousePage')
+const WarehousesPage = lazyPage(
+  () => import('@/features/warehouses/WarehousesPage'),
+  'WarehousesPage',
+)
 
 // AuthProvider sits inside the router so it and the pages it wraps can use navigation hooks.
 export const routes: RouteObject[] = [

@@ -1,7 +1,9 @@
 import { ChevronDown, LogOut, Menu, UserRound } from 'lucide-react'
+import { Suspense } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 
 import { useAuth } from '@/auth/useAuth'
+import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -98,7 +100,9 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1 p-4 md:p-8">
-          <Outlet />
+          <Suspense fallback={<PageSpinner />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
