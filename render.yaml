@@ -1,0 +1,22 @@
+# Render Blueprint for the frontend static site. The API service is managed separately.
+services:
+  - type: web
+    runtime: static
+    name: stockflow-web
+    # Built from the repo root so the publish path means the same whichever way Render resolves it.
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    buildFilter:
+      paths:
+        - frontend/**
+    routes:
+      # Deep links like /purchase-orders/7 are client-side routes: serve the app for them.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Public by design: every VITE_ variable ends up in the JavaScript bundle.
+      - key: VITE_API_URL
+        value: https://stockflow-api-c9w7.onrender.com
+      - key: NODE_VERSION
+        value: "26"

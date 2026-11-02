@@ -1,0 +1,20 @@
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
+import { RouterProvider, type RouterProviderProps } from 'react-router/dom'
+
+import { ServerWakeBanner } from '@/components/ServerWakeBanner'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+
+type Props = { queryClient: QueryClient; router: RouterProviderProps['router'] }
+
+export function App({ queryClient, router }: Props) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <ServerWakeBanner />
+        <RouterProvider router={router} />
+        <Toaster position="top-right" />
+      </TooltipProvider>
+    </QueryClientProvider>
+  )
+}
