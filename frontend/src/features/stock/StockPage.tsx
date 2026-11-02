@@ -75,6 +75,7 @@ export function StockPage() {
         columns={columns}
         rows={stock.data}
         rowKey={(row) => `${row.product_id}-${row.warehouse_id}`}
+        rowHref={(row) => `/products/${row.product_id}`}
         isPending={stock.isPending}
         error={stock.error}
         onRetry={() => stock.refetch()}

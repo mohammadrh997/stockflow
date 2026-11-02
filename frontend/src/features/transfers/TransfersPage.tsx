@@ -129,6 +129,7 @@ export function TransfersPage() {
         columns={columns}
         rows={transfers.data}
         rowKey={(transfer) => transfer.id}
+        rowHref={(transfer) => `/transfers/${transfer.id}`}
         isPending={transfers.isPending}
         error={transfers.error}
         onRetry={() => transfers.refetch()}

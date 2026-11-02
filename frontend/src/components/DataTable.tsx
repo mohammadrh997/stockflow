@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
+import { useNavigate } from 'react-router'
 
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -21,6 +22,8 @@ type Props<T> = {
   columns: Column<T>[]
   rows: T[] | undefined
   rowKey: (row: T) => string | number
+  // Makes the whole row open this link; the links and buttons inside it keep working.
+  rowHref?: (row: T) => string
   isPending: boolean
   error: unknown
   onRetry?: () => void
@@ -33,11 +36,20 @@ export function DataTable<T>({
   columns,
   rows,
   rowKey,
+  rowHref,
   isPending,
   error,
   onRetry,
   emptyMessage,
 }: Props<T>) {
+  const navigate = useNavigate()
+
+  function openRow(event: MouseEvent, href: string) {
+    if ((event.target as HTMLElement).closest('a, button, input, [role="checkbox"]')) return
+    if (event.ctrlKey || event.metaKey) window.open(href, '_blank')
+    else navigate(href)
+  }
+
   if (error) return <ErrorMessage error={error} onRetry={onRetry} />
 
   return (
@@ -74,7 +86,11 @@ export function DataTable<T>({
             </TableRow>
           )}
           {rows?.map((row) => (
-            <TableRow key={rowKey(row)}>
+            <TableRow
+              key={rowKey(row)}
+              className={rowHref && 'cursor-pointer'}
+              onClick={rowHref && ((event) => openRow(event, rowHref(row)))}
+            >
               {columns.map((column) => (
                 <TableCell key={column.header} className={column.className}>
                   {column.cell(row)}

@@ -86,6 +86,7 @@ export function PartnersPage() {
         columns={columns}
         rows={partners.data}
         rowKey={(partner) => partner.id}
+        rowHref={(partner) => `/partners/${partner.id}`}
         isPending={partners.isPending}
         error={partners.error}
         onRetry={() => partners.refetch()}

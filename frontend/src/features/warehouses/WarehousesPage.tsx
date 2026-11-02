@@ -62,6 +62,7 @@ export function WarehousesPage() {
         columns={columns}
         rows={warehouses.data}
         rowKey={(warehouse) => warehouse.id}
+        rowHref={(warehouse) => `/warehouses/${warehouse.id}`}
         isPending={warehouses.isPending}
         error={warehouses.error}
         onRetry={() => warehouses.refetch()}

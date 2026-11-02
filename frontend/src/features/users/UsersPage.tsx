@@ -56,6 +56,7 @@ export function UsersPage() {
         columns={columns}
         rows={users.data}
         rowKey={(user) => user.id}
+        rowHref={(user) => `/users/${user.id}`}
         isPending={users.isPending}
         error={users.error}
         onRetry={() => users.refetch()}

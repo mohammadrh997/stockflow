@@ -69,6 +69,20 @@ describe('products list', () => {
     expect(screen.queryByRole('link', { name: /New product/ })).not.toBeInTheDocument()
   })
 
+  it('opens a product when any part of its row is clicked', async () => {
+    server.use(
+      http.get(`${API}/products`, () => HttpResponse.json([makeProduct()])),
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+    )
+    signInAs(viewer)
+    const { router } = renderApp('/products')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByText('DESK-1'))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/products/1'))
+  })
+
   it('shows the empty state', async () => {
     server.use(http.get(`${API}/products`, () => HttpResponse.json([])))
     signInAs(viewer)

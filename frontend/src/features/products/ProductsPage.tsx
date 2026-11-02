@@ -78,6 +78,7 @@ export function ProductsPage() {
         columns={columns}
         rows={products.data}
         rowKey={(product) => product.id}
+        rowHref={(product) => `/products/${product.id}`}
         isPending={products.isPending}
         error={products.error}
         onRetry={() => products.refetch()}

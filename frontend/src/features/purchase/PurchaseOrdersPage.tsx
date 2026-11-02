@@ -103,6 +103,7 @@ export function PurchaseOrdersPage() {
         columns={columns}
         rows={orders.data}
         rowKey={(order) => order.id}
+        rowHref={(order) => `/purchase-orders/${order.id}`}
         isPending={orders.isPending}
         error={orders.error}
         onRetry={() => orders.refetch()}
