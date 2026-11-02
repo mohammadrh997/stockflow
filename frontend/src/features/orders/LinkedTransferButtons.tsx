@@ -21,7 +21,11 @@ export function LinkedTransferButtons({ kind, filter, trail }: Props) {
 
   return transfers.data?.map((transfer) => (
     <Button key={transfer.id} asChild variant="outline">
-      <Link to={`/transfers/${transfer.id}`} state={{ trail }}>
+      <Link
+        to={`/transfers/${transfer.id}`}
+        state={{ trail }}
+        aria-label={`${label} ${transfer.reference}, ${transfer.state}`}
+      >
         <Icon />
         {label}
         <span className="text-muted-foreground">{transfer.reference}</span>
