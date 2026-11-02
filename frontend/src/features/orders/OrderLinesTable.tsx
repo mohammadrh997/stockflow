@@ -6,7 +6,9 @@ import { Money } from '@/components/Money'
 import { Quantity } from '@/components/Quantity'
 import { ProductName } from '@/components/RecordNames'
 import { Button } from '@/components/ui/button'
-import { EditLineDialog } from './EditLineDialog'
+import { formatQuantity } from '@/lib/format'
+import { LineField } from './LineField'
+import { checkQuantity, checkUnitPrice } from './lineRules'
 import type { LineChanges, LineHint, OrderLine } from './types'
 
 type Props = {
@@ -49,12 +51,38 @@ export function OrderLinesTable({ lines, total, editable, hint, onUpdate, onDele
     {
       header: 'Quantity',
       className: 'text-right',
-      cell: (line) => <Quantity value={line.quantity} />,
+      cell: (line) =>
+        editable ? (
+          <LineField
+            key={line.quantity}
+            productId={line.product_id}
+            field="Quantity"
+            value={line.quantity}
+            format={formatQuantity}
+            validate={checkQuantity}
+            onSave={(quantity) => onUpdate(line.id, { quantity })}
+          />
+        ) : (
+          <Quantity value={line.quantity} />
+        ),
     },
     {
       header: 'Unit price',
       className: 'text-right',
-      cell: (line) => <Money value={line.unit_price} />,
+      cell: (line) =>
+        editable ? (
+          <LineField
+            key={line.unit_price}
+            productId={line.product_id}
+            field="Unit price"
+            value={line.unit_price}
+            format={(value) => value}
+            validate={checkUnitPrice}
+            onSave={(unit_price) => onUpdate(line.id, { unit_price })}
+          />
+        ) : (
+          <Money value={line.unit_price} />
+        ),
     },
     {
       header: 'Subtotal',
@@ -68,7 +96,6 @@ export function OrderLinesTable({ lines, total, editable, hint, onUpdate, onDele
       className: 'text-right',
       cell: (line) => (
         <div className="flex justify-end gap-1">
-          <EditLineDialog line={line} onSave={(changes) => onUpdate(line.id, changes)} />
           <Button
             variant="ghost"
             size="sm"

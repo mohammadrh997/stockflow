@@ -77,7 +77,7 @@ describe('purchase order page', () => {
     renderApp('/purchase-orders/7')
 
     const row = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
-    expect(within(row).getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(within(row).getByRole('textbox', { name: 'Quantity for Desk' })).toBeInTheDocument()
     expect(within(row).getByRole('button', { name: 'Remove' })).toBeInTheDocument()
     expect(screen.getByRole('form', { name: 'Add line' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Confirm order' })).not.toBeInTheDocument()
@@ -95,7 +95,7 @@ describe('purchase order page', () => {
     renderApp('/purchase-orders/7')
 
     const row = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
-    expect(within(row).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(within(row).queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Add line' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Confirm order' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel order' })).toBeInTheDocument()
@@ -161,7 +161,7 @@ describe('purchase order page', () => {
     expect(screen.getByLabelText('Add at least one line first.')).toBeInTheDocument()
   })
 
-  it('replaces the cached order with the one a line edit returns', async () => {
+  it('edits a line in place and shows the order the server returns', async () => {
     mockReferenceData()
     let body: unknown
     server.use(
@@ -180,16 +180,40 @@ describe('purchase order page', () => {
     renderApp('/purchase-orders/7')
     const user = userEvent.setup()
 
-    const row = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
-    await user.click(within(row).getByRole('button', { name: 'Edit' }))
-    const dialog = await screen.findByRole('dialog')
-    const quantity = within(dialog).getByLabelText('Quantity')
+    const quantity = await screen.findByRole('textbox', { name: 'Quantity for Desk' })
     await user.clear(quantity)
-    await user.type(quantity, '5')
-    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await user.type(quantity, '5{Enter}')
 
     expect(await screen.findAllByText('150.00')).toHaveLength(2)
-    expect(body).toEqual({ quantity: '5', unit_price: '30.00' })
+    expect(body).toEqual({ quantity: '5' })
+    expect(screen.getByRole('textbox', { name: 'Quantity for Desk' })).toHaveValue('5')
+  })
+
+  it('checks an edited quantity before sending and undoes it with Escape', async () => {
+    mockReferenceData()
+    let patched = false
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () => HttpResponse.json(makeOrder())),
+      http.patch(`${API}/purchase-orders/7/lines/11`, () => {
+        patched = true
+        return HttpResponse.json(makeOrder())
+      }),
+    )
+    signInAs(purchaseUser)
+    renderApp('/purchase-orders/7')
+    const user = userEvent.setup()
+
+    const quantity = await screen.findByRole('textbox', { name: 'Quantity for Desk' })
+    await user.clear(quantity)
+    await user.type(quantity, '0{Enter}')
+
+    expect(await screen.findByText('Must be more than 0.')).toBeInTheDocument()
+    expect(quantity).toHaveAttribute('aria-invalid', 'true')
+
+    await user.type(quantity, '{Escape}')
+    expect(quantity).toHaveValue('2')
+    expect(screen.queryByText('Must be more than 0.')).not.toBeInTheDocument()
+    expect(patched).toBe(false)
   })
 
   it('shows the real default price and returns to the product picker after adding', async () => {

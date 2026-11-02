@@ -15,9 +15,10 @@ export type NewLine = {
   unit_price?: string
 }
 
+// Only the changed field is sent.
 export type LineChanges = {
-  quantity: string
-  unit_price: string
+  quantity?: string
+  unit_price?: string
 }
 
 // Extra information under a product, e.g. its available stock on sales orders.
