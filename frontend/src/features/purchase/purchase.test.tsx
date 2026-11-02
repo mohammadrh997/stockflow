@@ -266,7 +266,7 @@ describe('purchase order page', () => {
     signInAs(makeUser({ purchase_access: 'user', inventory_access: 'user' }))
     renderApp('/purchase-orders/7')
 
-    expect(await screen.findByRole('link', { name: 'WH/IN/00007' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /Receipt WH\/IN\/00007/ })).toHaveAttribute(
       'href',
       '/transfers/21',
     )

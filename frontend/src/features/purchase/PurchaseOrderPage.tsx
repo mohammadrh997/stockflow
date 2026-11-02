@@ -16,7 +16,7 @@ import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AddLineForm } from '@/features/orders/AddLineForm'
-import { LinkedTransfers } from '@/features/orders/LinkedTransfers'
+import { LinkedTransferButtons } from '@/features/orders/LinkedTransferButtons'
 import { OrderDetailsForm } from '@/features/orders/OrderDetailsForm'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
 import { formatDateTime } from '@/lib/format'
@@ -59,6 +59,16 @@ export function PurchaseOrderPage() {
         }
         actions={
           <>
+            {!isDraft && can(user, 'inventory') && (
+              <LinkedTransferButtons
+                kind="receipt"
+                filter={{ purchase_order_id: data.id }}
+                trail={[
+                  { to: '/purchase-orders', label: 'Purchase orders' },
+                  { to: `/purchase-orders/${data.id}`, label: data.reference },
+                ]}
+              />
+            )}
             {canManage && isDraft && (
               <DisabledReason
                 reason={data.lines.length === 0 ? 'Add at least one line first.' : null}
@@ -148,13 +158,6 @@ export function PurchaseOrderPage() {
               </p>
             </CardContent>
           </Card>
-          {!isDraft && can(user, 'inventory') && (
-            <Card>
-              <CardContent>
-                <LinkedTransfers title="Receipt" filter={{ purchase_order_id: data.id }} />
-              </CardContent>
-            </Card>
-          )}
         </aside>
       </div>
     </div>
