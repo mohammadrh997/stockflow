@@ -122,7 +122,9 @@ describe('purchase order page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Confirm order' }))
 
     await waitFor(() => expect(confirmed).toBe(true))
-    expect(await screen.findByText('confirmed')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('confirmed'),
+    )
     expect(screen.queryByRole('form', { name: 'Add line' })).not.toBeInTheDocument()
   })
 

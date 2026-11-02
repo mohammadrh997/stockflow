@@ -55,7 +55,7 @@ export function OrderDetailsForm({ role, defaultValues, submitLabel, onSubmit }:
   return (
     <form className="grid max-w-xl gap-4" onSubmit={handleSubmit(submit)} noValidate>
       {formError && <ErrorMessage message={formError} />}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <FormField label={partnerLabel} htmlFor="order-partner" error={errors.partner_id?.message}>
           <Controller
             name="partner_id"

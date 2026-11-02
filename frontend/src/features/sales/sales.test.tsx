@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
@@ -137,7 +137,9 @@ describe('sales order page', () => {
     const dialog = await screen.findByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Confirm order' }))
 
-    expect(await screen.findByText('confirmed')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('confirmed'),
+    )
     expect(screen.queryByText(/available in this warehouse/)).not.toBeInTheDocument()
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['stock'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['transfers'] })
