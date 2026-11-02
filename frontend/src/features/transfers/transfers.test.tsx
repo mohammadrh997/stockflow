@@ -107,7 +107,9 @@ describe('transfer page', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Validate' }))
 
-    expect(await screen.findByText('done')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('done'),
+    )
     expect(body).toEqual({ location_id: null })
     const row = screen.getByRole('link', { name: 'Desk' }).closest('tr')!
     expect(within(row).getByText('Supplier')).toBeInTheDocument()

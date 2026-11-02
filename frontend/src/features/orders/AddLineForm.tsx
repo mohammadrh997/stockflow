@@ -61,14 +61,14 @@ export function AddLineForm({ defaultPrice, hint, onAdd }: Props) {
 
   return (
     <form
-      className="grid gap-3 rounded-lg border p-4"
+      className="grid min-w-0 gap-3 rounded-lg border p-4"
       onSubmit={handleSubmit(submit)}
       noValidate
       aria-label="Add line"
     >
       <h3 className="font-medium">Add a line</h3>
       {formError && <ErrorMessage message={formError} />}
-      <div className="grid items-start gap-3 md:grid-cols-[auto_8rem_8rem_auto]">
+      <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_7rem_7rem_auto]">
         <FormField
           label="Product"
           htmlFor="line-product"
@@ -82,6 +82,7 @@ export function AddLineForm({ defaultPrice, hint, onAdd }: Props) {
             render={({ field }) => (
               <ProductPicker
                 id="line-product"
+                className="sm:w-full"
                 buttonRef={field.ref}
                 value={field.value}
                 onChange={field.onChange}

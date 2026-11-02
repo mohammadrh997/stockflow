@@ -6,6 +6,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { PageHeader, type Crumb } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
+import { ProgressTrack } from '@/components/ProgressTrack'
 import { Quantity } from '@/components/Quantity'
 import { LocationName, ProductName, WarehouseName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
@@ -48,9 +49,8 @@ export function TransferPage() {
   }
 
   const { data } = transfer
-  const canValidate =
-    data.state === 'ready' &&
-    (data.transfer_type === 'receipt' || data.transfer_type === 'delivery')
+  const fromOrder = data.transfer_type === 'receipt' || data.transfer_type === 'delivery'
+  const canValidate = fromOrder && data.state === 'ready'
 
   return (
     <div className="grid gap-8">
@@ -65,6 +65,8 @@ export function TransferPage() {
         }
         actions={canValidate && <ValidateTransferDialog transfer={data} />}
       />
+
+      {fromOrder && <ProgressTrack steps={['ready', 'done']} state={data.state} />}
 
       <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
         <dt className="text-muted-foreground">Type</dt>

@@ -10,6 +10,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
+import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName, WarehouseName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,6 @@ import { AddLineForm } from '@/features/orders/AddLineForm'
 import { LinkedTransfers } from '@/features/orders/LinkedTransfers'
 import { OrderDetailsForm } from '@/features/orders/OrderDetailsForm'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
-import { OrderSteps } from '@/features/orders/OrderSteps'
 import { formatDateTime } from '@/lib/format'
 import {
   useSalesOrder,
@@ -98,7 +98,7 @@ export function SalesOrderPage() {
         }
       />
 
-      <OrderSteps steps={['draft', 'confirmed', 'delivered']} state={data.state} />
+      <ProgressTrack steps={['draft', 'confirmed', 'delivered']} state={data.state} />
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
         <section className="grid min-w-0 gap-3">

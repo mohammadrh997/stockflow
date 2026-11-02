@@ -83,7 +83,7 @@ export function OrderLinesTable({ lines, total, editable, hint, onUpdate, onDele
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid min-w-0 gap-3">
       {deleteError !== null && <ErrorMessage error={deleteError} />}
       <DataTable
         columns={columns}

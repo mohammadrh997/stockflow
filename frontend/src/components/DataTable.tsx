@@ -56,7 +56,7 @@ export function DataTable<T>({
   if (error) return <ErrorMessage error={error} onRetry={onRetry} />
 
   return (
-    <div className="rounded-lg border">
+    <div className="min-w-0 rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>

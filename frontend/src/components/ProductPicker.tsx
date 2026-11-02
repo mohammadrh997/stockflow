@@ -25,6 +25,7 @@ type Props = {
   placeholder?: string
   clearable?: boolean
   disabled?: boolean
+  className?: string
 }
 
 // Searches active products on the server by name.
@@ -36,6 +37,7 @@ export function ProductPicker({
   placeholder = 'Choose a product',
   clearable,
   disabled,
+  className,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -50,7 +52,7 @@ export function ProductPicker({
     value === null ? placeholder : selected.data ? selected.data.name : `Product #${value}`
 
   return (
-    <div className="flex w-full items-center gap-1 sm:w-72">
+    <div className={cn('flex w-full items-center gap-1 sm:w-72', className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
