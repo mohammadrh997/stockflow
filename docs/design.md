@@ -60,10 +60,9 @@ The backend enforces every rule through FastAPI dependencies. The frontend only 
 
 - Passwords are hashed with Argon2, in a thread pool so hashing doesn't block the event loop.
 - Login hashes against a dummy hash when the email doesn't exist. Unknown emails and wrong passwords then take the same time and return the same message.
-- Tokens are JWTs with the user id, issue time and expiry (30 minutes). The user is loaded from the database on every request, so deactivating someone takes effect immediately.
+- Tokens are JWTs with the user id, issue time and expiry (480 minutes). The user is loaded from the database on every request, so deactivating someone takes effect immediately.
 - Changing or resetting a password sets `password_changed_at`, and any token issued before that is rejected.
-- Login and password change are rate limited to 5 per minute. The limit is kept in memory, which is enough for a single instance. Running several instances would need Redis.
-
+- Login and password change are rate limited to 5 per minute per client IP. The client IP comes only from a header the edge proxy overwrites (`CF-Connecting-IP` on Render, set by `CLIENT_IP_HEADER`)
 ## Errors
 
 Services raise domain errors (`InsufficientStock`, `OrderNotEditable`) and don't know about HTTP. Routers translate those errors into status codes, following one rule set:
