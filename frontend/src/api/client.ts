@@ -2,6 +2,7 @@ import createClient, { type Middleware } from 'openapi-fetch'
 
 import { getToken } from '@/auth/token'
 import type { components, paths } from './schema'
+import { requestFinished, requestStarted } from './slowRequests'
 
 export type Schemas = components['schemas']
 
@@ -30,9 +31,21 @@ const authMiddleware: Middleware = {
   },
 }
 
+const slowRequestMiddleware: Middleware = {
+  onRequest({ id }) {
+    requestStarted(id)
+  },
+  onResponse({ id }) {
+    requestFinished(id)
+  },
+  onError({ id }) {
+    requestFinished(id)
+  },
+}
+
 export const api = createClient<paths>({
   baseUrl: import.meta.env.VITE_API_URL,
   // Look fetch up on each call, so test mocks installed after import still apply.
   fetch: (request) => globalThis.fetch(request),
 })
-api.use(authMiddleware)
+api.use(authMiddleware, slowRequestMiddleware)
