@@ -107,6 +107,14 @@ export function PurchaseOrdersPage() {
         isPending={orders.isPending}
         error={orders.error}
         onRetry={() => orders.refetch()}
+        emptyAction={
+          !state &&
+          !partnerId && (
+            <Button asChild variant="outline">
+              <Link to="/purchase-orders/new">Create the first purchase order</Link>
+            </Button>
+          )
+        }
         emptyMessage={
           state || partnerId ? 'No purchase orders match these filters.' : 'No purchase orders yet.'
         }

@@ -107,6 +107,14 @@ export function SalesOrdersPage() {
         isPending={orders.isPending}
         error={orders.error}
         onRetry={() => orders.refetch()}
+        emptyAction={
+          !state &&
+          !partnerId && (
+            <Button asChild variant="outline">
+              <Link to="/sales-orders/new">Create the first sales order</Link>
+            </Button>
+          )
+        }
         emptyMessage={
           state || partnerId ? 'No sales orders match these filters.' : 'No sales orders yet.'
         }

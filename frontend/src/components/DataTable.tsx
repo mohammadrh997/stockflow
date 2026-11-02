@@ -28,6 +28,8 @@ type Props<T> = {
   error: unknown
   onRetry?: () => void
   emptyMessage: string
+  // Shown under the empty message, e.g. a button to create the first record.
+  emptyAction?: ReactNode
 }
 
 const LOADING_ROWS = 5
@@ -41,6 +43,7 @@ export function DataTable<T>({
   error,
   onRetry,
   emptyMessage,
+  emptyAction,
 }: Props<T>) {
   const navigate = useNavigate()
 
@@ -81,7 +84,10 @@ export function DataTable<T>({
                 colSpan={columns.length}
                 className="py-8 text-center text-muted-foreground"
               >
-                {emptyMessage}
+                <div className="grid justify-items-center gap-3">
+                  {emptyMessage}
+                  {emptyAction}
+                </div>
               </TableCell>
             </TableRow>
           )}

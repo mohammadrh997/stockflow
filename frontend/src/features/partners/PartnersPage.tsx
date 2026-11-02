@@ -90,6 +90,15 @@ export function PartnersPage() {
         isPending={partners.isPending}
         error={partners.error}
         onRetry={() => partners.refetch()}
+        emptyAction={
+          !name &&
+          role === 'all' &&
+          canEditPartners(user) && (
+            <Button asChild variant="outline">
+              <Link to="/partners/new">Create the first partner</Link>
+            </Button>
+          )
+        }
         emptyMessage={name ? 'No partners match your search.' : 'No partners yet.'}
       />
       <Pagination

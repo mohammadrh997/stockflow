@@ -82,6 +82,14 @@ export function ProductsPage() {
         isPending={products.isPending}
         error={products.error}
         onRetry={() => products.refetch()}
+        emptyAction={
+          !name &&
+          can(user, 'inventory', 'manager') && (
+            <Button asChild variant="outline">
+              <Link to="/products/new">Create the first product</Link>
+            </Button>
+          )
+        }
         emptyMessage={name ? 'No products match your search.' : 'No products yet.'}
       />
       <Pagination
