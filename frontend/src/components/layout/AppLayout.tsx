@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { AppearanceMenu } from './AppearanceMenu'
 import { Logo } from './Logo'
 import { visibleNavItems } from './navigation'
 
@@ -94,6 +95,8 @@ export function AppLayout() {
                   Profile
                 </Link>
               </DropdownMenuItem>
+              <AppearanceMenu />
+              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={handleLogout}>
                 <LogOut />
                 Log out
