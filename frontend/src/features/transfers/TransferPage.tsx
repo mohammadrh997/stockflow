@@ -51,6 +51,8 @@ export function TransferPage() {
   return (
     <div className="grid gap-8">
       <PageHeader
+        pageTitle={data.reference}
+        back={{ to: '/transfers', label: 'Transfers' }}
         title={
           <>
             {data.reference}

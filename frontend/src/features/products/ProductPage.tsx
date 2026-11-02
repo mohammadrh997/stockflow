@@ -34,6 +34,8 @@ export function ProductPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
+        pageTitle={data.name}
+        back={{ to: '/products', label: 'Products' }}
         title={
           <>
             {data.name}

@@ -49,6 +49,8 @@ export function SalesOrderPage() {
   return (
     <div className="grid gap-8">
       <PageHeader
+        pageTitle={data.reference}
+        back={{ to: '/sales-orders', label: 'Sales orders' }}
         title={
           <>
             {data.reference}

@@ -12,7 +12,7 @@ export function NewPartnerPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="New partner" />
+      <PageHeader title="New partner" back={{ to: '/partners', label: 'Partners' }} />
       <PartnerForm
         submitLabel="Create partner"
         onSubmit={async (values) => {

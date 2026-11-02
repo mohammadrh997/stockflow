@@ -11,7 +11,7 @@ export function NewProductPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="New product" />
+      <PageHeader title="New product" back={{ to: '/products', label: 'Products' }} />
       <ProductForm
         submitLabel="Create product"
         onSubmit={async (values) => {

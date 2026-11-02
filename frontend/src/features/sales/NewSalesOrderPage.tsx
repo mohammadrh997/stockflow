@@ -11,7 +11,7 @@ export function NewSalesOrderPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="New sales order" />
+      <PageHeader title="New sales order" back={{ to: '/sales-orders', label: 'Sales orders' }} />
       <p className="-mt-3 text-sm text-muted-foreground">
         Choose the customer first. You add the lines on the next page.
       </p>

@@ -3,9 +3,11 @@ import { Link } from 'react-router'
 import { useAuth } from '@/auth/useAuth'
 import { visibleNavItems } from '@/components/layout/navigation'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
+import { usePageTitle } from '@/lib/usePageTitle'
 
 export function HomePage() {
   const { user } = useAuth()
+  usePageTitle()
 
   return (
     <div className="grid gap-6">

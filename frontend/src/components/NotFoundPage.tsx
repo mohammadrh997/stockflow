@@ -1,8 +1,10 @@
 import { Link } from 'react-router'
 
 import { Button } from '@/components/ui/button'
+import { usePageTitle } from '@/lib/usePageTitle'
 
 export function NotFoundPage() {
+  usePageTitle('Page not found')
   return (
     <div className="grid justify-items-start gap-4">
       <h1 className="text-2xl font-semibold">Page not found</h1>

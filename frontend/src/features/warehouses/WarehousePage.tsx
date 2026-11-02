@@ -101,6 +101,8 @@ export function WarehousePage() {
   return (
     <div className="grid gap-8">
       <PageHeader
+        pageTitle={data.name}
+        back={{ to: '/warehouses', label: 'Warehouses' }}
         title={
           <>
             {data.name}

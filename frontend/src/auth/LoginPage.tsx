@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { usePageTitle } from '@/lib/usePageTitle'
 import type { LoginLocationState } from './RequireAuth'
 import { useAuth } from './useAuth'
 
 type LoginForm = { username: string; password: string }
 
 export function LoginPage() {
+  usePageTitle('Log in')
   const { token, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
