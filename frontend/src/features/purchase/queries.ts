@@ -14,11 +14,15 @@ export type PurchaseOrderListParams = {
   limit: number
 }
 
-export function usePurchaseOrders(params: PurchaseOrderListParams) {
+export function usePurchaseOrders(
+  params: PurchaseOrderListParams,
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ['purchase-orders', params],
     queryFn: () => unwrap(api.GET('/purchase-orders', { params: { query: params } })),
     placeholderData: keepPreviousData,
+    enabled: options.enabled,
   })
 }
 

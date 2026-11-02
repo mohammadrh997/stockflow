@@ -14,11 +14,12 @@ export type SalesOrderListParams = {
   limit: number
 }
 
-export function useSalesOrders(params: SalesOrderListParams) {
+export function useSalesOrders(params: SalesOrderListParams, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['sales-orders', params],
     queryFn: () => unwrap(api.GET('/sales-orders', { params: { query: params } })),
     placeholderData: keepPreviousData,
+    enabled: options.enabled,
   })
 }
 
