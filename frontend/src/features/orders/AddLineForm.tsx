@@ -7,6 +7,8 @@ import { FormField } from '@/components/FormField'
 import { ProductPicker } from '@/components/ProductPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useProduct } from '@/features/products/queries'
+import { formatMoney } from '@/lib/format'
 import { quantityRules, unitPriceRules } from './lineRules'
 import type { LineHint, NewLine } from './types'
 
@@ -14,14 +16,16 @@ type Values = { product_id: number | null; quantity: string; unit_price: string 
 
 const FIELDS = ['product_id', 'quantity', 'unit_price'] as const
 
+const PRICE_LABELS = { cost_price: 'Cost price', sale_price: 'Sale price' }
+
 type Props = {
-  // Shown as the unit price placeholder, e.g. "Cost price".
-  defaultPriceLabel: string
+  // The product price used when the unit price is left empty.
+  defaultPrice: 'cost_price' | 'sale_price'
   hint?: LineHint
   onAdd: (line: NewLine) => Promise<unknown>
 }
 
-export function AddLineForm({ defaultPriceLabel, hint, onAdd }: Props) {
+export function AddLineForm({ defaultPrice, hint, onAdd }: Props) {
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
@@ -29,9 +33,15 @@ export function AddLineForm({ defaultPriceLabel, hint, onAdd }: Props) {
     handleSubmit,
     setError,
     reset,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<Values>({ defaultValues: { product_id: null, quantity: '', unit_price: '' } })
   const productId = useWatch({ control, name: 'product_id' })
+  const product = useProduct(productId ?? 0, { enabled: productId !== null })
+  const priceLabel = PRICE_LABELS[defaultPrice]
+  const pricePlaceholder = product.data
+    ? `${priceLabel}: ${formatMoney(product.data[defaultPrice])}`
+    : priceLabel
 
   async function submit(values: Values) {
     setFormError(null)
@@ -42,6 +52,8 @@ export function AddLineForm({ defaultPriceLabel, hint, onAdd }: Props) {
         unit_price: values.unit_price || undefined,
       })
       reset()
+      // Straight back to the product picker for the next line, once reset() has re-rendered.
+      setTimeout(() => setFocus('product_id'))
     } catch (error) {
       setFormError(applyFieldErrors(error, FIELDS, setError).join(' ') || null)
     }
@@ -70,9 +82,9 @@ export function AddLineForm({ defaultPriceLabel, hint, onAdd }: Props) {
             render={({ field }) => (
               <ProductPicker
                 id="line-product"
+                buttonRef={field.ref}
                 value={field.value}
                 onChange={field.onChange}
-                disabled={isSubmitting}
               />
             )}
           />
@@ -90,7 +102,7 @@ export function AddLineForm({ defaultPriceLabel, hint, onAdd }: Props) {
           <Input
             id="line-unit-price"
             inputMode="decimal"
-            placeholder={defaultPriceLabel}
+            placeholder={pricePlaceholder}
             disabled={isSubmitting}
             aria-invalid={errors.unit_price ? true : undefined}
             {...register('unit_price', unitPriceRules)}

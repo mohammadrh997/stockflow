@@ -1,5 +1,5 @@
 import { Check, ChevronsUpDown, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type Ref } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -18,6 +18,8 @@ const RESULT_LIMIT = 20
 
 type Props = {
   id?: string
+  // Lets a form move focus to the picker (react-hook-form's setFocus).
+  buttonRef?: Ref<HTMLButtonElement>
   value: number | null
   onChange: (productId: number | null) => void
   placeholder?: string
@@ -28,6 +30,7 @@ type Props = {
 // Searches active products on the server by name.
 export function ProductPicker({
   id,
+  buttonRef,
   value,
   onChange,
   placeholder = 'Choose a product',
@@ -51,6 +54,7 @@ export function ProductPicker({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            ref={buttonRef}
             id={id}
             variant="outline"
             role="combobox"

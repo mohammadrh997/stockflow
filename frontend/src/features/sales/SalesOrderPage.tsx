@@ -137,7 +137,7 @@ export function SalesOrderPage() {
         />
         {canEdit && (
           <AddLineForm
-            defaultPriceLabel="Sale price"
+            defaultPrice="sale_price"
             hint={availability}
             onAdd={(line) => lines.add.mutateAsync(line)}
           />

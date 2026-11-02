@@ -133,10 +133,7 @@ export function PurchaseOrderPage() {
           onDelete={(lineId) => lines.remove.mutateAsync(lineId)}
         />
         {canEdit && (
-          <AddLineForm
-            defaultPriceLabel="Cost price"
-            onAdd={(line) => lines.add.mutateAsync(line)}
-          />
+          <AddLineForm defaultPrice="cost_price" onAdd={(line) => lines.add.mutateAsync(line)} />
         )}
       </section>
 

@@ -190,6 +190,51 @@ describe('purchase order page', () => {
     expect(body).toEqual({ quantity: '5', unit_price: '30.00' })
   })
 
+  it('shows the real default price and returns to the product picker after adding', async () => {
+    mockReferenceData()
+    let body: unknown
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () => HttpResponse.json(makeOrder({ lines: [] }))),
+      http.get(`${API}/products`, () =>
+        HttpResponse.json([
+          {
+            id: 3,
+            name: 'Desk',
+            sku: 'DESK',
+            sale_price: '50.00',
+            cost_price: '30.00',
+            image_key: null,
+            is_active: true,
+            created_at: '2026-01-01T00:00:00Z',
+            created_by_id: 1,
+          },
+        ]),
+      ),
+      http.post(`${API}/purchase-orders/7/lines`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(makeOrder())
+      }),
+    )
+    signInAs(purchaseUser)
+    renderApp('/purchase-orders/7')
+    const user = userEvent.setup()
+
+    const picker = await screen.findByRole('combobox', { name: 'Product' })
+    expect(screen.getByLabelText('Unit price')).toHaveAttribute('placeholder', 'Cost price')
+    await user.click(picker)
+    await user.click(await screen.findByRole('option', { name: /Desk/ }))
+    await waitFor(() =>
+      expect(screen.getByLabelText('Unit price')).toHaveAttribute(
+        'placeholder',
+        'Cost price: 30.00',
+      ),
+    )
+    await user.type(screen.getByLabelText('Quantity'), '2')
+    await user.click(screen.getByRole('button', { name: 'Add line' }))
+    await waitFor(() => expect(picker).toHaveFocus())
+    expect(body).toEqual({ product_id: 3, quantity: '2' })
+  })
+
   it('links the receipt for people with inventory access', async () => {
     mockReferenceData()
     let transferQuery: URLSearchParams | undefined
