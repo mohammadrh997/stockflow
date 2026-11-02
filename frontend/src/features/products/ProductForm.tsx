@@ -28,10 +28,18 @@ type Props = {
   defaultValues?: ProductFormValues
   readOnly?: boolean
   submitLabel: string
+  // Which price comes first, e.g. the cost price when creating from a purchase order.
+  emphasise?: 'sale_price' | 'cost_price'
   onSubmit: (values: ProductFormValues) => Promise<unknown>
 }
 
-export function ProductForm({ defaultValues = EMPTY, readOnly, submitLabel, onSubmit }: Props) {
+export function ProductForm({
+  defaultValues = EMPTY,
+  readOnly,
+  submitLabel,
+  emphasise,
+  onSubmit,
+}: Props) {
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
@@ -39,6 +47,37 @@ export function ProductForm({ defaultValues = EMPTY, readOnly, submitLabel, onSu
     setError,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormValues>({ defaultValues })
+
+  const salePrice = (
+    <FormField
+      key="sale_price"
+      label="Sale price"
+      htmlFor="sale_price"
+      error={errors.sale_price?.message}
+    >
+      <Input
+        id="sale_price"
+        inputMode="decimal"
+        aria-invalid={errors.sale_price ? true : undefined}
+        {...register('sale_price', priceRules)}
+      />
+    </FormField>
+  )
+  const costPrice = (
+    <FormField
+      key="cost_price"
+      label="Cost price"
+      htmlFor="cost_price"
+      error={errors.cost_price?.message}
+    >
+      <Input
+        id="cost_price"
+        inputMode="decimal"
+        aria-invalid={errors.cost_price ? true : undefined}
+        {...register('cost_price', priceRules)}
+      />
+    </FormField>
+  )
 
   async function submit(values: ProductFormValues) {
     setFormError(null)
@@ -80,22 +119,7 @@ export function ProductForm({ defaultValues = EMPTY, readOnly, submitLabel, onSu
           />
         </FormField>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Sale price" htmlFor="sale_price" error={errors.sale_price?.message}>
-            <Input
-              id="sale_price"
-              inputMode="decimal"
-              aria-invalid={errors.sale_price ? true : undefined}
-              {...register('sale_price', priceRules)}
-            />
-          </FormField>
-          <FormField label="Cost price" htmlFor="cost_price" error={errors.cost_price?.message}>
-            <Input
-              id="cost_price"
-              inputMode="decimal"
-              aria-invalid={errors.cost_price ? true : undefined}
-              {...register('cost_price', priceRules)}
-            />
-          </FormField>
+          {emphasise === 'cost_price' ? [costPrice, salePrice] : [salePrice, costPrice]}
         </div>
       </fieldset>
       {!readOnly && (
