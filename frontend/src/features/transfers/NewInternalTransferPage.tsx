@@ -79,7 +79,10 @@ export function NewInternalTransferPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="New internal transfer" back={{ to: '/transfers', label: 'Transfers' }} />
+      <PageHeader
+        title="New internal transfer"
+        trail={[{ to: '/transfers', label: 'Transfers' }]}
+      />
       <p className="-mt-3 text-sm text-muted-foreground">
         Moves stock between two locations of the same warehouse. It is recorded as done right away.
       </p>

@@ -1,31 +1,48 @@
-import { ChevronLeft } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
+import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import { usePageTitle } from '@/lib/usePageTitle'
+
+export type Crumb = { to: string; label: string }
 
 type Props = {
   title: ReactNode
   // The browser tab title; defaults to the title when that is plain text.
   pageTitle?: string
-  // A link back to the list this page belongs to.
-  back?: { to: string; label: string }
+  // The pages above this one, e.g. the list it belongs to. The page itself is added at the end.
+  trail?: Crumb[]
   actions?: ReactNode
 }
 
-export function PageHeader({ title, pageTitle, back, actions }: Props) {
-  usePageTitle(pageTitle ?? (typeof title === 'string' ? title : undefined))
+export function PageHeader({ title, pageTitle, trail, actions }: Props) {
+  const name = pageTitle ?? (typeof title === 'string' ? title : undefined)
+  usePageTitle(name)
 
   return (
     <div className="grid gap-2">
-      {back && (
-        <Link
-          to={back.to}
-          className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" />
-          {back.label}
-        </Link>
+      {trail && (
+        <nav aria-label="Breadcrumb">
+          <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+            {trail.map((crumb) => (
+              <Fragment key={crumb.to}>
+                <li>
+                  <Link to={crumb.to} className="hover:text-foreground hover:underline">
+                    {crumb.label}
+                  </Link>
+                </li>
+                <li aria-hidden>
+                  <ChevronRight className="size-3.5" />
+                </li>
+              </Fragment>
+            ))}
+            {name && (
+              <li aria-current="page" className="text-foreground">
+                {name}
+              </li>
+            )}
+          </ol>
+        </nav>
       )}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="flex items-center gap-3 text-2xl font-semibold">{title}</h1>

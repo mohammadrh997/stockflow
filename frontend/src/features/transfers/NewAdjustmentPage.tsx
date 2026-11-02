@@ -76,7 +76,7 @@ export function NewAdjustmentPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="New stock adjustment" back={{ to: '/transfers', label: 'Transfers' }} />
+      <PageHeader title="New stock adjustment" trail={[{ to: '/transfers', label: 'Transfers' }]} />
       <p className="-mt-3 text-sm text-muted-foreground">
         Enter what you physically counted at one location. The difference from the recorded stock is
         booked against Inventory Loss.

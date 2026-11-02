@@ -1,10 +1,10 @@
-import { useParams } from 'react-router'
+import { useLocation, useParams } from 'react-router'
 
 import { ApiError } from '@/api/errors'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader, type Crumb } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Quantity } from '@/components/Quantity'
 import { LocationName, ProductName, WarehouseName } from '@/components/RecordNames'
@@ -36,6 +36,10 @@ const columns: Column<StockMove>[] = [
 export function TransferPage() {
   const id = Number(useParams().transferId)
   const transfer = useTransfer(id)
+  // Opened from an order, the trail leads back through that order.
+  const trail = (useLocation().state as { trail?: Crumb[] } | null)?.trail ?? [
+    { to: '/transfers', label: 'Transfers' },
+  ]
 
   if (transfer.isPending) return <PageSpinner />
   if (transfer.error instanceof ApiError && transfer.error.status === 404) return <NotFoundPage />
@@ -52,7 +56,7 @@ export function TransferPage() {
     <div className="grid gap-8">
       <PageHeader
         pageTitle={data.reference}
-        back={{ to: '/transfers', label: 'Transfers' }}
+        trail={trail}
         title={
           <>
             {data.reference}

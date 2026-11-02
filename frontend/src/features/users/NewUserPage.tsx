@@ -11,7 +11,7 @@ export function NewUserPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="New user" back={{ to: '/users', label: 'Users' }} />
+      <PageHeader title="New user" trail={[{ to: '/users', label: 'Users' }]} />
       <UserForm
         withPassword
         submitLabel="Create user"
