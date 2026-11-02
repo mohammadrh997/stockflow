@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { Logo } from './Logo'
 import { visibleNavItems } from './navigation'
 
 export function AppLayout() {
@@ -29,8 +30,8 @@ export function AppLayout() {
   return (
     <div className="flex min-h-svh">
       <aside className="hidden w-56 shrink-0 flex-col border-r bg-sidebar md:flex">
-        <Link to="/" className="px-5 py-4 text-lg font-semibold">
-          StockFlow
+        <Link to="/" className="px-5 py-4">
+          <Logo />
         </Link>
         <nav aria-label="Main" className="grid gap-1 px-3">
           {navItems.map(({ to, label, icon: Icon }) => (
@@ -40,7 +41,7 @@ export function AppLayout() {
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent',
-                  isActive && 'bg-sidebar-accent font-medium',
+                  isActive && 'bg-sidebar-accent font-medium text-sidebar-accent-foreground',
                 )
               }
             >
@@ -70,7 +71,9 @@ export function AppLayout() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <span className="md:hidden font-semibold">StockFlow</span>
+          <Link to="/" className="md:hidden">
+            <Logo />
+          </Link>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

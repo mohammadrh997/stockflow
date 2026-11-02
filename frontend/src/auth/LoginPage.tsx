@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router'
 
 import { ApiError, applyFieldErrors } from '@/api/errors'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { Logo } from '@/components/layout/Logo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -49,7 +50,9 @@ export function LoginPage() {
     <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">StockFlow</CardTitle>
+          <CardTitle className="text-xl">
+            <Logo />
+          </CardTitle>
           <CardDescription>Log in with your work email.</CardDescription>
         </CardHeader>
         <CardContent>
