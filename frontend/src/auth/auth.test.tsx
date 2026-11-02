@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import { setAppearance } from '@/lib/appearance'
 import { makeUser, renderApp } from '@/test/renderApp'
 import { API, server } from '@/test/server'
 import { getToken, setToken } from './token'
@@ -152,6 +153,20 @@ describe('layout', () => {
 
     const nav = await screen.findByRole('navigation', { name: 'Main' })
     expect(within(nav).getAllByRole('link')).toHaveLength(8)
+  })
+
+  it('switches between light and dark from the header', async () => {
+    setToken('token')
+    server.use(http.get(`${API}/auth/me`, () => HttpResponse.json(makeUser())))
+    setAppearance({ mode: 'light' })
+    renderApp('/')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Switch to dark mode' }))
+    expect(document.documentElement).toHaveClass('dark')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light mode' }))
+    expect(document.documentElement).not.toHaveClass('dark')
   })
 
   it('logs out by clearing the token and returning to login', async () => {

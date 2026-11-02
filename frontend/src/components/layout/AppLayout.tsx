@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import { AppearanceMenu } from './AppearanceMenu'
 import { Logo } from './Logo'
+import { ThemeToggle } from './ThemeToggle'
 import { visibleNavItems } from './navigation'
 
 export function AppLayout() {
@@ -76,33 +77,36 @@ export function AppLayout() {
             <Logo />
           </Link>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="ml-auto">
-                <UserRound />
-                <span className="max-w-40 truncate">{user?.name}</span>
-                <ChevronDown />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
-                {user?.email}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/profile">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost">
                   <UserRound />
-                  Profile
-                </Link>
-              </DropdownMenuItem>
-              <AppearanceMenu />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleLogout}>
-                <LogOut />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <span className="max-w-40 truncate">{user?.name}</span>
+                  <ChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
+                  {user?.email}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <UserRound />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <AppearanceMenu />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleLogout}>
+                  <LogOut />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
         <main className="flex-1 p-4 md:p-8">
