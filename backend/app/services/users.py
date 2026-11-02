@@ -37,6 +37,7 @@ async def create_user(db: AsyncSession, data: UserCreate) -> User:
         await db.rollback()
         if "uq_users_email" in str(exc.orig):
             raise EmailAlreadyExists(data.email) from None
+        raise
     await db.refresh(user)
     return user
 
@@ -65,6 +66,7 @@ async def update_user(
         await db.rollback()
         if "uq_users_email" in str(exc.orig):
             raise EmailAlreadyExists(data.email) from None
+        raise
     await db.refresh(user)
     return user
 

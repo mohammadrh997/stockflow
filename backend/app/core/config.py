@@ -6,13 +6,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str
-    secret_key: str
+    secret_key: str = Field(min_length=32)
     algorithm: str = "HS256"
     access_token_exp_minutes: int = 30
     redis_url: str | None = None
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:5173"]
     admin_email: str | None = None
+    client_ip_header: str | None = None
     admin_name: str = "Admin"
     admin_password: SecretStr | None = Field(default=None, min_length=8, max_length=128)
 
