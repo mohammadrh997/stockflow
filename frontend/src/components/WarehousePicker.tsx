@@ -28,7 +28,9 @@ export function WarehousePicker({ id, value, onChange, allLabel, disabled }: Pro
       disabled={disabled || warehouses.isPending}
     >
       <SelectTrigger id={id} className="w-full sm:w-56">
-        <SelectValue placeholder="Choose a warehouse" />
+        <SelectValue
+          placeholder={warehouses.isError ? 'Could not load warehouses' : 'Choose a warehouse'}
+        />
       </SelectTrigger>
       <SelectContent>
         {allLabel && <SelectItem value={ALL}>{allLabel}</SelectItem>}

@@ -69,7 +69,11 @@ export function ProductPicker({
             <CommandInput placeholder="Search products…" value={search} onValueChange={setSearch} />
             <CommandList>
               <CommandEmpty>
-                {products.isPending ? 'Searching…' : 'No products found.'}
+                {products.isError
+                  ? 'Could not load products. Try again.'
+                  : products.isPending
+                    ? 'Searching…'
+                    : 'No products found.'}
               </CommandEmpty>
               {products.data?.map((product) => (
                 <CommandItem

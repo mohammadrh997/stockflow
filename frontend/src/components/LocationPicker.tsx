@@ -43,7 +43,15 @@ export function LocationPicker({
       disabled={disabled || warehouseId === undefined || locations.isPending}
     >
       <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder={locations.isPending ? 'Loading…' : 'Choose a location'} />
+        <SelectValue
+          placeholder={
+            locations.isError
+              ? 'Could not load locations'
+              : locations.isPending
+                ? 'Loading…'
+                : 'Choose a location'
+          }
+        />
       </SelectTrigger>
       <SelectContent>
         {emptyLabel && <SelectItem value={NONE}>{emptyLabel}</SelectItem>}

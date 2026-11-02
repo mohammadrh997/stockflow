@@ -90,7 +90,11 @@ export function PartnerPicker({
             </div>
             <CommandList>
               <CommandEmpty>
-                {partners.isPending ? 'Searching…' : 'No partners found.'}
+                {partners.isError
+                  ? 'Could not load partners. Try again.'
+                  : partners.isPending
+                    ? 'Searching…'
+                    : 'No partners found.'}
               </CommandEmpty>
               {partners.data?.map((partner) => (
                 <CommandItem

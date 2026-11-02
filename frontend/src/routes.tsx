@@ -7,6 +7,7 @@ import { RequireAccess } from '@/auth/RequireAccess'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { NotFoundPage } from '@/components/NotFoundPage'
+import { RouteErrorPage } from '@/components/RouteErrorPage'
 import { HomePage } from '@/features/home/HomePage'
 import { NewPartnerPage } from '@/features/partners/NewPartnerPage'
 import { PartnerPage } from '@/features/partners/PartnerPage'
@@ -35,6 +36,7 @@ import { WarehousesPage } from '@/features/warehouses/WarehousesPage'
 // AuthProvider sits inside the router so it and the pages it wraps can use navigation hooks.
 export const routes: RouteObject[] = [
   {
+    errorElement: <RouteErrorPage />,
     element: (
       <AuthProvider>
         <Outlet />
