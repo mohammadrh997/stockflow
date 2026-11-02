@@ -8,6 +8,7 @@ import { applyFieldErrors } from '@/api/errors'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
 import { LocationPicker } from '@/components/LocationPicker'
+import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { ProductPicker } from '@/components/ProductPicker'
 import { WarehousePicker } from '@/components/WarehousePicker'
@@ -86,144 +87,150 @@ export function NewInternalTransferPage() {
       <p className="-mt-3 text-sm text-muted-foreground">
         Moves stock between two locations of the same warehouse. It is recorded as done right away.
       </p>
-      <form className="grid max-w-3xl gap-6" onSubmit={handleSubmit(submit)} noValidate>
-        {formError && <ErrorMessage message={formError} />}
-        <fieldset disabled={isSubmitting} className="grid gap-4 sm:grid-cols-3">
-          {severalWarehouses && (
-            <FormField label="Warehouse" htmlFor="warehouse" error={errors.warehouse_id?.message}>
-              <Controller
-                name="warehouse_id"
-                control={control}
-                rules={{ validate: (value) => value !== null || 'Choose a warehouse.' }}
-                render={({ field }) => (
-                  <WarehousePicker
-                    id="warehouse"
-                    value={field.value}
-                    onChange={(id) => {
-                      field.onChange(id)
-                      setValue('from_location_id', null)
-                      setValue('to_location_id', null)
-                    }}
-                  />
-                )}
-              />
-            </FormField>
-          )}
-          <FormField label="From" htmlFor="from-location" error={errors.from_location_id?.message}>
-            <Controller
-              name="from_location_id"
-              control={control}
-              rules={{ validate: (value) => value !== null || 'Choose where the stock is.' }}
-              render={({ field }) => (
-                <LocationPicker
-                  id="from-location"
-                  warehouseId={warehouseId}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </FormField>
-          <FormField label="To" htmlFor="to-location" error={errors.to_location_id?.message}>
-            <Controller
-              name="to_location_id"
-              control={control}
-              rules={{
-                validate: (value, values) =>
-                  value === null
-                    ? 'Choose where the stock goes.'
-                    : value !== values.from_location_id || 'Choose a different location.',
-              }}
-              render={({ field }) => (
-                <LocationPicker
-                  id="to-location"
-                  warehouseId={warehouseId}
-                  value={field.value}
-                  onChange={field.onChange}
-                  excludeId={fromLocation ?? undefined}
-                />
-              )}
-            />
-          </FormField>
-        </fieldset>
-
-        <fieldset disabled={isSubmitting} className="grid gap-3">
-          <legend className="mb-2 font-medium">Products</legend>
-          {lines.fields.map((line, index) => (
-            <div key={line.id} className="grid items-start gap-3 sm:grid-cols-[auto_8rem_auto]">
-              <FormField
-                label="Product"
-                htmlFor={`line-${index}-product`}
-                error={errors.lines?.[index]?.product_id?.message}
-              >
+      <Panel>
+        <form className="grid max-w-3xl gap-6" onSubmit={handleSubmit(submit)} noValidate>
+          {formError && <ErrorMessage message={formError} />}
+          <fieldset disabled={isSubmitting} className="grid gap-4 sm:grid-cols-3">
+            {severalWarehouses && (
+              <FormField label="Warehouse" htmlFor="warehouse" error={errors.warehouse_id?.message}>
                 <Controller
-                  name={`lines.${index}.product_id`}
+                  name="warehouse_id"
                   control={control}
-                  rules={{ validate: (value) => value !== null || 'Choose a product.' }}
+                  rules={{ validate: (value) => value !== null || 'Choose a warehouse.' }}
                   render={({ field }) => (
-                    <ProductPicker
-                      id={`line-${index}-product`}
+                    <WarehousePicker
+                      id="warehouse"
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(id) => {
+                        field.onChange(id)
+                        setValue('from_location_id', null)
+                        setValue('to_location_id', null)
+                      }}
                     />
                   )}
                 />
               </FormField>
-              <FormField
-                label="Quantity"
-                htmlFor={`line-${index}-quantity`}
-                error={errors.lines?.[index]?.quantity?.message}
-              >
-                <Input
-                  id={`line-${index}-quantity`}
-                  inputMode="decimal"
-                  aria-invalid={errors.lines?.[index]?.quantity ? true : undefined}
-                  {...register(`lines.${index}.quantity`, quantityRules)}
-                />
-              </FormField>
+            )}
+            <FormField
+              label="From"
+              htmlFor="from-location"
+              error={errors.from_location_id?.message}
+            >
+              <Controller
+                name="from_location_id"
+                control={control}
+                rules={{ validate: (value) => value !== null || 'Choose where the stock is.' }}
+                render={({ field }) => (
+                  <LocationPicker
+                    id="from-location"
+                    warehouseId={warehouseId}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </FormField>
+            <FormField label="To" htmlFor="to-location" error={errors.to_location_id?.message}>
+              <Controller
+                name="to_location_id"
+                control={control}
+                rules={{
+                  validate: (value, values) =>
+                    value === null
+                      ? 'Choose where the stock goes.'
+                      : value !== values.from_location_id || 'Choose a different location.',
+                }}
+                render={({ field }) => (
+                  <LocationPicker
+                    id="to-location"
+                    warehouseId={warehouseId}
+                    value={field.value}
+                    onChange={field.onChange}
+                    excludeId={fromLocation ?? undefined}
+                  />
+                )}
+              />
+            </FormField>
+          </fieldset>
+
+          <fieldset disabled={isSubmitting} className="grid gap-3">
+            <legend className="mb-2 font-medium">Products</legend>
+            {lines.fields.map((line, index) => (
+              <div key={line.id} className="grid items-start gap-3 sm:grid-cols-[auto_8rem_auto]">
+                <FormField
+                  label="Product"
+                  htmlFor={`line-${index}-product`}
+                  error={errors.lines?.[index]?.product_id?.message}
+                >
+                  <Controller
+                    name={`lines.${index}.product_id`}
+                    control={control}
+                    rules={{ validate: (value) => value !== null || 'Choose a product.' }}
+                    render={({ field }) => (
+                      <ProductPicker
+                        id={`line-${index}-product`}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                </FormField>
+                <FormField
+                  label="Quantity"
+                  htmlFor={`line-${index}-quantity`}
+                  error={errors.lines?.[index]?.quantity?.message}
+                >
+                  <Input
+                    id={`line-${index}-quantity`}
+                    inputMode="decimal"
+                    aria-invalid={errors.lines?.[index]?.quantity ? true : undefined}
+                    {...register(`lines.${index}.quantity`, quantityRules)}
+                  />
+                </FormField>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="sm:mt-[1.375rem]"
+                  aria-label={`Remove line ${index + 1}`}
+                  disabled={lines.fields.length === 1}
+                  onClick={() => lines.remove(index)}
+                >
+                  <X />
+                </Button>
+              </div>
+            ))}
+            <div>
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className="sm:mt-[1.375rem]"
-                aria-label={`Remove line ${index + 1}`}
-                disabled={lines.fields.length === 1}
-                onClick={() => lines.remove(index)}
+                variant="outline"
+                size="sm"
+                onClick={() => lines.append(EMPTY_LINE)}
               >
-                <X />
+                <Plus />
+                Add product
               </Button>
             </div>
-          ))}
+          </fieldset>
+
+          <FormField label="Note (optional)" htmlFor="note" error={errors.note?.message}>
+            <Textarea
+              id="note"
+              rows={2}
+              disabled={isSubmitting}
+              {...register('note', {
+                maxLength: { value: 500, message: 'Use at most 500 characters.' },
+              })}
+            />
+          </FormField>
+
           <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => lines.append(EMPTY_LINE)}
-            >
-              <Plus />
-              Add product
+            <Button type="submit" disabled={isSubmitting || warehouses.isPending}>
+              {isSubmitting ? 'Moving stock…' : 'Move stock'}
             </Button>
           </div>
-        </fieldset>
-
-        <FormField label="Note (optional)" htmlFor="note" error={errors.note?.message}>
-          <Textarea
-            id="note"
-            rows={2}
-            disabled={isSubmitting}
-            {...register('note', {
-              maxLength: { value: 500, message: 'Use at most 500 characters.' },
-            })}
-          />
-        </FormField>
-
-        <div>
-          <Button type="submit" disabled={isSubmitting || warehouses.isPending}>
-            {isSubmitting ? 'Moving stock…' : 'Move stock'}
-          </Button>
-        </div>
-      </form>
+        </form>
+      </Panel>
     </div>
   )
 }

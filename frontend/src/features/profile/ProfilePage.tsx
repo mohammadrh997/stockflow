@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/useAuth'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
 import { PageHeader } from '@/components/PageHeader'
+import { Panel } from '@/components/Panel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AccessSummary } from '@/features/users/AccessSummary'
@@ -158,25 +159,29 @@ export function ProfilePage() {
   return (
     <div className="grid gap-8">
       <PageHeader title="Profile" />
-      <dl className="grid max-w-xl grid-cols-[auto_1fr] items-center gap-x-6 gap-y-2 text-sm">
-        <dt className="text-muted-foreground">Email</dt>
-        <dd>{user.email}</dd>
-        <dt className="text-muted-foreground">Access</dt>
-        <dd>
-          <AccessSummary user={user} />
-        </dd>
-      </dl>
-      <p className="-mt-6 text-sm text-muted-foreground">
-        Ask an administrator to change your email or access.
-      </p>
-      <section className="grid gap-3">
-        <h2 className="text-lg font-semibold">Name</h2>
-        <NameForm key={user.name} name={user.name} />
-      </section>
-      <section className="grid gap-3">
-        <h2 className="text-lg font-semibold">Password</h2>
-        <PasswordForm />
-      </section>
+      <Panel className="grid gap-3">
+        <dl className="grid max-w-xl grid-cols-[auto_1fr] items-center gap-x-6 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">Email</dt>
+          <dd>{user.email}</dd>
+          <dt className="text-muted-foreground">Access</dt>
+          <dd>
+            <AccessSummary user={user} />
+          </dd>
+        </dl>
+        <p className="text-sm text-muted-foreground">
+          Ask an administrator to change your email or access.
+        </p>
+      </Panel>
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Panel className="grid gap-3">
+          <h2 className="text-lg font-semibold">Name</h2>
+          <NameForm key={user.name} name={user.name} />
+        </Panel>
+        <Panel className="grid gap-3">
+          <h2 className="text-lg font-semibold">Password</h2>
+          <PasswordForm />
+        </Panel>
+      </div>
     </div>
   )
 }

@@ -55,7 +55,7 @@ export function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between gap-2 border-b px-4">
+        <header className="flex h-14 items-center justify-between gap-2 border-b bg-card px-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild className="md:hidden">
               <Button variant="ghost" size="icon" aria-label="Open navigation">

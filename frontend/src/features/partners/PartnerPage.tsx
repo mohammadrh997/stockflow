@@ -8,6 +8,7 @@ import { ArchivedBadge } from '@/components/ArchivedBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
+import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
@@ -64,17 +65,19 @@ export function PartnerPage() {
           )
         }
       />
-      <PartnerForm
-        // Remount with what the server saved (it lower-cases the email, for example).
-        key={JSON.stringify(values)}
-        readOnly={!canEdit}
-        submitLabel="Save changes"
-        defaultValues={values}
-        onSubmit={async (formValues) => {
-          await updatePartner.mutateAsync(toPartnerPayload(formValues))
-          toast.success('Partner saved')
-        }}
-      />
+      <Panel>
+        <PartnerForm
+          // Remount with what the server saved (it lower-cases the email, for example).
+          key={JSON.stringify(values)}
+          readOnly={!canEdit}
+          submitLabel="Save changes"
+          defaultValues={values}
+          onSubmit={async (formValues) => {
+            await updatePartner.mutateAsync(toPartnerPayload(formValues))
+            toast.success('Partner saved')
+          }}
+        />
+      </Panel>
     </div>
   )
 }

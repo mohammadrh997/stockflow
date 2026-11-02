@@ -8,6 +8,7 @@ import { ArchivedBadge } from '@/components/ArchivedBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
+import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
@@ -62,22 +63,24 @@ export function ProductPage() {
           )
         }
       />
-      <ProductForm
-        // Remount with what the server saved (it upper-cases the SKU, for example).
-        key={[data.id, data.name, data.sku, data.sale_price, data.cost_price].join('|')}
-        readOnly={!canManage}
-        submitLabel="Save changes"
-        defaultValues={{
-          name: data.name,
-          sku: data.sku,
-          sale_price: data.sale_price,
-          cost_price: data.cost_price,
-        }}
-        onSubmit={async (values) => {
-          await updateProduct.mutateAsync(values)
-          toast.success('Product saved')
-        }}
-      />
+      <Panel>
+        <ProductForm
+          // Remount with what the server saved (it upper-cases the SKU, for example).
+          key={[data.id, data.name, data.sku, data.sale_price, data.cost_price].join('|')}
+          readOnly={!canManage}
+          submitLabel="Save changes"
+          defaultValues={{
+            name: data.name,
+            sku: data.sku,
+            sale_price: data.sale_price,
+            cost_price: data.cost_price,
+          }}
+          onSubmit={async (values) => {
+            await updateProduct.mutateAsync(values)
+            toast.success('Product saved')
+          }}
+        />
+      </Panel>
     </div>
   )
 }

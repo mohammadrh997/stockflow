@@ -10,6 +10,7 @@ import { DataTable, type Column } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ShowArchivedToggle } from '@/components/ListToolbar'
 import { NotFoundPage } from '@/components/NotFoundPage'
+import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Badge } from '@/components/ui/badge'
@@ -114,18 +115,22 @@ export function WarehousePage() {
       <section className="grid gap-3">
         <h2 className="text-lg font-semibold">Settings</h2>
         {canManage ? (
-          <WarehouseSettingsForm
-            // Remount with what the server saved.
-            key={`${data.name}|${data.default_location_id}`}
-            warehouse={data}
-          />
+          <Panel>
+            <WarehouseSettingsForm
+              // Remount with what the server saved.
+              key={`${data.name}|${data.default_location_id}`}
+              warehouse={data}
+            />
+          </Panel>
         ) : (
-          <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-            <dt className="text-muted-foreground">Name</dt>
-            <dd>{data.name}</dd>
-            <dt className="text-muted-foreground">Default location</dt>
-            <dd>{defaultName ?? '—'}</dd>
-          </dl>
+          <Panel>
+            <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">Name</dt>
+              <dd>{data.name}</dd>
+              <dt className="text-muted-foreground">Default location</dt>
+              <dd>{defaultName ?? '—'}</dd>
+            </dl>
+          </Panel>
         )}
       </section>
 

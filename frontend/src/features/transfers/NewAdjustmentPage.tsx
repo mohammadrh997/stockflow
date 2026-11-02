@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
 import { LocationPicker } from '@/components/LocationPicker'
+import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { ProductPicker } from '@/components/ProductPicker'
 import { WarehousePicker } from '@/components/WarehousePicker'
@@ -81,147 +82,149 @@ export function NewAdjustmentPage() {
         Enter what you physically counted at one location. The difference from the recorded stock is
         booked against Inventory Loss.
       </p>
-      <form
-        className="grid max-w-3xl gap-6"
-        onSubmit={handleSubmit((values) => {
-          setFormError(null)
-          setToConfirm(values)
-        })}
-        noValidate
-      >
-        {formError && <ErrorMessage message={formError} />}
-        <div className="grid gap-4 sm:grid-cols-3">
-          {severalWarehouses && (
-            <FormField label="Warehouse" htmlFor="warehouse" error={errors.warehouse_id?.message}>
-              <Controller
-                name="warehouse_id"
-                control={control}
-                rules={{ validate: (value) => value !== null || 'Choose a warehouse.' }}
-                render={({ field }) => (
-                  <WarehousePicker
-                    id="warehouse"
-                    value={field.value}
-                    onChange={(id) => {
-                      field.onChange(id)
-                      setValue('location_id', null)
-                    }}
-                  />
-                )}
-              />
-            </FormField>
-          )}
-          <FormField label="Location" htmlFor="location" error={errors.location_id?.message}>
-            <Controller
-              name="location_id"
-              control={control}
-              rules={{ validate: (value) => value !== null || 'Choose the counted location.' }}
-              render={({ field }) => (
-                <LocationPicker
-                  id="location"
-                  warehouseId={warehouseId}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          </FormField>
-        </div>
-
-        <fieldset className="grid gap-3">
-          <legend className="mb-2 font-medium">Counted products</legend>
-          {lines.fields.map((line, index) => (
-            <div key={line.id} className="grid items-start gap-3 sm:grid-cols-[auto_8rem_auto]">
-              <FormField
-                label="Product"
-                htmlFor={`line-${index}-product`}
-                error={errors.lines?.[index]?.product_id?.message}
-              >
+      <Panel>
+        <form
+          className="grid max-w-3xl gap-6"
+          onSubmit={handleSubmit((values) => {
+            setFormError(null)
+            setToConfirm(values)
+          })}
+          noValidate
+        >
+          {formError && <ErrorMessage message={formError} />}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {severalWarehouses && (
+              <FormField label="Warehouse" htmlFor="warehouse" error={errors.warehouse_id?.message}>
                 <Controller
-                  name={`lines.${index}.product_id`}
+                  name="warehouse_id"
                   control={control}
-                  rules={{
-                    validate: (value, values) =>
-                      value === null
-                        ? 'Choose a product.'
-                        : values.lines.filter((l) => l.product_id === value).length === 1 ||
-                          'Count each product only once.',
-                  }}
+                  rules={{ validate: (value) => value !== null || 'Choose a warehouse.' }}
                   render={({ field }) => (
-                    <ProductPicker
-                      id={`line-${index}-product`}
+                    <WarehousePicker
+                      id="warehouse"
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(id) => {
+                        field.onChange(id)
+                        setValue('location_id', null)
+                      }}
                     />
                   )}
                 />
               </FormField>
-              <FormField
-                label="Counted"
-                htmlFor={`line-${index}-counted`}
-                error={errors.lines?.[index]?.counted_quantity?.message}
-              >
-                <Input
-                  id={`line-${index}-counted`}
-                  inputMode="decimal"
-                  aria-invalid={errors.lines?.[index]?.counted_quantity ? true : undefined}
-                  {...register(`lines.${index}.counted_quantity`, {
-                    required: 'Enter the counted quantity (0 if none).',
-                    pattern: {
-                      value: QUANTITY_PATTERN,
-                      message: 'Use a number with up to 3 decimals.',
-                    },
-                  })}
-                />
-              </FormField>
+            )}
+            <FormField label="Location" htmlFor="location" error={errors.location_id?.message}>
+              <Controller
+                name="location_id"
+                control={control}
+                rules={{ validate: (value) => value !== null || 'Choose the counted location.' }}
+                render={({ field }) => (
+                  <LocationPicker
+                    id="location"
+                    warehouseId={warehouseId}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </FormField>
+          </div>
+
+          <fieldset className="grid gap-3">
+            <legend className="mb-2 font-medium">Counted products</legend>
+            {lines.fields.map((line, index) => (
+              <div key={line.id} className="grid items-start gap-3 sm:grid-cols-[auto_8rem_auto]">
+                <FormField
+                  label="Product"
+                  htmlFor={`line-${index}-product`}
+                  error={errors.lines?.[index]?.product_id?.message}
+                >
+                  <Controller
+                    name={`lines.${index}.product_id`}
+                    control={control}
+                    rules={{
+                      validate: (value, values) =>
+                        value === null
+                          ? 'Choose a product.'
+                          : values.lines.filter((l) => l.product_id === value).length === 1 ||
+                            'Count each product only once.',
+                    }}
+                    render={({ field }) => (
+                      <ProductPicker
+                        id={`line-${index}-product`}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                </FormField>
+                <FormField
+                  label="Counted"
+                  htmlFor={`line-${index}-counted`}
+                  error={errors.lines?.[index]?.counted_quantity?.message}
+                >
+                  <Input
+                    id={`line-${index}-counted`}
+                    inputMode="decimal"
+                    aria-invalid={errors.lines?.[index]?.counted_quantity ? true : undefined}
+                    {...register(`lines.${index}.counted_quantity`, {
+                      required: 'Enter the counted quantity (0 if none).',
+                      pattern: {
+                        value: QUANTITY_PATTERN,
+                        message: 'Use a number with up to 3 decimals.',
+                      },
+                    })}
+                  />
+                </FormField>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="sm:mt-[1.375rem]"
+                  aria-label={`Remove line ${index + 1}`}
+                  disabled={lines.fields.length === 1}
+                  onClick={() => lines.remove(index)}
+                >
+                  <X />
+                </Button>
+              </div>
+            ))}
+            <div>
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className="sm:mt-[1.375rem]"
-                aria-label={`Remove line ${index + 1}`}
-                disabled={lines.fields.length === 1}
-                onClick={() => lines.remove(index)}
+                variant="outline"
+                size="sm"
+                onClick={() => lines.append(EMPTY_LINE)}
               >
-                <X />
+                <Plus />
+                Add product
               </Button>
             </div>
-          ))}
+          </fieldset>
+
+          <FormField
+            label="Reason"
+            htmlFor="note"
+            error={errors.note?.message}
+            hint="Required, e.g. Monthly count, Damaged in storage."
+          >
+            <Textarea
+              id="note"
+              rows={2}
+              aria-invalid={errors.note ? true : undefined}
+              {...register('note', {
+                validate: (value) => value.trim() !== '' || 'Enter a reason.',
+                maxLength: { value: 500, message: 'Use at most 500 characters.' },
+              })}
+            />
+          </FormField>
+
           <div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => lines.append(EMPTY_LINE)}
-            >
-              <Plus />
-              Add product
+            <Button type="submit" disabled={warehouses.isPending}>
+              Record adjustment
             </Button>
           </div>
-        </fieldset>
-
-        <FormField
-          label="Reason"
-          htmlFor="note"
-          error={errors.note?.message}
-          hint="Required, e.g. Monthly count, Damaged in storage."
-        >
-          <Textarea
-            id="note"
-            rows={2}
-            aria-invalid={errors.note ? true : undefined}
-            {...register('note', {
-              validate: (value) => value.trim() !== '' || 'Enter a reason.',
-              maxLength: { value: 500, message: 'Use at most 500 characters.' },
-            })}
-          />
-        </FormField>
-
-        <div>
-          <Button type="submit" disabled={warehouses.isPending}>
-            Record adjustment
-          </Button>
-        </div>
-      </form>
+        </form>
+      </Panel>
 
       <ConfirmDialog
         open={toConfirm !== null}

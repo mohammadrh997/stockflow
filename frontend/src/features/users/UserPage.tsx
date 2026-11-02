@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DisabledReason } from '@/components/DisabledReason'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
+import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Badge } from '@/components/ui/badge'
@@ -71,32 +72,34 @@ export function UserPage() {
           </>
         }
       />
-      <UserForm
-        // Remount with what the server saved (it lower-cases the email, for example).
-        key={JSON.stringify(data)}
-        isSelf={isSelf}
-        submitLabel="Save changes"
-        defaultValues={{
-          email: data.email,
-          name: data.name,
-          password: '',
-          is_admin: data.is_admin,
-          sales_access: data.sales_access,
-          purchase_access: data.purchase_access,
-          inventory_access: data.inventory_access,
-        }}
-        onSubmit={async (values) => {
-          await updateUser.mutateAsync({
-            email: values.email,
-            name: values.name,
-            is_admin: values.is_admin,
-            sales_access: values.sales_access,
-            purchase_access: values.purchase_access,
-            inventory_access: values.inventory_access,
-          })
-          toast.success('User saved')
-        }}
-      />
+      <Panel>
+        <UserForm
+          // Remount with what the server saved (it lower-cases the email, for example).
+          key={JSON.stringify(data)}
+          isSelf={isSelf}
+          submitLabel="Save changes"
+          defaultValues={{
+            email: data.email,
+            name: data.name,
+            password: '',
+            is_admin: data.is_admin,
+            sales_access: data.sales_access,
+            purchase_access: data.purchase_access,
+            inventory_access: data.inventory_access,
+          }}
+          onSubmit={async (values) => {
+            await updateUser.mutateAsync({
+              email: values.email,
+              name: values.name,
+              is_admin: values.is_admin,
+              sales_access: values.sales_access,
+              purchase_access: values.purchase_access,
+              inventory_access: values.inventory_access,
+            })
+            toast.success('User saved')
+          }}
+        />
+      </Panel>
       <p className="text-sm text-muted-foreground">Created {formatDateTime(data.created_at)}</p>
     </div>
   )

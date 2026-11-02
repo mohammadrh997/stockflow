@@ -4,6 +4,7 @@ import { ApiError } from '@/api/errors'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
+import { Panel } from '@/components/Panel'
 import { PageHeader, type Crumb } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
@@ -68,30 +69,32 @@ export function TransferPage() {
 
       {fromOrder && <ProgressTrack steps={['ready', 'done']} state={data.state} />}
 
-      <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-        <dt className="text-muted-foreground">Type</dt>
-        <dd>{TRANSFER_TYPE_LABELS[data.transfer_type]}</dd>
-        <dt className="text-muted-foreground">Warehouse</dt>
-        <dd>
-          <WarehouseName id={data.warehouse_id} />
-        </dd>
-        {(data.purchase_order_id !== null || data.sales_order_id !== null) && (
-          <>
-            <dt className="text-muted-foreground">Order</dt>
-            <dd>
-              <TransferOrigin transfer={data} />
-            </dd>
-          </>
-        )}
-        <dt className="text-muted-foreground">Created</dt>
-        <dd>{formatDateTime(data.created_at)}</dd>
-        {data.validated_at && (
-          <>
-            <dt className="text-muted-foreground">Validated</dt>
-            <dd>{formatDateTime(data.validated_at)}</dd>
-          </>
-        )}
-      </dl>
+      <Panel>
+        <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">Type</dt>
+          <dd>{TRANSFER_TYPE_LABELS[data.transfer_type]}</dd>
+          <dt className="text-muted-foreground">Warehouse</dt>
+          <dd>
+            <WarehouseName id={data.warehouse_id} />
+          </dd>
+          {(data.purchase_order_id !== null || data.sales_order_id !== null) && (
+            <>
+              <dt className="text-muted-foreground">Order</dt>
+              <dd>
+                <TransferOrigin transfer={data} />
+              </dd>
+            </>
+          )}
+          <dt className="text-muted-foreground">Created</dt>
+          <dd>{formatDateTime(data.created_at)}</dd>
+          {data.validated_at && (
+            <>
+              <dt className="text-muted-foreground">Validated</dt>
+              <dd>{formatDateTime(data.validated_at)}</dd>
+            </>
+          )}
+        </dl>
+      </Panel>
 
       <section className="grid gap-3">
         <h2 className="text-lg font-semibold">Moves</h2>

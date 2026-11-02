@@ -69,7 +69,7 @@ export function AddLineForm({ defaultPrice, hint, onAdd }: Props) {
   return (
     <>
       <form
-        className="grid min-w-0 gap-3 rounded-lg border p-4"
+        className="grid min-w-0 gap-3 rounded-lg border bg-card p-4 shadow-xs"
         onSubmit={handleSubmit(submit)}
         noValidate
         aria-label="Add line"
