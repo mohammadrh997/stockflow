@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, X } from 'lucide-react'
+import { Check, ChevronsUpDown, Plus, X } from 'lucide-react'
 import { useState, type Ref } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,10 @@ type Props = {
   clearable?: boolean
   disabled?: boolean
   className?: string
+  // Offers "Create …" when nothing matches the search exactly.
+  onCreate?: (name: string) => void
+  // Shown with "No products found.", e.g. who to ask when the user cannot create one.
+  emptyHint?: string
 }
 
 // Searches active products on the server by name.
@@ -38,6 +42,8 @@ export function ProductPicker({
   clearable,
   disabled,
   className,
+  onCreate,
+  emptyHint,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -47,6 +53,10 @@ export function ProductPicker({
     { enabled: open },
   )
   const selected = useProduct(value ?? 0, { enabled: value !== null })
+  const typed = search.trim()
+  const settled = name === typed && !products.isFetching && !products.isError
+  const exactMatch = products.data?.some((p) => p.name.toLowerCase() === typed.toLowerCase())
+  const offerCreate = onCreate && typed !== '' && settled && !exactMatch
 
   const label =
     value === null ? placeholder : selected.data ? selected.data.name : `Product #${value}`
@@ -79,7 +89,7 @@ export function ProductPicker({
                   ? 'Could not load products. Try again.'
                   : products.isPending
                     ? 'Searching…'
-                    : 'No products found.'}
+                    : ['No products found.', emptyHint].filter(Boolean).join(' ')}
               </CommandEmpty>
               {products.data?.map((product) => (
                 <CommandItem
@@ -95,6 +105,19 @@ export function ProductPicker({
                   <span className="ml-auto text-xs text-muted-foreground">{product.sku}</span>
                 </CommandItem>
               ))}
+              {offerCreate && (
+                <CommandItem
+                  value="create"
+                  onSelect={() => {
+                    setOpen(false)
+                    setSearch('')
+                    onCreate(typed)
+                  }}
+                >
+                  <Plus />
+                  Create “{typed}”…
+                </CommandItem>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>

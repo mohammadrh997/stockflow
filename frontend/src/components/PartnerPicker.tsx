@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, X } from 'lucide-react'
+import { Check, ChevronsUpDown, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,8 @@ type Props = {
   placeholder?: string
   clearable?: boolean
   disabled?: boolean
+  // Offers "Create …" when no partner of any role has the searched name.
+  onCreate?: (name: string) => void
 }
 
 // Offers partners with the given role first; "Show all partners" lifts that filter.
@@ -37,6 +39,7 @@ export function PartnerPicker({
   placeholder = 'Choose a partner',
   clearable,
   disabled,
+  onCreate,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -53,6 +56,22 @@ export function PartnerPicker({
     { enabled: open },
   )
   const selected = usePartner(value ?? 0, { enabled: value !== null })
+
+  // Before offering to create, look across every role so an existing supplier
+  // isn't duplicated as a customer (and the other way round).
+  const typed = search.trim()
+  const anyRole = usePartners(
+    { name: name || undefined, skip: 0, limit: RESULT_LIMIT },
+    { enabled: open && !!onCreate && name !== '' && !showAll },
+  )
+  const candidates = showAll ? partners : anyRole
+  const settled =
+    name === typed && !partners.isFetching && !candidates.isFetching && !candidates.isError
+  const sameName = (p: { name: string }) => p.name.toLowerCase() === typed.toLowerCase()
+  const existsAnyRole = candidates.data?.some(sameName)
+  const existsHere = partners.data?.some(sameName)
+  const offerCreate = onCreate && typed !== '' && settled && !existsAnyRole
+  const hiddenByRole = onCreate && settled && existsAnyRole && !existsHere
 
   const label =
     value === null ? placeholder : selected.data ? selected.data.name : `Partner #${value}`
@@ -94,7 +113,9 @@ export function PartnerPicker({
                   ? 'Could not load partners. Try again.'
                   : partners.isPending
                     ? 'Searching…'
-                    : 'No partners found.'}
+                    : hiddenByRole
+                      ? `“${typed}” exists with another role. Tick Show all partners to use it.`
+                      : 'No partners found.'}
               </CommandEmpty>
               {partners.data?.map((partner) => (
                 <CommandItem
@@ -109,6 +130,19 @@ export function PartnerPicker({
                   <span className="truncate">{partner.name}</span>
                 </CommandItem>
               ))}
+              {offerCreate && (
+                <CommandItem
+                  value="create"
+                  onSelect={() => {
+                    setOpen(false)
+                    setSearch('')
+                    onCreate(typed)
+                  }}
+                >
+                  <Plus />
+                  Create “{typed}”…
+                </CommandItem>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>
