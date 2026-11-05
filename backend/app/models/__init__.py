@@ -1,3 +1,4 @@
+from app.models.invoice import Invoice, InvoiceLine, Payment
 from app.models.partner import Partner
 from app.models.product import Product
 from app.models.purchase import PurchaseOrder, PurchaseOrderLine
@@ -18,4 +19,7 @@ __all__ = [
     "Warehouse",
     "Transfer",
     "StockMove",
+    "Invoice",
+    "InvoiceLine",
+    "Payment",
 ]

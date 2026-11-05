@@ -43,6 +43,8 @@ REF_SEQUENCES = [
     "delivery_ref_seq",
     "internal_ref_seq",
     "adjustment_ref_seq",
+    "invoice_ref_seq",
+    "bill_ref_seq",
 ]
 
 

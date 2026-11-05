@@ -11,6 +11,8 @@ class RefSequence(enum.StrEnum):
     delivery = "delivery_ref_seq"
     internal = "internal_ref_seq"
     adjustment = "adjustment_ref_seq"
+    invoice = "invoice_ref_seq"
+    vendor_bill = "bill_ref_seq"
 
 
 async def next_number(db: AsyncSession, sequence: RefSequence) -> int:
