@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useParams } from 'react-router'
+import { useLocation, useParams } from 'react-router'
 
 import { ApiError } from '@/api/errors'
 import { canOnInvoices } from '@/auth/permissions'
@@ -10,7 +10,7 @@ import { ForbiddenPage } from '@/components/ForbiddenPage'
 import { Money } from '@/components/Money'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
-import { PageHeader } from '@/components/PageHeader'
+import { PageHeader, type Crumb } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
@@ -48,6 +48,8 @@ export function InvoicePage() {
   const id = Number(useParams().invoiceId)
   const { user } = useAuth()
   const invoice = useInvoice(id)
+  // Opened from an order, the trail leads back through that order.
+  const fromOrder = (useLocation().state as { trail?: Crumb[] } | null)?.trail
 
   if (invoice.isPending) return <PageSpinner />
   if (invoice.error instanceof ApiError && invoice.error.status === 404) return <NotFoundPage />
@@ -66,7 +68,7 @@ export function InvoicePage() {
     <div className="grid gap-8">
       <PageHeader
         pageTitle={invoiceTitle(data)}
-        trail={[{ to: `/invoices?type=${data.invoice_type}`, label: 'Invoices' }]}
+        trail={fromOrder ?? [{ to: `/invoices?type=${data.invoice_type}`, label: 'Invoices' }]}
         title={
           <>
             {invoiceTitle(data)}
