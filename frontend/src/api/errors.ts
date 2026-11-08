@@ -63,7 +63,8 @@ export function errorMessage(error: unknown): string {
     case 404:
       return detail ?? 'Not found.'
     case 422:
-      return error.fieldErrors.map((e) => e.msg).join(' ') || 'Some fields are invalid.'
+      // Usually a list of field errors; some endpoints send a plain message instead.
+      return error.fieldErrors.map((e) => e.msg).join(' ') || detail || 'Some fields are invalid.'
     case 429:
       return 'Too many attempts. Wait a minute and try again.'
     case 503:
@@ -80,7 +81,9 @@ export function applyFieldErrors<T extends FieldValues>(
   fields: readonly Path<T>[],
   setError: UseFormSetError<T>,
 ): string[] {
-  if (!(error instanceof ApiError) || error.status !== 422) return [errorMessage(error)]
+  if (!(error instanceof ApiError) || error.status !== 422 || error.fieldErrors.length === 0) {
+    return [errorMessage(error)]
+  }
 
   const unmatched: string[] = []
   for (const { loc, msg } of error.fieldErrors) {
