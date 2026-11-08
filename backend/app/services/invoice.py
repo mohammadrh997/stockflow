@@ -73,7 +73,7 @@ async def _invoiceable_quantities(
         .where(move_link.in_(line_ids))
         .group_by(move_link)
     )
-    delivered = {line_id: qty for line_id, qty in rows.tuples()}
+    delivered = {line_id: qty for line_id, qty in rows}
 
     rows = await db.execute(
         select(invoice_link, func.sum(InvoiceLine.quantity))
@@ -81,7 +81,7 @@ async def _invoiceable_quantities(
         .where(invoice_link.in_(line_ids), Invoice.state != InvoiceState.cancelled)
         .group_by(invoice_link)
     )
-    invoiced = {line_id: qty for line_id, qty in rows.tuples()}
+    invoiced = {line_id: qty for line_id, qty in rows}
 
     return {
         line_id: delivered.get(line_id, Decimal("0")) - invoiced.get(line_id, Decimal("0"))

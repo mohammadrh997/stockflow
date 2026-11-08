@@ -12,6 +12,7 @@ from app.core.limiter import limiter
 from app.routers import (
     auth,
     health,
+    invoices,
     partner,
     product,
     purchase,
@@ -45,6 +46,7 @@ app.state.limiter = limiter
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(invoices.router)
 app.include_router(partner.router)
 app.include_router(sale.router)
 app.include_router(purchase.router)
