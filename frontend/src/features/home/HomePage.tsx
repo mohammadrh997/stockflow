@@ -1,18 +1,40 @@
-import { PackageCheck, PackageX, Send, ShoppingCart, Truck } from 'lucide-react'
+import {
+  FileText,
+  PackageCheck,
+  PackageX,
+  ReceiptText,
+  Send,
+  ShoppingCart,
+  Truck,
+} from 'lucide-react'
 import { Link } from 'react-router'
 
-import { can } from '@/auth/permissions'
+import { can, canOnInvoices } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { visibleNavItems } from '@/components/layout/navigation'
+import { useInvoices } from '@/features/invoices/queries'
 import { usePurchaseOrders } from '@/features/purchase/queries'
 import { useSalesOrders } from '@/features/sales/queries'
 import { useStock } from '@/features/stock/queries'
-import { useTransfers } from '@/features/transfers/queries'
+import { useTransfers, type Transfer } from '@/features/transfers/queries'
 import { PAGE_SIZE } from '@/lib/useListParams'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { AttentionCard } from './AttentionCard'
 
 const page = { skip: 0, limit: PAGE_SIZE }
+
+// The lists can't filter on backorders, so count them among the transfers fetched.
+function backorderNote(transfers: Transfer[] | undefined) {
+  const count = transfers?.filter((t) => t.backorder_of_id !== null).length ?? 0
+  if (count === 0) return undefined
+  const atLeast = (transfers?.length ?? 0) >= PAGE_SIZE ? 'at least ' : ''
+  return (
+    <span className="text-sm text-muted-foreground">
+      Including {atLeast}
+      {count} {count === 1 ? 'backorder' : 'backorders'}
+    </span>
+  )
+}
 
 export function HomePage() {
   const { user } = useAuth()
@@ -32,11 +54,22 @@ export function HomePage() {
   )
   const purchaseDrafts = usePurchaseOrders({ state: 'draft', ...page }, { enabled: purchase })
   const salesDrafts = useSalesOrders({ state: 'draft', ...page }, { enabled: sales })
+  const invoiceDrafts = useInvoices(
+    { invoice_type: 'customer_invoice', state: 'draft', ...page },
+    { enabled: sales },
+  )
+  const billDrafts = useInvoices(
+    { invoice_type: 'vendor_bill', state: 'draft', ...page },
+    { enabled: purchase },
+  )
   const stock = useStock({})
   const unavailable = stock.data?.filter((row) => Number(row.available) <= 0)
 
   const draftTitle = (module: 'purchase' | 'sales', name: string) =>
     can(user, module, 'manager') ? `${name} to confirm` : `${name} in draft`
+  // Only managers post; users see what is still in draft.
+  const invoiceTitle = (type: 'customer_invoice' | 'vendor_bill', name: string) =>
+    canOnInvoices(user, type, 'manager') ? `${name} to post` : `${name} in draft`
 
   return (
     <div className="grid gap-8">
@@ -55,6 +88,7 @@ export function HomePage() {
                 isPending={receipts.isPending}
                 isError={receipts.isError}
                 limit={PAGE_SIZE}
+                detail={backorderNote(receipts.data)}
               />
               <AttentionCard
                 title="Deliveries to validate"
@@ -64,6 +98,7 @@ export function HomePage() {
                 isPending={deliveries.isPending}
                 isError={deliveries.isError}
                 limit={PAGE_SIZE}
+                detail={backorderNote(deliveries.data)}
               />
             </>
           )}
@@ -86,6 +121,28 @@ export function HomePage() {
               rows={salesDrafts.data}
               isPending={salesDrafts.isPending}
               isError={salesDrafts.isError}
+              limit={PAGE_SIZE}
+            />
+          )}
+          {purchase && (
+            <AttentionCard
+              title={invoiceTitle('vendor_bill', 'Bills')}
+              icon={FileText}
+              to="/invoices?type=vendor_bill&state=draft"
+              rows={billDrafts.data}
+              isPending={billDrafts.isPending}
+              isError={billDrafts.isError}
+              limit={PAGE_SIZE}
+            />
+          )}
+          {sales && (
+            <AttentionCard
+              title={invoiceTitle('customer_invoice', 'Invoices')}
+              icon={ReceiptText}
+              to="/invoices?type=customer_invoice&state=draft"
+              rows={invoiceDrafts.data}
+              isPending={invoiceDrafts.isPending}
+              isError={invoiceDrafts.isError}
               limit={PAGE_SIZE}
             />
           )}
