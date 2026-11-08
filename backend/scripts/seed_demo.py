@@ -11,6 +11,7 @@ import argparse
 import getpass
 import os
 import sys
+from datetime import date
 from typing import Any
 
 import httpx
@@ -117,9 +118,41 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
         key = "purchase_order_id" if kind == "purchase" else "sales_order_id"
         return dict(api.get("/transfers", **{key: order_id})[0])
 
-    def validate(transfer: dict[str, Any], location_id: int | None = None) -> None:
-        body = {"location_id": location_id} if location_id else {}
+    def validate(
+        transfer: dict[str, Any],
+        location_id: int | None = None,
+        ship: dict[str, str] | None = None,
+    ) -> None:
+        """Validate a transfer. With `ship` ({sku: quantity}), only that much moves."""
+        body: dict[str, Any] = {"location_id": location_id} if location_id else {}
+        if ship is not None:
+            sku_of = {product_id: sku for sku, product_id in products.items()}
+            body["lines"] = [
+                {"line_id": line["id"], "quantity": ship.get(sku_of[line["product_id"]], "0")}
+                for line in transfer["lines"]
+            ]
         api.post(f"/transfers/{transfer['id']}/validate", body)
+
+    def backorder(kind: str, order_id: int) -> dict[str, Any]:
+        key = "purchase_order_id" if kind == "purchase" else "sales_order_id"
+        return dict(api.get("/transfers", state="ready", **{key: order_id})[0])
+
+    def invoice(kind: str, order_id: int, post: bool = True, pay: str | None = None) -> None:
+        """Invoice what has moved so far; optionally post it and record a payment.
+
+        pay="all" pays the full total.
+        """
+        key = "purchase_order_id" if kind == "purchase" else "sales_order_id"
+        created = api.post("/invoices", {key: order_id})
+        if not post:
+            return
+        posted = api.post(f"/invoices/{created['id']}/post", {})
+        if pay is not None:
+            amount = posted["amount_total"] if pay == "all" else pay
+            api.post(
+                f"/invoices/{created['id']}/payments",
+                {"amount": amount, "paid_on": date.today().isoformat()},
+            )
 
     print("Purchase orders")
     po = order(
@@ -129,6 +162,7 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
         [("CHAIR-ERG", "40"), ("DESK-STD", "15"), ("CAB-3D", "10"), ("BOARD-120", "8")],
     )
     validate(confirm("purchase", po))  # into the default location
+    furniture_po = po
 
     po = order(
         "purchase",
@@ -137,6 +171,7 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
         [("MON-27", "30"), ("KB-MECH", "50"), ("MOUSE-WL", "60"), ("CABLE-HDMI", "100")],
     )
     validate(confirm("purchase", po), shelf_a["id"])
+    electronics_po = po
 
     po = order("purchase", suppliers[0], main["id"], [("PAPER-A4", "120"), ("LAMP-LED", "25")])
     validate(confirm("purchase", po), shelf_b["id"])
@@ -150,7 +185,8 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
     validate(confirm("purchase", po))
 
     po = order("purchase", suppliers[1], main["id"], [("DESK-STD", "10"), ("CHAIR-ERG", "20")])
-    confirm("purchase", po)  # receipt left ready: goods on the way
+    # part of it arrived; the rest stays on a backorder (goods still on the way)
+    validate(confirm("purchase", po), ship={"DESK-STD": "10", "CHAIR-ERG": "12"})
 
     order("purchase", suppliers[0], erbil["id"], [("PAPER-A4", "40")])  # draft
 
@@ -187,9 +223,11 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
         [("CHAIR-ERG", "12"), ("DESK-STD", "6"), ("MON-27", "12")],
     )
     validate(confirm("sales", so))  # automatic split across locations
+    first_sale = so
 
     so = order("sales", customers[3], erbil["id"], [("MON-27", "4"), ("KB-MECH", "4")])
     validate(confirm("sales", so))
+    erbil_sale = so
 
     so = order(
         "sales",
@@ -203,6 +241,22 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
 
     so = order("sales", customers[1], main["id"], [("KB-MECH", "5")])
     api.post(f"/sales-orders/{so}/cancel")
+
+    print("Partial deliveries")
+    so = order("sales", customers[0], main["id"], [("KB-MECH", "10"), ("MOUSE-WL", "10")])
+    validate(confirm("sales", so), ship={"KB-MECH": "10", "MOUSE-WL": "6"})
+    partial_sale = so  # 4 mice left on an open backorder
+
+    so = order("sales", customers[3], erbil["id"], [("CHAIR-ERG", "6")])
+    validate(confirm("sales", so), ship={"CHAIR-ERG": "4"})
+    api.post(f"/transfers/{backorder('sales', so)['id']}/cancel")  # customer didn't want the rest
+
+    print("Invoices and bills")
+    invoice("sales", first_sale, pay="all")
+    invoice("sales", erbil_sale, pay="500.00")
+    invoice("sales", partial_sale, post=False)  # draft for what has shipped so far
+    invoice("purchase", furniture_po, pay="all")
+    invoice("purchase", electronics_po)  # posted, not paid yet
 
     print("Demo user")
     api.post(
