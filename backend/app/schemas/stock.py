@@ -31,9 +31,11 @@ class StockMoveRead(BaseModel):
     created_by_id: int
     created_at: datetime
 
+
 class TransferLineDone(BaseModel):
     line_id: int
     quantity: Decimal = Field(ge=0, max_digits=12, decimal_places=3)
+
 
 class TransferValidate(BaseModel):
     location_id: int | None = None
@@ -46,15 +48,17 @@ class TransferValidate(BaseModel):
             if len(line_ids) != len(set(line_ids)):
                 raise ValueError("each line can only appear once")
         return self
-    
+
+
 class TransferLineRead(BaseModel):
     model_config = {"from_attributes": True}
- 
+
     id: int
     product_id: int
     quantity: Decimal
     purchase_line_id: int | None
     sales_line_id: int | None
+
 
 class TransferRead(BaseModel):
     model_config = {"from_attributes": True}
