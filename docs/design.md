@@ -16,7 +16,9 @@ I chose this over a stored quantity because:
 
 The cost is that reading stock means summing history. Two indexes, `(product_id, to_location_id)` and `(product_id, from_location_id)`, keep that fast at this size. If the move table grows large, the next step is a balance table kept in step with each move, and the ledger stays the source of truth.
 
-**Reserved** stock is the quantity on confirmed sales orders that haven't shipped yet. **Available** is on hand minus reserved, per warehouse. Neither is stored; both are computed when asked. The same goes for order totals: they're computed from the lines, never saved.
+**Reserved** stock is what's still waiting to ship: the lines of deliveries that are *ready*. **Available** is on hand minus reserved, per warehouse. Neither is stored; both are computed when asked. The same goes for order totals: they're computed from the lines, never saved.
+
+So on hand comes from the moves, and reserved comes from ready deliveries. No code ever "updates" a reservation: when a delivery is validated or cancelled, it stops being ready, and the sum follows.
 
 ## Locations
 
@@ -33,10 +35,36 @@ A location can't move to another warehouse, because that would rewrite where pas
 A sales order is the sales team's promise. The delivery that ships it is the warehouse team's job. Confirming an order creates a **transfer** (a receipt or a delivery) in state *ready*, and validating that transfer creates the moves. This keeps the two teams' permissions apart, and it matches how warehouses actually work.
 
 - **Purchase:** draft → confirmed → received (or cancelled). A receipt goes to the default location unless another one is chosen.
-- **Sales:** draft → confirmed → delivered (or cancelled). Confirming fails if the warehouse doesn't have enough *available* stock. A delivery takes stock from the default location first, then from the other locations. If a specific location is chosen, it has to hold everything, or nothing moves.
+- **Sales:** draft → confirmed → delivered (or cancelled). Confirming fails if the warehouse doesn't have enough *available* stock. A delivery takes stock from the default location first, then from the other locations. If a specific location is chosen, it has to hold everything being shipped, or nothing moves.
 - **Internal transfers and stock counts** are created already done. Internal transfers stay inside one warehouse.
 
+Each receipt and delivery has **lines**: the quantity expected to move for each order line.
+
 Reference numbers (`PO00001`, `WH/OUT/00003`) come from PostgreSQL sequences. Sequences never hand out the same number twice, even under concurrent requests. The trade-off is that a rolled-back transaction leaves a gap, which is acceptable here.
+
+## Partial deliveries and backorders
+
+Goods don't always move in one go. Validating a transfer can list how much of each line moves now; anything not listed moves nothing. When something is left over:
+
+- The transfer is marked done, and its lines are reduced to what actually moved, so each done document lists exactly what it shipped.
+- The rest goes on a **backorder**: a new ready transfer with its own number (`WH/OUT/00002`), linked to the one it continues.
+- The order stays confirmed until nothing is left, then becomes delivered or received.
+
+Because the backorder is a ready delivery, it automatically holds the reservation for what's left. If the customer no longer wants the rest, cancelling the backorder closes the order with what actually shipped. Cancelling the whole order is refused once anything has moved, because the ledger already says the goods left.
+
+When the live database got this feature, existing receipts and deliveries had no lines yet. The migration copies them from their order lines, so old transfers look exactly as if the new code had created them. Without that step, the open deliveries in the demo data would have lost their reservations on deploy.
+
+## Invoicing
+
+Customer invoices come from sales orders, and vendor bills from purchase orders. Both live in one table with a type, the same way receipts and deliveries share the transfers table.
+
+- **You bill what moved, not what was ordered.** The quantity you can invoice for an order line is the sum of its moves minus what is already on non-cancelled invoices. Draft invoices count, so two drafts can't claim the same goods. This works with partial deliveries without any extra code: ship 4 of 10 and the invoice is for 4.
+- **Invoice lines copy the quantity and price.** A product price changed later never changes an existing invoice.
+- **Draft → posted, or cancelled.** Drafts can be edited; posting freezes them. The number (`INV00001`, `BILL00001`) is given at posting, so abandoned drafts don't use up numbers.
+- **Posting stores the line subtotals and the total.** For orders the total is computed, but an invoice's total is a legal fact. If the rounding code ever changed, a computed total would quietly change old invoices, and a frozen one can't. A database check makes sure a posted invoice always has its number and total.
+- **Payments are their own rows.** Amount paid, amount due and payment status (not paid / partial / paid) are computed from them, never stored. A posted invoice can only be cancelled while it has no payments.
+
+This is billing, not accounting: there are no taxes, journal entries or credit notes yet.
 
 ## Concurrency
 
@@ -46,13 +74,18 @@ Confirming a sales order locks the product rows (`SELECT ... FOR UPDATE`) before
 
 **Proven by breaking:** a test fires 5 concurrent confirmations of 3 units each, against 10 in stock. With the lock removed, all 5 succeeded and promised 15 units from 10. With the lock in place, exactly 3 succeed.
 
-The same pattern covers the other races: validating the same delivery twice, receiving into a location while someone archives it, and two opposite internal transfers. Every operation takes its locks in one fixed order: **order → transfer → locations (by id) → products (by id)**. Two requests therefore can't wait on each other in a cycle, and a test runs opposite transfers concurrently to check that.
+The same pattern covers the other races: validating the same delivery twice, receiving into a location while someone archives it, two opposite internal transfers, invoicing the same order twice, and two payments on one invoice. Every operation takes its locks in one fixed order: **order → transfer or invoice → locations (by id) → products (by id)**. Two requests therefore can't wait on each other in a cycle, and a test runs opposite transfers concurrently to check that.
+
+Two more results from the invoicing tests, with the locks removed:
+
+- Five simultaneous payments of 50 on an invoice of 200 all succeeded, recording 250 paid. With the invoice lock, four succeed and the fifth is refused.
+- Three simultaneous requests to invoice the same delivered order created three invoices. With the order lock, one is created and two are refused.
 
 The state check ("is this order still a draft?") happens *after* the lock is taken. Checked before the lock, it could be stale.
 
 ## Permissions
 
-Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts need an inventory manager.
+Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts and cancelling a backorder need an inventory manager. Customer invoices follow sales access and vendor bills follow purchase access: users draft them, managers post, cancel and record payments. Reading invoices is currently open to anyone with sales or purchase access; limiting it by type is on the list below.
 
 The backend enforces every rule through FastAPI dependencies. The frontend only hides buttons the user can't use; it never decides.
 
@@ -62,7 +95,8 @@ The backend enforces every rule through FastAPI dependencies. The frontend only 
 - Login hashes against a dummy hash when the email doesn't exist. Unknown emails and wrong passwords then take the same time and return the same message.
 - Tokens are JWTs with the user id, issue time and expiry (480 minutes). The user is loaded from the database on every request, so deactivating someone takes effect immediately.
 - Changing or resetting a password sets `password_changed_at`, and any token issued before that is rejected.
-- Login and password change are rate limited to 5 per minute per client IP. The client IP comes only from a header the edge proxy overwrites (`CF-Connecting-IP` on Render, set by `CLIENT_IP_HEADER`)
+- Login and password change are rate limited to 5 per minute per client IP. The client IP comes only from a header the edge proxy overwrites (`CF-Connecting-IP` on Render, set by `CLIENT_IP_HEADER`). The `X-Forwarded-For` sent by the client is never trusted, because anyone can fake it to get a fresh limit with every request. Locally, the socket address is used. The limit is kept in memory, which is enough for a single instance; running several instances would need Redis.
+
 ## Errors
 
 Services raise domain errors (`InsufficientStock`, `OrderNotEditable`) and don't know about HTTP. Routers translate those errors into status codes, following one rule set:
@@ -93,8 +127,8 @@ The API is a Docker image on Render, and the database is on Neon. Migrations run
 
 ## Not built yet
 
-- Partial deliveries and backorders. This would need transfer lines, so a transfer can be done in parts.
 - Transfers between warehouses, which would go through a transit location in two steps.
-- Invoicing.
+- Credit notes, taxes, and the supplier's own bill number on vendor bills.
+- Limiting who can read invoices by type (sales users see customer invoices, purchase users see bills).
 - Units of measure, lots and serial numbers.
 - Reorder alerts, which would run in a background worker.

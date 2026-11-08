@@ -11,15 +11,17 @@ The demo runs on free hosting that sleeps when idle, so the first request can ta
 
 - **Purchase orders:** draft → confirmed → received. Confirming creates a receipt, and the warehouse team validates it into a location.
 - **Sales orders:** confirming checks the available stock and reserves it. The warehouse then validates the delivery, which takes stock from the default location first and then from the other locations.
+- **Partial deliveries:** a receipt or delivery can move part of its goods. The rest goes on a backorder that keeps it reserved, and cancelling the backorder closes the order with what actually shipped.
+- **Invoicing:** customer invoices and vendor bills for what actually moved, with payments and a paid / partly paid status. Posting freezes the invoice's number and amounts.
 - **Internal transfers** between locations of the same warehouse.
 - **Stock counts:** you enter what you counted, and the difference is recorded against an inventory-loss location.
 - **Users:** each user has an access level (none / user / manager) in each of sales, purchase and inventory, and admins manage users.
 
 ## How stock is kept
 
-There is no quantity column. Every change is a move of a quantity from one location to another, and moves are never edited or deleted. On-hand stock is the sum of moves into a location minus the moves out of it. *Reserved* is what confirmed sales orders still need to ship, and *available* is on hand minus reserved.
+There is no quantity column. Every change is a move of a quantity from one location to another, and moves are never edited or deleted. On-hand stock is the sum of moves into a location minus the moves out of it. *Reserved* is what open deliveries still need to ship, and *available* is on hand minus reserved.
 
-Confirming orders and validating transfers lock the affected rows, so two people can't sell the same last unit. The reasons, and the test that shows the lock matters, are in [docs/design.md](docs/design.md).
+Confirming orders, validating transfers, invoicing and recording payments lock the affected rows, so two people can't sell the same last unit or pay the same invoice twice. The reasons, and the test that shows the lock matters, are in [docs/design.md](docs/design.md).
 
 ## Stack
 
@@ -63,4 +65,4 @@ docs/       design notes
 
 ## Not built yet
 
-Partial deliveries and backorders, transfers between warehouses, invoicing, units of measure, lots and serial numbers, product images, and reorder alerts.
+Transfers between warehouses, credit notes and taxes, units of measure, lots and serial numbers, product images, and reorder alerts. The frontend doesn't have invoice or partial-delivery screens yet; both work through the API.
