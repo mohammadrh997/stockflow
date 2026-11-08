@@ -17,6 +17,7 @@ import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
 import { formatDateTime } from '@/lib/format'
+import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
 import { InvoiceLinesTable } from './InvoiceLinesTable'
@@ -74,6 +75,7 @@ export function InvoicePage() {
             <OverdueBadge invoice={data} today={today()} />
           </>
         }
+        actions={<InvoiceActions invoice={data} />}
       />
 
       <ProgressTrack steps={['draft', 'posted']} state={data.state} />
