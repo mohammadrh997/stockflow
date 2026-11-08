@@ -10,6 +10,7 @@ import { Pagination } from '@/components/Pagination'
 import { WarehouseName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { WarehousePicker } from '@/components/WarehousePicker'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -37,9 +38,12 @@ const columns: Column<Transfer>[] = [
   {
     header: 'Reference',
     cell: (transfer) => (
-      <Link to={`/transfers/${transfer.id}`} className="font-medium hover:underline">
-        {transfer.reference}
-      </Link>
+      <span className="flex items-center gap-2">
+        <Link to={`/transfers/${transfer.id}`} className="font-medium hover:underline">
+          {transfer.reference}
+        </Link>
+        {transfer.backorder_of_id !== null && <Badge variant="outline">Backorder</Badge>}
+      </span>
     ),
   },
   { header: 'Type', cell: (transfer) => TRANSFER_TYPE_LABELS[transfer.transfer_type] },
