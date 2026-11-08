@@ -78,7 +78,7 @@ describe('purchase order page', () => {
 
     const row = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
     expect(within(row).getByRole('textbox', { name: 'Quantity for Desk' })).toBeInTheDocument()
-    expect(within(row).getByRole('button', { name: 'Remove' })).toBeInTheDocument()
+    expect(within(row).getByRole('button', { name: 'Remove Desk' })).toBeInTheDocument()
     expect(screen.getByRole('form', { name: 'Add line' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Confirm order' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel order' })).not.toBeInTheDocument()

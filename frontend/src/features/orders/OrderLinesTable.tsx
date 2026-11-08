@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { Money } from '@/components/Money'
 import { Quantity } from '@/components/Quantity'
 import { ProductName } from '@/components/RecordNames'
-import { Button } from '@/components/ui/button'
+import { RemoveLineButton } from './RemoveLineButton'
 import { formatQuantity } from '@/lib/format'
 import { LineField } from './LineField'
 import { checkQuantity, checkUnitPrice } from './lineRules'
@@ -119,14 +119,11 @@ export function OrderLinesTable({
       className: 'text-right',
       cell: (line) => (
         <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
+          <RemoveLineButton
+            productId={line.product_id}
             disabled={deletingId === line.id}
             onClick={() => handleDelete(line.id)}
-          >
-            Remove
-          </Button>
+          />
         </div>
       ),
     })

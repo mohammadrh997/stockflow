@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { Money } from '@/components/Money'
 import { Quantity } from '@/components/Quantity'
 import { ProductName } from '@/components/RecordNames'
-import { Button } from '@/components/ui/button'
+import { RemoveLineButton } from '@/features/orders/RemoveLineButton'
 import { LineField } from '@/features/orders/LineField'
 import { checkQuantity, checkUnitPrice } from '@/features/orders/lineRules'
 import { formatQuantity } from '@/lib/format'
@@ -86,14 +86,11 @@ export function InvoiceLinesTable({ invoice, editable }: { invoice: Invoice; edi
       header: 'Actions',
       className: 'text-right',
       cell: (line) => (
-        <Button
-          variant="ghost"
-          size="sm"
+        <RemoveLineButton
+          productId={line.product_id}
           disabled={lines.remove.isPending}
           onClick={() => remove(line.id)}
-        >
-          Remove
-        </Button>
+        />
       ),
     })
   }
