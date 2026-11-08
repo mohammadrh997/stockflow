@@ -86,10 +86,19 @@ async def list_invoices(
     state: InvoiceState | None = None,
     invoice_type: InvoiceType | None = None,
     partner_id: int | None = None,
+    purchase_order_id: int | None = None,
+    sales_order_id: int | None = None,
 ):
     skip, limit = pagination["skip"], pagination["limit"]
     return await invoice_service.list_invoices(
-        db, state=state, invoice_type=invoice_type, partner_id=partner_id, skip=skip, limit=limit
+        db,
+        state=state,
+        invoice_type=invoice_type,
+        partner_id=partner_id,
+        purchase_order_id=purchase_order_id,
+        sales_order_id=sales_order_id,
+        skip=skip,
+        limit=limit,
     )
 
 

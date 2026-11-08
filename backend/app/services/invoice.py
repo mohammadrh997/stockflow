@@ -134,6 +134,8 @@ async def list_invoices(
     state: InvoiceState | None = None,
     invoice_type: InvoiceType | None = None,
     partner_id: int | None = None,
+    purchase_order_id: int | None = None,
+    sales_order_id: int | None = None,
     skip: int | None = None,
     limit: int | None = None,
 ) -> Sequence[Invoice]:
@@ -144,6 +146,10 @@ async def list_invoices(
         stmt = stmt.where(Invoice.invoice_type == invoice_type)
     if partner_id:
         stmt = stmt.where(Invoice.partner_id == partner_id)
+    if purchase_order_id is not None:
+        stmt = stmt.where(Invoice.purchase_order_id == purchase_order_id)
+    if sales_order_id is not None:
+        stmt = stmt.where(Invoice.sales_order_id == sales_order_id)
     if skip:
         stmt = stmt.offset(skip)
     if limit:
