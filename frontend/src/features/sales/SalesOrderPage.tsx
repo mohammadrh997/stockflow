@@ -16,6 +16,9 @@ import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AddLineForm } from '@/features/orders/AddLineForm'
+import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
+import { OrderInvoicesButton } from '@/features/orders/OrderInvoicesButton'
+import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useOrderInvoices'
 import { OrderMovementNote } from '@/features/orders/OrderMovementNote'
 import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
@@ -42,6 +45,13 @@ export function SalesOrderPage() {
   const seesTransfers =
     can(user, 'inventory') && order.data !== undefined && order.data.state !== 'draft'
   const transfers = useOrderTransfers({ sales_order_id: id }, seesTransfers)
+  // Invoicing is for users of the order's module, once the order is confirmed.
+  const seesInvoices =
+    can(user, 'sales') &&
+    order.data !== undefined &&
+    order.data.state !== 'draft' &&
+    order.data.state !== 'cancelled'
+  const invoices = useOrderInvoices({ sales_order_id: id }, seesInvoices)
   const isDraft = order.data?.state === 'draft'
   const availability = useAvailabilityHint(order.data?.warehouse_id, isDraft)
 
@@ -53,6 +63,10 @@ export function SalesOrderPage() {
   const canEdit = isDraft && can(user, 'sales')
   const canManage = can(user, 'sales', 'manager')
   const canCancel = canManage && (isDraft || data.state === 'confirmed')
+  const trail = [
+    { to: '/sales-orders', label: 'Sales orders' },
+    { to: `/sales-orders/${data.id}`, label: data.reference },
+  ]
 
   return (
     <div className="grid gap-8">
@@ -68,13 +82,22 @@ export function SalesOrderPage() {
         actions={
           <>
             {seesTransfers && (
-              <OrderTransfersButton
-                kind="delivery"
-                transfers={transfers.transfers}
-                trail={[
-                  { to: '/sales-orders', label: 'Sales orders' },
-                  { to: `/sales-orders/${data.id}`, label: data.reference },
-                ]}
+              <OrderTransfersButton kind="delivery" transfers={transfers.transfers} trail={trail} />
+            )}
+            {seesInvoices && (
+              <OrderInvoicesButton kind="invoice" invoices={invoices.invoices} trail={trail} />
+            )}
+            {seesInvoices && (
+              <CreateInvoiceButton
+                kind="invoice"
+                order={data}
+                disabledReason={nothingToInvoiceReason(
+                  'delivery',
+                  data.lines,
+                  seesTransfers ? transfers : null,
+                  invoices.invoiced,
+                )}
+                trail={trail}
               />
             )}
             {canManage && isDraft && (
@@ -145,7 +168,10 @@ export function SalesOrderPage() {
             lines={data.lines}
             total={data.total}
             editable={canEdit}
-            progress={seesTransfers ? { header: 'Delivered', moved: transfers.moved } : undefined}
+            progress={[
+              ...(seesTransfers ? [{ header: 'Delivered', done: transfers.moved }] : []),
+              ...(seesInvoices ? [{ header: 'Invoiced', done: invoices.invoiced }] : []),
+            ]}
             hint={canEdit ? availability : undefined}
             onUpdate={(lineId, changes) => lines.update.mutateAsync({ lineId, changes })}
             onDelete={(lineId) => lines.remove.mutateAsync(lineId)}

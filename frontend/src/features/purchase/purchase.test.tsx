@@ -312,6 +312,7 @@ describe('purchase order page', () => {
           }),
         ]),
       ),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
     )
     signInAs(makeUser({ purchase_access: 'manager', inventory_access: 'user' }))
     renderApp('/purchase-orders/7')
@@ -322,7 +323,8 @@ describe('purchase order page', () => {
     ).toBeInTheDocument()
     const row = screen.getByRole('link', { name: 'Desk' }).closest('tr')!
     expect(within(row).getByText('4')).toBeInTheDocument()
-    expect(within(row).getByText('of 10')).toBeInTheDocument()
+    // Received and invoiced.
+    expect(within(row).getAllByText('of 10')).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Cancel order' })).toBeDisabled()
     expect(
       screen.getByLabelText('Goods have already arrived. Cancel the backorder instead.'),

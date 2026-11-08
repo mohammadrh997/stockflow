@@ -16,6 +16,9 @@ import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AddLineForm } from '@/features/orders/AddLineForm'
+import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
+import { OrderInvoicesButton } from '@/features/orders/OrderInvoicesButton'
+import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useOrderInvoices'
 import { OrderMovementNote } from '@/features/orders/OrderMovementNote'
 import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
@@ -41,6 +44,13 @@ export function PurchaseOrderPage() {
   const seesTransfers =
     can(user, 'inventory') && order.data !== undefined && order.data.state !== 'draft'
   const transfers = useOrderTransfers({ purchase_order_id: id }, seesTransfers)
+  // Invoicing is for users of the order's module, once the order is confirmed.
+  const seesInvoices =
+    can(user, 'purchase') &&
+    order.data !== undefined &&
+    order.data.state !== 'draft' &&
+    order.data.state !== 'cancelled'
+  const invoices = useOrderInvoices({ purchase_order_id: id }, seesInvoices)
 
   if (order.isPending) return <PageSpinner />
   if (order.error instanceof ApiError && order.error.status === 404) return <NotFoundPage />
@@ -51,6 +61,10 @@ export function PurchaseOrderPage() {
   const canEdit = isDraft && can(user, 'purchase')
   const canManage = can(user, 'purchase', 'manager')
   const canCancel = canManage && (isDraft || data.state === 'confirmed')
+  const trail = [
+    { to: '/purchase-orders', label: 'Purchase orders' },
+    { to: `/purchase-orders/${data.id}`, label: data.reference },
+  ]
 
   return (
     <div className="grid gap-8">
@@ -66,13 +80,22 @@ export function PurchaseOrderPage() {
         actions={
           <>
             {seesTransfers && (
-              <OrderTransfersButton
-                kind="receipt"
-                transfers={transfers.transfers}
-                trail={[
-                  { to: '/purchase-orders', label: 'Purchase orders' },
-                  { to: `/purchase-orders/${data.id}`, label: data.reference },
-                ]}
+              <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
+            )}
+            {seesInvoices && (
+              <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
+            )}
+            {seesInvoices && (
+              <CreateInvoiceButton
+                kind="bill"
+                order={data}
+                disabledReason={nothingToInvoiceReason(
+                  'receipt',
+                  data.lines,
+                  seesTransfers ? transfers : null,
+                  invoices.invoiced,
+                )}
+                trail={trail}
               />
             )}
             {canManage && isDraft && (
@@ -143,7 +166,10 @@ export function PurchaseOrderPage() {
             lines={data.lines}
             total={data.total}
             editable={canEdit}
-            progress={seesTransfers ? { header: 'Received', moved: transfers.moved } : undefined}
+            progress={[
+              ...(seesTransfers ? [{ header: 'Received', done: transfers.moved }] : []),
+              ...(seesInvoices ? [{ header: 'Invoiced', done: invoices.invoiced }] : []),
+            ]}
             onUpdate={(lineId, changes) => lines.update.mutateAsync({ lineId, changes })}
             onDelete={(lineId) => lines.remove.mutateAsync(lineId)}
           />

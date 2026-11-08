@@ -17,7 +17,8 @@ type Props = {
   editable: boolean
   hint?: LineHint
   // Once confirmed: how much of each line was received or delivered, e.g. "4 of 10".
-  progress?: { header: string; moved: (lineId: number) => string }
+  // Columns such as "Received 4 of 10": a header and, per line, how much is done.
+  progress?: { header: string; done: (lineId: number) => string }[]
   onUpdate: (lineId: number, changes: LineChanges) => Promise<unknown>
   onDelete: (lineId: number) => Promise<unknown>
 }
@@ -100,13 +101,13 @@ export function OrderLinesTable({
       cell: (line) => <Money value={line.subtotal} />,
     },
   ]
-  if (progress) {
-    columns.splice(2, 0, {
-      header: progress.header,
+  for (const [index, column] of (progress ?? []).entries()) {
+    columns.splice(2 + index, 0, {
+      header: column.header,
       className: 'text-right',
       cell: (line) => (
         <span className="tabular-nums">
-          {formatQuantity(progress.moved(line.id))}
+          {formatQuantity(column.done(line.id))}
           <span className="text-muted-foreground"> of {formatQuantity(line.quantity)}</span>
         </span>
       ),
