@@ -80,6 +80,102 @@ function mockReferenceData() {
 const inventoryUser = makeUser({ inventory_access: 'user' })
 const inventoryManager = makeUser({ inventory_access: 'manager' })
 
+const deskLine = {
+  id: 51,
+  product_id: 3,
+  quantity: '10.000',
+  purchase_line_id: 11,
+  sales_line_id: null,
+}
+
+describe('partial validation', () => {
+  function mockReadyReceipt() {
+    mockReferenceData()
+    let body: unknown
+    server.use(
+      http.get(`${API}/transfers/30`, () => HttpResponse.json(makeTransfer({ lines: [deskLine] }))),
+      http.get(`${API}/transfers`, () => HttpResponse.json([])),
+      http.post(`${API}/transfers/30/validate`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(
+          makeTransfer({ state: 'done', lines: [{ ...deskLine, quantity: '4.000' }] }),
+        )
+      }),
+    )
+    return () => body
+  }
+
+  async function openDialog() {
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Validate' }))
+    const dialog = await screen.findByRole('dialog')
+    return { user, dialog }
+  }
+
+  it('sends only the quantity that arrived and says the rest goes to a backorder', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    const quantity = await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    expect(quantity).toHaveValue('10')
+    await user.clear(quantity)
+    await user.type(quantity, '4')
+
+    expect(within(dialog).getByText(/goes to a new backorder/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Validate part' }))
+
+    await waitFor(() =>
+      expect(body()).toEqual({ location_id: null, lines: [{ line_id: 51, quantity: '4' }] }),
+    )
+  })
+
+  it('stops more than planned before sending', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    const quantity = await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    await user.clear(quantity)
+    await user.type(quantity, '12')
+    await user.click(within(dialog).getByRole('button', { name: 'Validate' }))
+
+    expect(await within(dialog).findByText('At most 10.')).toBeInTheDocument()
+    expect(body()).toBeUndefined()
+  })
+
+  it('needs at least one quantity', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    const quantity = await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    await user.clear(quantity)
+    await user.type(quantity, '0')
+    await user.click(within(dialog).getByRole('button', { name: 'Validate part' }))
+
+    expect(
+      await within(dialog).findByText('Enter a quantity on at least one line.'),
+    ).toBeInTheDocument()
+    expect(body()).toBeUndefined()
+  })
+
+  it('sends no per-line detail when everything moves', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    await user.click(within(dialog).getByRole('button', { name: 'Validate' }))
+
+    await waitFor(() => expect(body()).toEqual({ location_id: null }))
+  })
+})
+
 describe('transfer page', () => {
   it('validates a receipt into the default location and refreshes stock and orders', async () => {
     mockReferenceData()
@@ -113,7 +209,7 @@ describe('transfer page', () => {
       expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('done'),
     )
     expect(body).toEqual({ location_id: null })
-    const row = screen.getByRole('link', { name: 'Desk' }).closest('tr')!
+    const row = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
     expect(within(row).getByText('Supplier')).toBeInTheDocument()
     expect(within(row).getByText('Stock')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
