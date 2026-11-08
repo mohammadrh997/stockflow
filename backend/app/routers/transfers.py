@@ -18,6 +18,9 @@ from app.services.transfers import (
     InsufficientStock,
     InvalidReference,
     NothingToAdjust,
+    NothingToValidate,
+    QuantityExceedsLine,
+    TransferNotCancellable,
     TransferNotFound,
     TransferNotReady,
 )
@@ -58,7 +61,7 @@ async def list_transfer(
         stmt = stmt.offset(skip)
     if limit:
         stmt = stmt.limit(limit)
-    stmt = stmt.options(selectinload(Transfer.moves))
+    stmt = stmt.options(selectinload(Transfer.moves), selectinload(Transfer.lines))
     transfers = (await db.scalars(stmt)).all()
     return transfers
 
@@ -77,7 +80,11 @@ async def validate_transfer(
 ):
     try:
         return await transfer_service.validate_transfer(
-            db, transfer_id=transfer_id, location_id=payload.location_id, user_id=user.id
+            db,
+            transfer_id=transfer_id,
+            location_id=payload.location_id,
+            done=payload.lines,
+            user_id=user.id,
         )
     except TransferNotFound:
         raise HTTPException(status_code=404, detail="Transfer Was Not Found") from None
@@ -85,7 +92,17 @@ async def validate_transfer(
         raise HTTPException(status_code=409, detail=str(exc)) from None
     except InvalidReference as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
-    except InsufficientStock as exc:
+    except (InsufficientStock, NothingToValidate, QuantityExceedsLine) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
+@router.post("/{transfer_id}/cancel", response_model=TransferRead)
+async def cancel_backorder(db: DBsession, transfer_id: int, user: InventoryManager):
+    try:
+        return await transfer_service.cancel_backorder(db, transfer_id)
+    except TransferNotFound:
+        raise HTTPException(status_code=404, detail="Transfer Was Not Found") from None
+    except TransferNotCancellable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
 
 

@@ -129,7 +129,5 @@ async def cancel_order(db: DBsession, order_id: int, user: PurchaseManager):
         return await purchase_service.cancel_purchase_order(db, order_id)
     except PurchaseOrderNotFound:
         raise HTTPException(status_code=404, detail="Order Was Not Found") from None
-    except OrderNotCancellable:
-        raise HTTPException(
-            status_code=409, detail="Only draft or confirmed orders can be cancelled"
-        ) from None
+    except OrderNotCancellable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None

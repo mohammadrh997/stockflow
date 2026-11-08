@@ -206,8 +206,19 @@ async def confirm_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrd
 async def cancel_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
     order = await lock_purchase_order(db, order_id)
     if order.state not in (PurchaseState.draft, PurchaseState.confirmed):
-        raise OrderNotCancellable(order.id)
+        raise OrderNotCancellable(
+            f"{order.reference} is {order.state}; only draft or confirmed orders can be cancelled"
+        )
     if order.state == PurchaseState.confirmed:
+        moved = await db.scalar(
+            select(Transfer.id)
+            .where(Transfer.purchase_order_id == order.id, Transfer.state == TransferState.done)
+            .limit(1)
+        )
+        if moved is not None:
+            raise OrderNotCancellable(
+                f"{order.reference} has already started moving; cancel its backorder instead"
+            )
         receipt = await db.scalar(
             select(Transfer)
             .where(Transfer.purchase_order_id == order.id, Transfer.state == TransferState.ready)

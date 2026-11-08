@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.product import Product
-from app.models.purchase import PurchaseState
-from app.models.sale import SalesState
-from app.models.stock import StockMove, Transfer, TransferState, TransferType
+from app.models.purchase import PurchaseOrder, PurchaseState
+from app.models.sale import SalesOrder, SalesState
+from app.models.stock import StockMove, Transfer, TransferLine, TransferState, TransferType
 from app.models.warehouse import Location, LocationType, Warehouse
-from app.schemas.stock import AdjustmentCreate, InternalTransferCreate
+from app.schemas.stock import AdjustmentCreate, InternalTransferCreate, TransferLineDone
 from app.services.common import InvalidReference
 from app.services.purchase import lock_purchase_order
 from app.services.references import RefSequence, next_number
@@ -34,11 +34,20 @@ class TransferNotFound(Exception): ...  # 404
 class TransferNotReady(Exception): ...  # 409
 
 
+class NothingToValidate(Exception): ...  # 409
+
+
+class QuantityExceedsLine(Exception): ...  # 409
+
+
+class TransferNotCancellable(Exception): ...  # 409
+
+
 def _transfer_query(transfer_id: int):
     return (
         select(Transfer)
         .where(Transfer.id == transfer_id)
-        .options(selectinload(Transfer.moves))
+        .options(selectinload(Transfer.moves), selectinload(Transfer.lines))
         .execution_options(populate_existing=True)
     )
 
@@ -130,70 +139,150 @@ async def _resolve_destination(
     return location
 
 
+def _done_quantities(transfer: Transfer, done: list[TransferLineDone] | None) -> dict[int, Decimal]:
+    """How much of each transfer line moves now, by line id."""
+    if done is None:  # nothing given: everything moves
+        return {line.id: line.quantity for line in transfer.lines}
+
+    lines = {line.id: line for line in transfer.lines}
+    quantities = {line_id: Decimal("0") for line_id in lines}  # lines not listed move 0
+    for item in done:
+        line = lines.get(item.line_id)
+        if line is None:
+            raise InvalidReference(f"line {item.line_id} is not on {transfer.reference}")
+        if item.quantity > line.quantity:
+            raise QuantityExceedsLine(f"line {line.id}: at most {line.quantity} can move")
+        quantities[line.id] = item.quantity
+    if not any(quantities.values()):
+        raise NothingToValidate(f"nothing to move on {transfer.reference}")
+    return quantities
+
+
+async def _close_transfer(
+    db: AsyncSession, transfer: Transfer, done: dict[int, Decimal], user_id: int
+) -> bool:
+    """Mark the transfer done with what moved; put the rest on a backorder.
+
+    Returns True when everything moved (no backorder was needed).
+    """
+    remaining = []
+    for line in list(transfer.lines):
+        rest = line.quantity - done[line.id]
+        if rest > 0:
+            remaining.append(
+                TransferLine(
+                    product_id=line.product_id,
+                    quantity=rest,
+                    sales_line_id=line.sales_line_id,
+                    purchase_line_id=line.purchase_line_id,
+                )
+            )
+        if done[line.id] == 0:
+            transfer.lines.remove(line)  # delete-orphan removes the row
+        else:
+            line.quantity = done[line.id]  # the done document lists what it moved
+
+    transfer.state = TransferState.done
+    transfer.validated_at = datetime.now(UTC)
+    transfer.validated_by_id = user_id
+
+    if remaining:
+        prefix, sequence = (
+            ("IN", RefSequence.receipt)
+            if transfer.transfer_type == TransferType.receipt
+            else ("OUT", RefSequence.delivery)
+        )
+        warehouse = await fetch_warehouse(db, transfer.warehouse_id)
+        number = await next_number(db, sequence)
+        db.add(
+            Transfer(
+                reference=f"{warehouse.code}/{prefix}/{number:05d}",
+                transfer_type=transfer.transfer_type,
+                warehouse_id=transfer.warehouse_id,
+                purchase_order_id=transfer.purchase_order_id,
+                sales_order_id=transfer.sales_order_id,
+                backorder_of_id=transfer.id,
+                lines=remaining,
+            )
+        )
+    return not remaining
+
+
 async def validate_receipt(
-    db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int
+    db: AsyncSession,
+    transfer_id: int,
+    location_id: int | None,
+    done: list[TransferLineDone] | None,
+    user_id: int,
 ) -> Transfer:
+    # Lock order -> transfer -> location (the same order everywhere)
     transfer = await fetch_transfer(db, transfer_id)
-    # validate_receipt
     if transfer.purchase_order_id is None:
         raise TransferNotReady(f"{transfer.reference} has no purchase order")
-    order = await lock_purchase_order(db, transfer.purchase_order_id)
     order = await lock_purchase_order(db, transfer.purchase_order_id)
     transfer = await _lock_transfer(db, transfer_id)
     if transfer.state != TransferState.ready or order.state != PurchaseState.confirmed:
         raise TransferNotReady(f"{transfer.reference} is not ready to validate")
+
+    quantities = _done_quantities(transfer, done)
     destination = await _resolve_destination(db, transfer.warehouse_id, location_id)
     supplier = await get_virtual_location(db, LocationType.supplier)
-    for line in order.lines:
-        db.add(
-            StockMove(
-                transfer_id=transfer.id,
-                product_id=line.product_id,
-                quantity=line.quantity,
-                from_location_id=supplier.id,
-                to_location_id=destination.id,
-                purchase_line_id=line.id,
-                created_by_id=user_id,
+    for line in transfer.lines:
+        if quantities[line.id] > 0:
+            db.add(
+                StockMove(
+                    transfer_id=transfer.id,
+                    product_id=line.product_id,
+                    quantity=quantities[line.id],
+                    from_location_id=supplier.id,
+                    to_location_id=destination.id,
+                    purchase_line_id=line.purchase_line_id,
+                    created_by_id=user_id,
+                )
             )
-        )
-    transfer.state = TransferState.done
-    transfer.validated_at = datetime.now(UTC)
-    transfer.validated_by_id = user_id
-    order.state = PurchaseState.received
+
+    if await _close_transfer(db, transfer, quantities, user_id):
+        order.state = PurchaseState.received
     await db.commit()
     return await fetch_transfer(db, transfer_id)
 
 
 async def validate_delivery(
-    db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int
+    db: AsyncSession,
+    transfer_id: int,
+    location_id: int | None,
+    done: list[TransferLineDone] | None,
+    user_id: int,
 ) -> Transfer:
-    # Lock order → transfer → locations → products (the same order as confirm and cancel)
+    # Lock order -> transfer -> locations -> products (the same order as confirm and cancel)
     transfer = await fetch_transfer(db, transfer_id)
     if transfer.sales_order_id is None:
-        raise TransferNotReady(f"{transfer.reference} has no sale order")
+        raise TransferNotReady(f"{transfer.reference} has no sales order")
     order = await lock_sales_order(db, transfer.sales_order_id)
     transfer = await _lock_transfer(db, transfer_id)
     if transfer.state != TransferState.ready or order.state != SalesState.confirmed:
         raise TransferNotReady(f"{transfer.reference} is not ready to validate")
 
+    quantities = _done_quantities(transfer, done)
+    moving = [line for line in transfer.lines if quantities[line.id] > 0]
+
     # Which locations to take from, in priority order
     if location_id is not None:
         chosen = await _resolve_destination(db, transfer.warehouse_id, location_id)
-        fixed_order = [chosen.id]
+        fixed_order: list[int] | None = [chosen.id]
     else:
         warehouse = await fetch_warehouse(db, transfer.warehouse_id)
         fixed_order = None
 
-    product_ids = sorted({line.product_id for line in order.lines})
+    product_ids = sorted({line.product_id for line in moving})
     await lock_products(db, product_ids)
-
-    on_hand: dict[int, dict[int, Decimal]] = {}
-    for product_id in product_ids:
-        on_hand[product_id] = await on_hand_by_location(db, product_id, transfer.warehouse_id)
-
+    on_hand = {
+        product_id: await on_hand_by_location(db, product_id, transfer.warehouse_id)
+        for product_id in product_ids
+    }
     customer = await get_virtual_location(db, LocationType.customer)
 
-    for line in order.lines:
+    for line in moving:
         stock = on_hand[line.product_id]
         if fixed_order is not None:
             location_order = fixed_order
@@ -202,7 +291,7 @@ async def validate_delivery(
             others = sorted(loc for loc in stock if loc != warehouse.default_location_id)
             location_order = [warehouse.default_location_id, *others]
 
-        for from_location_id, quantity in _allocate(line.quantity, stock, location_order):
+        for from_location_id, quantity in _allocate(quantities[line.id], stock, location_order):
             db.add(
                 StockMove(
                     transfer_id=transfer.id,
@@ -210,28 +299,58 @@ async def validate_delivery(
                     quantity=quantity,
                     from_location_id=from_location_id,
                     to_location_id=customer.id,
-                    sales_line_id=line.id,
+                    sales_line_id=line.sales_line_id,
                     created_by_id=user_id,
                 )
             )
 
-    transfer.state = TransferState.done
-    transfer.validated_at = datetime.now(UTC)
-    transfer.validated_by_id = user_id
-    order.state = SalesState.delivered
+    if await _close_transfer(db, transfer, quantities, user_id):
+        order.state = SalesState.delivered
     await db.commit()
     return await fetch_transfer(db, transfer_id)
 
 
 async def validate_transfer(
-    db: AsyncSession, transfer_id: int, location_id: int | None, user_id: int
+    db: AsyncSession,
+    transfer_id: int,
+    location_id: int | None,
+    done: list[TransferLineDone] | None,
+    user_id: int,
 ) -> Transfer:
     transfer = await fetch_transfer(db, transfer_id)
     if transfer.transfer_type == TransferType.receipt:
-        return await validate_receipt(db, transfer_id, location_id, user_id)
+        return await validate_receipt(db, transfer_id, location_id, done, user_id)
     if transfer.transfer_type == TransferType.delivery:
-        return await validate_delivery(db, transfer_id, location_id, user_id)
+        return await validate_delivery(db, transfer_id, location_id, done, user_id)
     raise TransferNotReady(f"{transfer.reference} is created already validated")
+
+
+async def cancel_backorder(db: AsyncSession, transfer_id: int) -> Transfer:
+    """Drop what's left of an order: cancel its backorder and close the order."""
+    # Lock order -> transfer (the same order as validation)
+    transfer = await fetch_transfer(db, transfer_id)
+    sales_order: SalesOrder | None = None
+    purchase_order: PurchaseOrder | None = None
+    if transfer.sales_order_id is not None:
+        sales_order = await lock_sales_order(db, transfer.sales_order_id)
+    elif transfer.purchase_order_id is not None:
+        purchase_order = await lock_purchase_order(db, transfer.purchase_order_id)
+    transfer = await _lock_transfer(db, transfer_id)
+
+    if transfer.state != TransferState.ready:
+        raise TransferNotCancellable(f"{transfer.reference} is {transfer.state}, not ready")
+    if transfer.backorder_of_id is None:
+        raise TransferNotCancellable(
+            f"{transfer.reference} is not a backorder; cancel its order instead"
+        )
+
+    transfer.state = TransferState.cancelled
+    if sales_order is not None:
+        sales_order.state = SalesState.delivered  # closed with what actually shipped
+    if purchase_order is not None:
+        purchase_order.state = PurchaseState.received
+    await db.commit()
+    return await fetch_transfer(db, transfer_id)
 
 
 async def create_internal_transfer(
