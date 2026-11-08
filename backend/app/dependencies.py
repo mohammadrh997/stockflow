@@ -85,3 +85,7 @@ def require_any_access(*modules: Module, level: Access) -> Callable[[User], Awai
 
 def pagination_params(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, le=100)):
     return {"skip": skip, "limit": limit}
+
+
+def has_access(user: User, module: Module, level: Access) -> bool:
+    return user.is_admin or _access_level(user, module) >= level

@@ -1,11 +1,11 @@
 import enum
 from datetime import date, datetime
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
 from app.models.invoice import InvoiceState, InvoiceType
-from app.schemas.common import Amount, Price, Quantity
+from app.schemas.common import Amount, Price, Quantity, line_subtotal
 
 
 class InvoiceCreate(BaseModel):
@@ -50,9 +50,7 @@ class InvoiceLineRead(BaseModel):
     @model_validator(mode="after")
     def fill_subtotal(self) -> "InvoiceLineRead":
         if self.subtotal is None:
-            self.subtotal = (self.quantity * self.unit_price).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
-            )
+            self.subtotal = line_subtotal(self.quantity, self.unit_price)
         return self
 
 
