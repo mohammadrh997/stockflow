@@ -261,6 +261,83 @@ describe('purchase order page', () => {
     expect(body).toEqual({ product_id: 3, quantity: '2' })
   })
 
+  it('shows a partly received order with its receipt history', async () => {
+    mockReferenceData()
+    const receipt = (overrides: object) => ({
+      warehouse_id: 1,
+      purchase_order_id: 7,
+      sales_order_id: null,
+      created_at: '2026-01-01T10:00:00Z',
+      validated_at: null,
+      validated_by_id: null,
+      backorder_of_id: null,
+      moves: [],
+      ...overrides,
+    })
+    const tenDesks = { ...line, quantity: '10.000', subtotal: '300.00' }
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () =>
+        HttpResponse.json(makeOrder({ state: 'confirmed', lines: [tenDesks], total: '300.00' })),
+      ),
+      http.get(`${API}/transfers`, () =>
+        HttpResponse.json([
+          receipt({
+            id: 22,
+            reference: 'WH/IN/00008',
+            state: 'ready',
+            backorder_of_id: 21,
+            lines: [
+              {
+                id: 2,
+                product_id: 3,
+                quantity: '6.000',
+                purchase_line_id: 11,
+                sales_line_id: null,
+              },
+            ],
+          }),
+          receipt({
+            id: 21,
+            reference: 'WH/IN/00007',
+            state: 'done',
+            lines: [
+              {
+                id: 1,
+                product_id: 3,
+                quantity: '4.000',
+                purchase_line_id: 11,
+                sales_line_id: null,
+              },
+            ],
+          }),
+        ]),
+      ),
+    )
+    signInAs(makeUser({ purchase_access: 'manager', inventory_access: 'user' }))
+    renderApp('/purchase-orders/7')
+    const user = userEvent.setup()
+
+    expect(
+      await screen.findByText('Partly received · the rest is on a backorder'),
+    ).toBeInTheDocument()
+    const row = screen.getByRole('link', { name: 'Desk' }).closest('tr')!
+    expect(within(row).getByText('4')).toBeInTheDocument()
+    expect(within(row).getByText('of 10')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel order' })).toBeDisabled()
+    expect(
+      screen.getByLabelText('Goods have already arrived. Cancel the backorder instead.'),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Receipts \(2\)/ }))
+    const history = await screen.findByRole('list', { name: 'Receipts' })
+    const items = within(history).getAllByRole('link')
+    expect(items.map((item) => item.getAttribute('href'))).toEqual([
+      '/transfers/21',
+      '/transfers/22',
+    ])
+    expect(within(history).getByText('Backorder of WH/IN/00007')).toBeInTheDocument()
+  })
+
   it('links the receipt for people with inventory access', async () => {
     mockReferenceData()
     let transferQuery: URLSearchParams | undefined
@@ -282,6 +359,8 @@ describe('purchase order page', () => {
             created_at: '2026-01-01T10:00:00Z',
             validated_at: null,
             validated_by_id: null,
+            backorder_of_id: null,
+            lines: [],
             moves: [],
           },
         ])
