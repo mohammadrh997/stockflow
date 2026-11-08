@@ -60,6 +60,7 @@ const desk = {
 
 function mockReferenceData() {
   server.use(
+    http.get(`${API}/transfers`, () => HttpResponse.json([])),
     http.get(`${API}/warehouses`, () =>
       HttpResponse.json([{ id: 1, name: 'Main', code: 'WH', default_location_id: 4 }]),
     ),
@@ -176,6 +177,88 @@ describe('partial validation', () => {
   })
 })
 
+describe('backorders', () => {
+  const original = makeTransfer({
+    state: 'done',
+    lines: [{ ...deskLine, quantity: '4.000' }],
+    moves: [move],
+  })
+  const backorder = makeTransfer({
+    id: 40,
+    reference: 'WH/IN/00008',
+    backorder_of_id: 30,
+    lines: [{ ...deskLine, id: 52, quantity: '6.000' }],
+  })
+
+  function mockChain() {
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/transfers/30`, () => HttpResponse.json(original)),
+      http.get(`${API}/transfers/40`, () => HttpResponse.json(backorder)),
+      http.get(`${API}/transfers`, () => HttpResponse.json([original, backorder])),
+    )
+  }
+
+  it('links a transfer to its backorder and back', async () => {
+    mockChain()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+
+    expect(await screen.findByRole('link', { name: 'WH/IN/00008' })).toHaveAttribute(
+      'href',
+      '/transfers/40',
+    )
+    expect(screen.getByRole('columnheader', { name: 'Moved' })).toBeInTheDocument()
+  })
+
+  it('shows what a backorder still has to move and where it came from', async () => {
+    mockChain()
+    signInAs(inventoryUser)
+    renderApp('/transfers/40')
+
+    expect(await screen.findByRole('link', { name: 'WH/IN/00003' })).toHaveAttribute(
+      'href',
+      '/transfers/30',
+    )
+    expect(screen.getByRole('columnheader', { name: 'To move' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel backorder' })).not.toBeInTheDocument()
+  })
+
+  it('lets inventory managers cancel a backorder after confirming', async () => {
+    mockChain()
+    let cancelled = false
+    server.use(
+      http.post(`${API}/transfers/40/cancel`, () => {
+        cancelled = true
+        return HttpResponse.json({ ...backorder, state: 'cancelled' })
+      }),
+    )
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/transfers/40')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Cancel backorder' }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText(/closed as received with what arrived/)).toBeInTheDocument()
+    expect(cancelled).toBe(false)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel backorder' }))
+
+    await waitFor(() => expect(cancelled).toBe(true))
+    expect(await screen.findByRole('columnheader', { name: 'Not moved' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer to cancel a transfer that is not a backorder', async () => {
+    mockReferenceData()
+    server.use(http.get(`${API}/transfers/30`, () => HttpResponse.json(makeTransfer())))
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/transfers/30')
+
+    expect(await screen.findByRole('button', { name: 'Validate' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel backorder' })).not.toBeInTheDocument()
+  })
+})
+
 describe('transfer page', () => {
   it('validates a receipt into the default location and refreshes stock and orders', async () => {
     mockReferenceData()
@@ -198,9 +281,8 @@ describe('transfer page', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const user = userEvent.setup()
 
-    expect(
-      await screen.findByText('Stock moves are recorded when the transfer is validated.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Products' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Moves' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Validate' }))
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Validate' }))

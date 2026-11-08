@@ -35,11 +35,12 @@ export function useTransfers(params: TransferListParams, options: { enabled?: bo
   })
 }
 
-export function useTransfer(id: number) {
+export function useTransfer(id: number, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['transfer', id],
     queryFn: () =>
       unwrap(api.GET('/transfers/{transfer_id}', { params: { path: { transfer_id: id } } })),
+    enabled: options.enabled,
   })
 }
 
