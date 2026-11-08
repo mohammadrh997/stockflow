@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   Boxes,
   Package,
+  ReceiptText,
   ShoppingCart,
   Truck,
   UserCog,
@@ -37,6 +38,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Sales orders',
     icon: ShoppingCart,
     visible: (user) => can(user, 'sales'),
+  },
+  {
+    to: '/invoices',
+    label: 'Invoices',
+    icon: ReceiptText,
+    visible: (user) => can(user, 'sales') || can(user, 'purchase'),
   },
   {
     to: '/transfers',
