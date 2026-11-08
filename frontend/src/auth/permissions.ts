@@ -23,6 +23,15 @@ export function can(
   return RANK[user[ACCESS_FIELD[module]]] >= RANK[level ?? 'user']
 }
 
+// Customer invoices follow sales access, vendor bills follow purchase access.
+export function canOnInvoices(
+  user: User | null | undefined,
+  invoiceType: 'customer_invoice' | 'vendor_bill',
+  level?: Level,
+): boolean {
+  return can(user, invoiceType === 'customer_invoice' ? 'sales' : 'purchase', level)
+}
+
 export function canEditPartners(user: User | null | undefined): boolean {
   return can(user, 'sales') || can(user, 'purchase')
 }

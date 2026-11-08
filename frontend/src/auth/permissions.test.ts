@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { can, canEditPartners, type User } from './permissions'
+import { can, canEditPartners, canOnInvoices, type User } from './permissions'
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -96,6 +96,15 @@ describe('can', () => {
       expect(can(salesUser, 'sales', 'manager')).toBe(false)
       expect(can(salesManager, 'sales', 'manager')).toBe(true)
       expect(can(purchaseManager, 'sales', 'user')).toBe(false)
+    })
+
+    it('invoices: customer invoices follow sales, vendor bills follow purchase', () => {
+      expect(canOnInvoices(salesUser, 'customer_invoice')).toBe(true)
+      expect(canOnInvoices(salesUser, 'customer_invoice', 'manager')).toBe(false)
+      expect(canOnInvoices(salesManager, 'customer_invoice', 'manager')).toBe(true)
+      expect(canOnInvoices(salesManager, 'vendor_bill')).toBe(false)
+      expect(canOnInvoices(purchaseManager, 'vendor_bill', 'manager')).toBe(true)
+      expect(canOnInvoices(purchaseUser, 'customer_invoice')).toBe(false)
     })
 
     it('transfers: user validates and moves stock, manager adjusts', () => {
