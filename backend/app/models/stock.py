@@ -60,8 +60,28 @@ class Transfer(Base):
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     validated_by: Mapped["User | None"] = relationship()
-
+    lines: Mapped[list["TransferLine"]] = relationship(
+        back_populates="transfer", cascade="all, delete-orphan"
+    )
+    backorder_of_id: Mapped[int | None] = mapped_column(ForeignKey("transfers.id"))
     moves: Mapped[list["StockMove"]] = relationship(back_populates="transfer")
+
+
+class TransferLine(Base):
+    __tablename__ = "transfer_lines"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="quantity_positive"),
+        CheckConstraint("num_nonnulls(sales_line_id, purchase_line_id) = 1", name="single_origin"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    transfer_id: Mapped[int] = mapped_column(ForeignKey("transfers.id"), index=True)
+    transfer: Mapped["Transfer"] = relationship(back_populates="lines")
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    product: Mapped["Product"] = relationship()
+    quantity: Mapped[Decimal] = mapped_column(Numeric(12, 3))
+    purchase_line_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_order_lines.id"))
+    sales_line_id: Mapped[int | None] = mapped_column(ForeignKey("sales_order_lines.id"))
 
 
 class StockMove(Base):
