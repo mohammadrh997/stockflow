@@ -5,8 +5,7 @@ from sqlalchemy import func, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.product import Product
-from app.models.sale import SalesOrder, SalesOrderLine, SalesState
-from app.models.stock import StockMove
+from app.models.stock import StockMove, Transfer, TransferLine, TransferState, TransferType
 from app.models.warehouse import Location, LocationType
 
 
@@ -83,12 +82,13 @@ async def available_in_warehouse(db: AsyncSession, product_id: int, warehouse_id
     on_hand = sum((await on_hand_by_location(db, product_id, warehouse_id)).values(), Decimal("0"))
     reserved = (
         await db.execute(
-            select(func.coalesce(func.sum(SalesOrderLine.quantity), 0))
-            .join(SalesOrder)
+            select(func.coalesce(func.sum(TransferLine.quantity), 0))
+            .join(Transfer)
             .where(
-                SalesOrderLine.product_id == product_id,
-                SalesOrder.warehouse_id == warehouse_id,
-                SalesOrder.state == SalesState.confirmed,
+                TransferLine.product_id == product_id,
+                Transfer.warehouse_id == warehouse_id,
+                Transfer.transfer_type == TransferType.delivery,
+                Transfer.state == TransferState.ready,
             )
         )
     ).scalar_one()
@@ -106,18 +106,19 @@ async def stock_report(
         .group_by(movements.c.product_id, Location.warehouse_id)
     )
     reserved_stmt = (
-        select(
-            SalesOrderLine.product_id, SalesOrder.warehouse_id, func.sum(SalesOrderLine.quantity)
+        select(TransferLine.product_id, Transfer.warehouse_id, func.sum(TransferLine.quantity))
+        .join(Transfer)
+        .where(
+            Transfer.transfer_type == TransferType.delivery,
+            Transfer.state == TransferState.ready,
         )
-        .join(SalesOrder)
-        .where(SalesOrder.state == SalesState.confirmed)
-        .group_by(SalesOrderLine.product_id, SalesOrder.warehouse_id)
+        .group_by(TransferLine.product_id, Transfer.warehouse_id)
     )
     if warehouse_id is not None:
         on_hand_stmt = on_hand_stmt.where(Location.warehouse_id == warehouse_id)
-        reserved_stmt = reserved_stmt.where(SalesOrder.warehouse_id == warehouse_id)
+        reserved_stmt = reserved_stmt.where(Transfer.warehouse_id == warehouse_id)
     if product_id is not None:
-        reserved_stmt = reserved_stmt.where(SalesOrderLine.product_id == product_id)
+        reserved_stmt = reserved_stmt.where(TransferLine.product_id == product_id)
 
     totals: dict[tuple[int, int], dict[str, Decimal]] = {}
     for pid, wid, qty in (await db.execute(on_hand_stmt)).all():

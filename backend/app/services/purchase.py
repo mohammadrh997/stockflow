@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.partner import Partner
 from app.models.purchase import PurchaseOrder, PurchaseOrderLine, PurchaseState
-from app.models.stock import Transfer, TransferState, TransferType
+from app.models.stock import Transfer, TransferLine, TransferState, TransferType
 from app.schemas.purchase import (
     PurchaseOrderCreate,
     PurchaseOrderLineCreate,
@@ -191,6 +191,12 @@ async def confirm_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrd
             transfer_type=TransferType.receipt,
             warehouse_id=order.warehouse_id,
             purchase_order_id=order.id,
+            lines=[
+                TransferLine(
+                    product_id=line.product_id, quantity=line.quantity, purchase_line_id=line.id
+                )
+                for line in order.lines
+            ],
         )
     )
     await db.commit()

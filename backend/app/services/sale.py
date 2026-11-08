@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.partner import Partner
 from app.models.sale import SalesOrder, SalesOrderLine, SalesState
-from app.models.stock import Transfer, TransferState, TransferType
+from app.models.stock import Transfer, TransferLine, TransferState, TransferType
 from app.schemas.sale import (
     SalesOrderCreate,
     SalesOrderLineCreate,
@@ -210,6 +210,12 @@ async def confirm_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
             transfer_type=TransferType.delivery,
             warehouse_id=order.warehouse_id,
             sales_order_id=order.id,
+            lines=[
+                TransferLine(
+                    product_id=line.product_id, quantity=line.quantity, sales_line_id=line.id
+                )
+                for line in order.lines
+            ],
         )
     )
     await db.commit()
