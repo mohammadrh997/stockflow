@@ -127,18 +127,30 @@ export function InvoicePage() {
 
           <Panel>
             <dl className="grid grid-cols-[1fr_auto] gap-y-2 text-sm">
-              <dt className="text-muted-foreground">Total</dt>
-              <dd className="text-right font-medium">
-                <Money value={data.amount_total ?? '0'} />
-              </dd>
-              <dt className="text-muted-foreground">Paid</dt>
-              <dd className="text-right">
-                <Money value={data.amount_paid} />
-              </dd>
-              <dt className="border-t pt-2 font-medium">Amount due</dt>
-              <dd className="border-t pt-2 text-right text-lg font-semibold">
-                <Money value={data.state === 'posted' ? data.amount_due : '0'} />
-              </dd>
+              {data.state === 'posted' ? (
+                <>
+                  <dt className="text-muted-foreground">Total</dt>
+                  <dd className="text-right font-medium">
+                    <Money value={data.amount_total ?? '0'} />
+                  </dd>
+                  <dt className="text-muted-foreground">Paid</dt>
+                  <dd className="text-right">
+                    <Money value={data.amount_paid} />
+                  </dd>
+                  <dt className="border-t pt-2 font-medium">Amount due</dt>
+                  <dd className="border-t pt-2 text-right text-lg font-semibold">
+                    <Money value={data.amount_due} />
+                  </dd>
+                </>
+              ) : (
+                // A draft owes nothing yet, and a cancelled invoice no longer counts.
+                <>
+                  <dt className="font-medium">Total</dt>
+                  <dd className="text-right text-lg font-semibold">
+                    <Money value={data.amount_total ?? '0'} />
+                  </dd>
+                </>
+              )}
             </dl>
           </Panel>
         </aside>
