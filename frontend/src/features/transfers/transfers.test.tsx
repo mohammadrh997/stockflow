@@ -19,6 +19,8 @@ function makeTransfer(overrides: Partial<Transfer> = {}): Transfer {
     created_at: '2026-01-01T10:00:00Z',
     validated_at: null,
     validated_by_id: null,
+    backorder_of_id: null,
+    lines: [],
     moves: [],
     ...overrides,
   }

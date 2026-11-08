@@ -160,6 +160,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Invoices */
+        get: operations["list_invoices_invoices_get"];
+        put?: never;
+        /** Create Invoice */
+        post: operations["create_invoice_invoices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{invoice_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Invoice */
+        get: operations["get_invoice_invoices__invoice_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{invoice_id}/lines/{line_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Invoice Line */
+        delete: operations["delete_invoice_line_invoices__invoice_id__lines__line_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Invoice Line */
+        patch: operations["update_invoice_line_invoices__invoice_id__lines__line_id__patch"];
+        trace?: never;
+    };
+    "/invoices/{invoice_id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Invoice */
+        post: operations["post_invoice_invoices__invoice_id__post_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{invoice_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Invoice */
+        post: operations["cancel_invoice_invoices__invoice_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{invoice_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Payment */
+        post: operations["register_payment_invoices__invoice_id__payments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/partners": {
         parameters: {
             query?: never;
@@ -508,6 +612,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transfers/{transfer_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Backorder */
+        post: operations["cancel_backorder_transfers__transfer_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transfers/internal": {
         parameters: {
             query?: never;
@@ -789,6 +910,95 @@ export interface components {
             /** Quantity */
             quantity: number | string;
         };
+        /** InvoiceCreate */
+        InvoiceCreate: {
+            /** Purchase Order Id */
+            purchase_order_id?: number | null;
+            /** Sales Order Id */
+            sales_order_id?: number | null;
+        };
+        /** InvoiceLineRead */
+        InvoiceLineRead: {
+            /** Id */
+            id: number;
+            /** Product Id */
+            product_id: number;
+            /** Quantity */
+            quantity: string;
+            /** Unit Price */
+            unit_price: string;
+            /** Sales Line Id */
+            sales_line_id: number | null;
+            /** Purchase Line Id */
+            purchase_line_id: number | null;
+            /** Subtotal */
+            subtotal: string | null;
+        };
+        /** InvoiceLineUpdate */
+        InvoiceLineUpdate: {
+            /** Quantity */
+            quantity?: number | string | null;
+            /** Unit Price */
+            unit_price?: number | string | null;
+        };
+        /** InvoicePost */
+        InvoicePost: {
+            /** Invoice Date */
+            invoice_date?: string | null;
+            /** Due Date */
+            due_date?: string | null;
+        };
+        /** InvoiceRead */
+        InvoiceRead: {
+            /** Id */
+            id: number;
+            /** Number */
+            number: string | null;
+            invoice_type: components["schemas"]["InvoiceType"];
+            state: components["schemas"]["InvoiceState"];
+            /** Partner Id */
+            partner_id: number;
+            /** Sales Order Id */
+            sales_order_id: number | null;
+            /** Purchase Order Id */
+            purchase_order_id: number | null;
+            /** Invoice Date */
+            invoice_date: string | null;
+            /** Due Date */
+            due_date: string | null;
+            /** Posted At */
+            posted_at: string | null;
+            /** Posted By Id */
+            posted_by_id: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By Id */
+            created_by_id: number;
+            /** Amount Total */
+            amount_total: string | null;
+            /** Lines */
+            lines: components["schemas"]["InvoiceLineRead"][];
+            /** Payments */
+            payments: components["schemas"]["PaymentRead"][];
+            /** Amount Paid */
+            readonly amount_paid: string;
+            /** Amount Due */
+            readonly amount_due: string;
+            readonly payment_state: components["schemas"]["PaymentState"];
+        };
+        /**
+         * InvoiceState
+         * @enum {string}
+         */
+        InvoiceState: "draft" | "posted" | "cancelled";
+        /**
+         * InvoiceType
+         * @enum {string}
+         */
+        InvoiceType: "customer_invoice" | "vendor_bill";
         /** LocationCreate */
         LocationCreate: {
             /** Name */
@@ -898,6 +1108,44 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** PaymentCreate */
+        PaymentCreate: {
+            /** Amount */
+            amount: number | string;
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
+            /** Reference */
+            reference?: string | null;
+        };
+        /** PaymentRead */
+        PaymentRead: {
+            /** Id */
+            id: number;
+            /** Amount */
+            amount: string;
+            /**
+             * Paid On
+             * Format: date
+             */
+            paid_on: string;
+            /** Reference */
+            reference: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By Id */
+            created_by_id: number;
+        };
+        /**
+         * PaymentState
+         * @enum {string}
+         */
+        PaymentState: "not_paid" | "partial" | "paid";
         /** ProductCreate */
         ProductCreate: {
             /** Name */
@@ -1147,6 +1395,26 @@ export interface components {
             /** Available */
             available: string;
         };
+        /** TransferLineDone */
+        TransferLineDone: {
+            /** Line Id */
+            line_id: number;
+            /** Quantity */
+            quantity: number | string;
+        };
+        /** TransferLineRead */
+        TransferLineRead: {
+            /** Id */
+            id: number;
+            /** Product Id */
+            product_id: number;
+            /** Quantity */
+            quantity: string;
+            /** Purchase Line Id */
+            purchase_line_id: number | null;
+            /** Sales Line Id */
+            sales_line_id: number | null;
+        };
         /** TransferRead */
         TransferRead: {
             /** Id */
@@ -1170,6 +1438,10 @@ export interface components {
             validated_at: string | null;
             /** Validated By Id */
             validated_by_id: number | null;
+            /** Backorder Of Id */
+            backorder_of_id: number | null;
+            /** Lines */
+            lines: components["schemas"]["TransferLineRead"][];
             /** Moves */
             moves: components["schemas"]["StockMoveRead"][];
         };
@@ -1187,6 +1459,8 @@ export interface components {
         TransferValidate: {
             /** Location Id */
             location_id?: number | null;
+            /** Lines */
+            lines?: components["schemas"]["TransferLineDone"][] | null;
         };
         /** UserCreate */
         UserCreate: {
@@ -1683,6 +1957,276 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_invoices_invoices_get: {
+        parameters: {
+            query?: {
+                state?: components["schemas"]["InvoiceState"] | null;
+                invoice_type?: components["schemas"]["InvoiceType"] | null;
+                partner_id?: number | null;
+                purchase_order_id?: number | null;
+                sales_order_id?: number | null;
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_invoice_invoices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvoiceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_invoice_invoices__invoice_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_invoice_line_invoices__invoice_id__lines__line_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_invoice_line_invoices__invoice_id__lines__line_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvoiceLineUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_invoice_invoices__invoice_id__post_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvoicePost"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_invoice_invoices__invoice_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_payment_invoices__invoice_id__payments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -2602,6 +3146,37 @@ export interface operations {
                 "application/json": components["schemas"]["TransferValidate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_backorder_transfers__transfer_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transfer_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
