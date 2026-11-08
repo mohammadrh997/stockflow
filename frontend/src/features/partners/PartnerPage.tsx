@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import { PartnerForm } from './PartnerForm'
+import { PartnerInvoices } from './PartnerInvoices'
 import { partnerFormValues, toPartnerPayload } from './partnerValues'
 import { usePartner, useSetPartnerArchived, useUpdatePartner } from './queries'
 
@@ -78,6 +79,7 @@ export function PartnerPage() {
           }}
         />
       </Panel>
+      <PartnerInvoices partner={data} />
     </div>
   )
 }
