@@ -13,7 +13,7 @@ import { ProgressTrack } from '@/components/ProgressTrack'
 import { Quantity } from '@/components/Quantity'
 import { LocationName, ProductName, WarehouseName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
-import { formatDateTime } from '@/lib/format'
+import { formatDateTime, formatDoneBy } from '@/lib/format'
 import { BackorderLinks } from './BackorderLinks'
 import { CancelBackorderButton } from './CancelBackorderButton'
 import { TRANSFER_TYPE_LABELS, useTransfer, type StockMove } from './queries'
@@ -104,7 +104,7 @@ export function TransferPage() {
           {data.validated_at && (
             <>
               <dt className="text-muted-foreground">Validated</dt>
-              <dd>{formatDateTime(data.validated_at)}</dd>
+              <dd>{formatDoneBy(data.validated_at, data.validated_by)}</dd>
             </>
           )}
         </dl>

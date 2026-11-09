@@ -274,7 +274,14 @@ describe('transfer page', () => {
       http.post(`${API}/transfers/30/validate`, async ({ request }) => {
         body = await request.json()
         validated = true
-        return HttpResponse.json(makeTransfer({ state: 'done', moves: [move] }))
+        return HttpResponse.json(
+          makeTransfer({
+            state: 'done',
+            moves: [move],
+            validated_at: '2026-01-02T10:00:00Z',
+            validated_by: { id: 2, name: 'Sara' },
+          }),
+        )
       }),
     )
     signInAs(inventoryUser)
@@ -296,6 +303,7 @@ describe('transfer page', () => {
     expect(within(row).getByText('Supplier')).toBeInTheDocument()
     expect(within(row).getByText('Stock')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+    expect(screen.getByText(/by Sara$/)).toBeInTheDocument()
     for (const key of ['stock', 'transfers', 'purchase-order', 'sales-order']) {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] })
     }

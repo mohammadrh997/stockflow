@@ -12,6 +12,7 @@ import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
+import { formatDoneBy } from '@/lib/format'
 import { PartnerForm } from './PartnerForm'
 import { PartnerInvoices } from './PartnerInvoices'
 import { partnerFormValues, toPartnerPayload } from './partnerValues'
@@ -78,6 +79,9 @@ export function PartnerPage() {
             toast.success('Partner saved')
           }}
         />
+        <p className="mt-4 text-sm text-muted-foreground">
+          Created {formatDoneBy(data.created_at, data.created_by)}
+        </p>
       </Panel>
       <PartnerInvoices partner={data} />
     </div>

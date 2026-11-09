@@ -12,6 +12,7 @@ import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
+import { formatDoneBy } from '@/lib/format'
 import { ProductForm } from './ProductForm'
 import { useProduct, useSetProductArchived, useUpdateProduct } from './queries'
 
@@ -80,6 +81,9 @@ export function ProductPage() {
             toast.success('Product saved')
           }}
         />
+        <p className="mt-4 text-sm text-muted-foreground">
+          Created {formatDoneBy(data.created_at, data.created_by)}
+        </p>
       </Panel>
     </div>
   )

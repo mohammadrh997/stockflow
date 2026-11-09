@@ -24,7 +24,7 @@ import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
 import { OrderDetailsForm } from '@/features/orders/OrderDetailsForm'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
-import { formatDateTime } from '@/lib/format'
+import { formatDoneBy } from '@/lib/format'
 import {
   usePurchaseOrder,
   usePurchaseOrderAction,
@@ -209,7 +209,7 @@ export function PurchaseOrderPage() {
                 </dl>
               )}
               <p className="text-sm text-muted-foreground">
-                Created {formatDateTime(data.created_at)}
+                Created {formatDoneBy(data.created_at, data.created_by)}
               </p>
             </CardContent>
           </Card>

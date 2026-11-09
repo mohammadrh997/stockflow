@@ -15,7 +15,7 @@ import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
-import { formatDateTime } from '@/lib/format'
+import { formatDoneBy } from '@/lib/format'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
@@ -27,6 +27,7 @@ type Payment = Invoice['payments'][number]
 const paymentColumns: Column<Payment>[] = [
   { header: 'Date', cell: (payment) => formatDate(payment.paid_on) },
   { header: 'Reference', cell: (payment) => payment.reference ?? '—' },
+  { header: 'Recorded by', cell: (payment) => payment.created_by.name },
   {
     header: 'Amount',
     className: 'text-right',
@@ -118,8 +119,10 @@ export function InvoicePage() {
               <Detail label="Due date">
                 {data.due_date ? formatDate(data.due_date) : 'Set when posted'}
               </Detail>
-              {data.posted_at && <Detail label="Posted">{formatDateTime(data.posted_at)}</Detail>}
-              <Detail label="Created">{formatDateTime(data.created_at)}</Detail>
+              {data.posted_at && (
+                <Detail label="Posted">{formatDoneBy(data.posted_at, data.posted_by)}</Detail>
+              )}
+              <Detail label="Created">{formatDoneBy(data.created_at, data.created_by)}</Detail>
             </dl>
           </Panel>
 

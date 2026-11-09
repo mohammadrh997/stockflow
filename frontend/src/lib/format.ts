@@ -27,5 +27,10 @@ export function formatDateTime(value: string): string {
   return dateTimeFormat.format(new Date(value))
 }
 
+// "Nov 8, 2026, 6:47 PM by Sara": when something happened and who did it.
+export function formatDoneBy(at: string, by: { name: string } | null): string {
+  return by ? `${formatDateTime(at)} by ${by.name}` : formatDateTime(at)
+}
+
 export const PRICE_PATTERN = /^\d{1,10}(\.\d{1,2})?$/
 export const QUANTITY_PATTERN = /^\d{1,9}(\.\d{1,3})?$/
