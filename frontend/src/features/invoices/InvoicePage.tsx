@@ -6,7 +6,6 @@ import { canOnInvoices } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { ForbiddenPage } from '@/components/ForbiddenPage'
 import { Money } from '@/components/Money'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
@@ -58,9 +57,6 @@ export function InvoicePage() {
   }
 
   const { data } = invoice
-  // The API doesn't limit reading by invoice type yet, so the page does.
-  if (!canOnInvoices(user, data.invoice_type)) return <ForbiddenPage />
-
   const customer = data.invoice_type === 'customer_invoice'
   const editable = data.state === 'draft' && canOnInvoices(user, data.invoice_type)
 

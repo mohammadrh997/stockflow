@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 
-import { canOnInvoices } from '@/auth/permissions'
+import { canViewInvoices } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Money } from '@/components/Money'
@@ -98,14 +98,13 @@ function OpenInvoices({ partnerId, type }: { partnerId: number; type: InvoiceTyp
 
 type Props = { partner: { id: number; is_customer: boolean; is_supplier: boolean } }
 
-// What the partner still owes, or is owed, for the roles the user can see invoices for.
+// What the partner still owes, or is owed, for each of its roles.
 export function PartnerInvoices({ partner }: Props) {
   const { user } = useAuth()
+  if (!canViewInvoices(user)) return null
   const types: InvoiceType[] = []
-  if (partner.is_customer && canOnInvoices(user, 'customer_invoice')) {
-    types.push('customer_invoice')
-  }
-  if (partner.is_supplier && canOnInvoices(user, 'vendor_bill')) types.push('vendor_bill')
+  if (partner.is_customer) types.push('customer_invoice')
+  if (partner.is_supplier) types.push('vendor_bill')
   if (types.length === 0) return null
 
   return (
