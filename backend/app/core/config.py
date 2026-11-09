@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     client_ip_header: str | None = None
     admin_name: str = "Admin"
     admin_password: SecretStr | None = Field(default=None, min_length=8, max_length=128)
+    # Printed at the top of PDFs; the address may span several lines
+    company_name: str = "ClearCypher"
+    company_address: str | None = "Karrada, Baghdad, Iraq\n+964 770 000 0000"
 
 
 settings = Settings()

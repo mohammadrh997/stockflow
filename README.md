@@ -13,6 +13,7 @@ The demo runs on free hosting that sleeps when idle, so the first request can ta
 - **Sales orders:** confirming checks the available stock and reserves it. The warehouse then validates the delivery, which takes stock from the default location first and then from the other locations.
 - **Partial deliveries:** a receipt or delivery can move part of its goods. The rest goes on a backorder that keeps it reserved, and cancelling the backorder closes the order with what actually shipped.
 - **Invoicing:** customer invoices and vendor bills for what actually moved, with payments and a paid / partly paid status. Posting freezes the invoice's number and amounts.
+- **PDFs:** invoices, vendor bills, quotations and sales orders, RFQs and purchase orders, with Arabic names laid out right to left. Draft invoices print with a DRAFT watermark for review.
 - **Internal transfers** between locations of the same warehouse.
 - **Stock counts:** you enter what you counted, and the difference is recorded against an inventory-loss location.
 - **Users:** each user has an access level (none / user / manager) in each of sales, purchase and inventory, and admins manage users.
@@ -65,4 +66,4 @@ docs/       design notes
 
 ## Not built yet
 
-Transfers between warehouses, credit notes and taxes, units of measure, lots and serial numbers, product images, and reorder alerts. The frontend doesn't have invoice or partial-delivery screens yet; both work through the API.
+Transfers between warehouses, credit notes and taxes, units of measure, lots and serial numbers, product images, and reorder alerts.

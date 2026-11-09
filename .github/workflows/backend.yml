@@ -48,7 +48,8 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-
+      - name: Install Pango (WeasyPrint renders the PDFs with it)
+        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0
       - name: Install dependencies
         run: uv sync --locked
 

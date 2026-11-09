@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.dependencies import CurrentUser, DBsession, Module, pagination_params, require_access
 from app.models.sale import SalesState
 from app.models.user import Access, User
+from app.routers.pdf import PDF_RESPONSE, pdf_response
 from app.schemas.sale import (
     SalesOrderCreate,
     SalesOrderLineCreate,
@@ -12,6 +13,7 @@ from app.schemas.sale import (
     SalesOrderRead,
     SalesOrderUpdate,
 )
+from app.services import documents
 from app.services import sale as sale_service
 from app.services.common import (
     InvalidReference,
@@ -20,6 +22,7 @@ from app.services.common import (
     OrderNotCancellable,
     OrderNotEditable,
 )
+from app.services.documents import DocumentNotAvailable
 from app.services.sale import InsufficientStock, SalesOrderNotFound
 
 SalesManager = Annotated[User, Depends(require_access(Module.sales, Access.manager))]
@@ -133,3 +136,14 @@ async def cancel_order(db: DBsession, order_id: int, user: SalesManager):
         raise HTTPException(status_code=404, detail="Order Was Not Found") from None
     except OrderNotCancellable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
+@router.get("/{order_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
+async def order_pdf(db: DBsession, order_id: int):
+    try:
+        doc = await documents.sales_order_document(db, order_id)
+    except SalesOrderNotFound:
+        raise HTTPException(status_code=404, detail="Order Was Not Found") from None
+    except DocumentNotAvailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    return pdf_response(await documents.render_pdf(doc), doc.filename)

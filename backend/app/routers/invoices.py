@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import (
@@ -13,6 +13,7 @@ from app.dependencies import (
 )
 from app.models.invoice import Invoice, InvoiceState, InvoiceType
 from app.models.user import Access, User
+from app.routers.pdf import PDF_RESPONSE, pdf_response
 from app.schemas.invoice import (
     InvoiceCreate,
     InvoiceLineUpdate,
@@ -20,8 +21,10 @@ from app.schemas.invoice import (
     InvoiceRead,
     PaymentCreate,
 )
+from app.services import documents
 from app.services import invoice as invoice_service
 from app.services.common import LineNotFound
+from app.services.documents import DocumentNotAvailable
 from app.services.invoice import (
     InvalidDueDate,
     InvoiceAlreadyCancelled,
@@ -175,3 +178,13 @@ async def register_payment(
         raise HTTPException(status_code=409, detail="Invoice is not Posted") from None
     except PaymentExceedsAmountDue as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
+@router.get("/{invoice_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
+async def invoice_pdf(db: DBsession, invoice_id: int, user: CurrentUser):
+    await _get_invoice_for(db, invoice_id, user, Access.user)
+    try:
+        doc = await documents.invoice_document(db, invoice_id)
+    except DocumentNotAvailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    return pdf_response(await documents.render_pdf(doc), doc.filename)
