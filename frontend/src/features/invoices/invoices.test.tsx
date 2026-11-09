@@ -166,6 +166,8 @@ describe('invoice page', () => {
     expect(await screen.findByRole('heading', { name: /Draft #5/ })).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'Desk' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    // The server only prints for the invoice's own module.
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Post|Cancel invoice|Remove/ }),
     ).not.toBeInTheDocument()
