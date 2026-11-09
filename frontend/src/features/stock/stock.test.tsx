@@ -22,7 +22,7 @@ describe('stock report', () => {
           image_key: null,
           is_active: true,
           created_at: '2026-01-01T00:00:00Z',
-          created_by_id: 1,
+          created_by: { id: 1, name: 'Admin' },
         }),
       ),
       http.get(`${API}/stock`, ({ request }) => {

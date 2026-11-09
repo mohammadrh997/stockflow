@@ -18,7 +18,7 @@ function makePartner(overrides: Partial<Partner> = {}): Partner {
     is_supplier: true,
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
-    created_by_id: 1,
+    created_by: { id: 1, name: 'Admin' },
     ...overrides,
   }
 }
@@ -95,9 +95,9 @@ describe('partners', () => {
       invoice_date: '2026-01-01',
       due_date: dueDate,
       posted_at: '2026-01-01T10:00:00Z',
-      posted_by_id: 1,
+      posted_by: { id: 1, name: 'Admin' },
       created_at: '2026-01-01T10:00:00Z',
-      created_by_id: 1,
+      created_by: { id: 1, name: 'Admin' },
       amount_total: '100.00',
       amount_paid: '0',
       amount_due: due,
