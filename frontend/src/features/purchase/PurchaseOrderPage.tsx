@@ -6,6 +6,7 @@ import { can } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DisabledReason } from '@/components/DisabledReason'
+import { DoneByRows } from '@/components/DoneByRows'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { PageHeader } from '@/components/PageHeader'
@@ -25,7 +26,6 @@ import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
 import { OrderDetailsForm } from '@/features/orders/OrderDetailsForm'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
-import { formatDoneBy } from '@/lib/format'
 import {
   usePurchaseOrder,
   usePurchaseOrderAction,
@@ -213,11 +213,15 @@ export function PurchaseOrderPage() {
                   <dd>
                     <WarehouseName id={data.warehouse_id} />
                   </dd>
+                  <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
                 </dl>
               )}
-              <p className="text-sm text-muted-foreground">
-                Created {formatDoneBy(data.created_at, data.created_by)}
-              </p>
+              {canEdit && (
+                // Under the form, the same rows on their own.
+                <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-3">
+                  <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+                </dl>
+              )}
             </CardContent>
           </Card>
         </aside>

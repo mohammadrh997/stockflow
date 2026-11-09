@@ -5,6 +5,7 @@ import { ApiError } from '@/api/errors'
 import { canOnInvoices } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { DataTable, type Column } from '@/components/DataTable'
+import { DoneByRows } from '@/components/DoneByRows'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Money } from '@/components/Money'
 import { NotFoundPage } from '@/components/NotFoundPage'
@@ -15,7 +16,6 @@ import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
-import { formatDoneBy } from '@/lib/format'
 import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
@@ -132,9 +132,9 @@ export function InvoicePage() {
                 {data.due_date ? formatDate(data.due_date) : 'Set when posted'}
               </Detail>
               {data.posted_at && (
-                <Detail label="Posted">{formatDoneBy(data.posted_at, data.posted_by)}</Detail>
+                <DoneByRows label="Posted" at={data.posted_at} by={data.posted_by} />
               )}
-              <Detail label="Created">{formatDoneBy(data.created_at, data.created_by)}</Detail>
+              <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
             </dl>
           </Panel>
 

@@ -279,7 +279,7 @@ describe('invoice page', () => {
     expect(screen.getByRole('cell', { name: 'TRF-1' })).toBeInTheDocument()
     // Who recorded it, and who drafted the invoice.
     expect(screen.getByRole('cell', { name: 'Admin' })).toBeInTheDocument()
-    expect(screen.getByText(/by Admin$/)).toBeInTheDocument()
+    expect(screen.getByText('Created by').nextElementSibling).toHaveTextContent('Admin')
   })
 
   it('cannot be cancelled once it has payments', async () => {

@@ -4,6 +4,7 @@ import { ApiError } from '@/api/errors'
 import { can } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { DataTable, type Column } from '@/components/DataTable'
+import { DoneByRows } from '@/components/DoneByRows'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
@@ -13,7 +14,7 @@ import { ProgressTrack } from '@/components/ProgressTrack'
 import { Quantity } from '@/components/Quantity'
 import { LocationName, ProductName, WarehouseName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
-import { formatDateTime, formatDoneBy } from '@/lib/format'
+import { formatDateTime } from '@/lib/format'
 import { BackorderLinks } from './BackorderLinks'
 import { CancelBackorderButton } from './CancelBackorderButton'
 import { TRANSFER_TYPE_LABELS, useTransfer, type StockMove } from './queries'
@@ -102,10 +103,7 @@ export function TransferPage() {
           <dt className="text-muted-foreground">Created</dt>
           <dd>{formatDateTime(data.created_at)}</dd>
           {data.validated_at && (
-            <>
-              <dt className="text-muted-foreground">Validated</dt>
-              <dd>{formatDoneBy(data.validated_at, data.validated_by)}</dd>
-            </>
+            <DoneByRows label="Validated" at={data.validated_at} by={data.validated_by} />
           )}
         </dl>
       </Panel>

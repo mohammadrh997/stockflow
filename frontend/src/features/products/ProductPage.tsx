@@ -6,13 +6,13 @@ import { can } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { ArchivedBadge } from '@/components/ArchivedBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { DoneByRows } from '@/components/DoneByRows'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
-import { formatDoneBy } from '@/lib/format'
 import { ProductForm } from './ProductForm'
 import { useProduct, useSetProductArchived, useUpdateProduct } from './queries'
 
@@ -81,9 +81,9 @@ export function ProductPage() {
             toast.success('Product saved')
           }}
         />
-        <p className="mt-4 text-sm text-muted-foreground">
-          Created {formatDoneBy(data.created_at, data.created_by)}
-        </p>
+        <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
+          <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+        </dl>
       </Panel>
     </div>
   )

@@ -303,7 +303,7 @@ describe('transfer page', () => {
     expect(within(row).getByText('Supplier')).toBeInTheDocument()
     expect(within(row).getByText('Stock')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
-    expect(screen.getByText(/by Sara$/)).toBeInTheDocument()
+    expect(screen.getByText('Validated by').nextElementSibling).toHaveTextContent('Sara')
     for (const key of ['stock', 'transfers', 'purchase-order', 'sales-order']) {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] })
     }
