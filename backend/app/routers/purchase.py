@@ -135,6 +135,7 @@ async def cancel_order(db: DBsession, order_id: int, user: PurchaseManager):
     except OrderNotCancellable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
 
+
 @router.get("/{order_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
 async def order_pdf(db: DBsession, order_id: int):
     try:

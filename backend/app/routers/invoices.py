@@ -179,6 +179,7 @@ async def register_payment(
     except PaymentExceedsAmountDue as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
 
+
 @router.get("/{invoice_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
 async def invoice_pdf(db: DBsession, invoice_id: int, user: CurrentUser):
     await _get_invoice_for(db, invoice_id, user, Access.user)
