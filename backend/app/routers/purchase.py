@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.dependencies import CurrentUser, DBsession, Module, pagination_params, require_access
 from app.models.purchase import PurchaseState
@@ -12,7 +12,9 @@ from app.schemas.purchase import (
     PurchaseOrderRead,
     PurchaseOrderUpdate,
 )
+from app.services import documents
 from app.services import purchase as purchase_service
+from app.services.documents import PDF_RESPONSE, DocumentNotAvailable
 from app.services.purchase import (
     InvalidReference,
     LineNotFound,
@@ -131,3 +133,13 @@ async def cancel_order(db: DBsession, order_id: int, user: PurchaseManager):
         raise HTTPException(status_code=404, detail="Order Was Not Found") from None
     except OrderNotCancellable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
+
+@router.get("/{order_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
+async def order_pdf(db: DBsession, order_id: int):
+    try:
+        doc = await documents.purchase_order_document(db, order_id)
+    except PurchaseOrderNotFound:
+        raise HTTPException(status_code=404, detail="Order Was Not Found") from None
+    except DocumentNotAvailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    return await documents.pdf_response(doc)

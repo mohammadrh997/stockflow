@@ -11,16 +11,19 @@ dependencies = [
     "alembic>=1.20.0",
     "asyncpg>=0.32.0",
     "fastapi[standard]>=0.143.5",
+    "jinja2>=3.1.6",
     "pwdlib[argon2]>=0.3.1",
     "pydantic-settings>=2.16.0",
     "pyjwt>=2.15.1",
     "slowapi>=0.1.10",
     "sqlalchemy[asyncio]>=2.1.5",
+    "weasyprint>=70.0",
 ]
 
 [dependency-groups]
 dev = [
     "mypy>=2.4.0",
+    "pypdf>=7.0.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.17.1",
@@ -49,3 +52,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
 plugins = ["pydantic.mypy"]
 check_untyped_defs = true
 warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["weasyprint"]  # ships no type hints
+ignore_missing_imports = true

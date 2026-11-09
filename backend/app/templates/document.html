@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ doc.title }} {{ doc.number or "" }}</title>
+<style>
+  @font-face { font-family: "Noto Sans"; font-weight: 400; src: url("fonts/NotoSans-Regular.ttf"); }
+  @font-face { font-family: "Noto Sans"; font-weight: 700; src: url("fonts/NotoSans-Bold.ttf"); }
+  @font-face { font-family: "Noto Sans Arabic"; font-weight: 400; src: url("fonts/NotoSansArabic-Regular.ttf"); }
+  @font-face { font-family: "Noto Sans Arabic"; font-weight: 700; src: url("fonts/NotoSansArabic-Bold.ttf"); }
+
+  @page {
+    size: A4;
+    margin: 18mm 17mm 22mm;
+    @bottom-left {
+      content: "Powered by ClearCypher Technologies";
+      font: 7.5pt "Noto Sans"; color: #9CA3AF;
+    }
+    @bottom-right {
+      content: "{{ doc.number or doc.title }}  ·  Page " counter(page) " of " counter(pages);
+      font: 7.5pt "Noto Sans"; color: #9CA3AF;
+    }
+  }
+
+  body {
+    font-family: "Noto Sans", "Noto Sans Arabic", sans-serif;
+    font-size: 9.5pt; line-height: 1.45; color: #1F2937;
+  }
+  [dir] { text-align: left; }  /* Arabic values are right-to-left, but stay left-aligned */
+
+  .label { font-size: 7.5pt; font-weight: 700; letter-spacing: .9px; text-transform: uppercase; color: #6B7280; }
+
+  /* Title on the left, logo + company on the right */
+  .top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .top h1 { margin: 0; white-space: nowrap; font-size: 26pt; font-weight: 700; color: #111827; letter-spacing: -.3px; }
+  .company { text-align: right; }
+  .company img { width: 56px; height: 56px; margin-bottom: 6px; }
+  .company .name { font-size: 11pt; font-weight: 700; color: #111827; }
+  .company .lines { white-space: pre-line; color: #4B5563; }
+  .company [dir] { text-align: right; }
+
+  /* Bill to on the left, number and dates on the right */
+  .info { display: flex; justify-content: space-between; align-items: flex-start; margin: 26px 0 28px; }
+  .party { width: 85mm; }
+  .party .name { font-size: 11pt; font-weight: 700; color: #111827; margin: 3px 0 1px; }
+  .details { border-collapse: collapse; }
+  .details td { padding: 1.5px 0; }
+  .details td:first-child { color: #6B7280; padding-right: 22px; }
+  .details td:last-child { text-align: right; }
+  .details .number td:last-child { font-weight: 700; }
+
+  table.items { width: 100%; border-collapse: collapse; }
+  .items th { text-align: left; font-size: 7.5pt; font-weight: 700; letter-spacing: .8px;
+              text-transform: uppercase; color: #6B7280; padding: 0 8px 7px;
+              border-bottom: 2px solid #E8590C; }
+  .items td { padding: 9px 8px; border-bottom: 1px solid #E5E7EB; vertical-align: top; }
+  .items th:first-child, .items td:first-child { padding-left: 0; }
+  .items th:last-child, .items td:last-child { padding-right: 0; }
+  .items .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .items .sku { color: #6B7280; font-size: 8.5pt; }
+  .items tr { page-break-inside: avoid; }
+
+  .total { display: flex; justify-content: flex-end; margin-top: 18px; }
+  .total div { width: 72mm; display: flex; justify-content: space-between; align-items: baseline;
+               padding-top: 10px; border-top: 2px solid #111827; }
+  .total .amount { font-size: 15pt; font-weight: 700; color: #111827; }
+
+  /* Drafts get a faint word across every page, so nobody mistakes them for the real thing */
+  .watermark { position: fixed; top: 105mm; left: 0; width: 100%; text-align: center;
+               font-size: 110pt; font-weight: 700; letter-spacing: 8px; color: #111827;
+               opacity: .06; transform: rotate(-30deg); }
+</style>
+</head>
+<body>
+  {% if doc.watermark %}<div class="watermark">{{ doc.watermark }}</div>{% endif %}
+  <div class="top">
+    <h1>{{ doc.title }}</h1>
+    <div class="company">
+      <img src="logo.png" alt="">
+      <div class="name" dir="{{ company.name | direction }}">{{ company.name }}</div>
+      {% if company.address %}<div class="lines" dir="{{ company.address | direction }}">{{ company.address }}</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="info">
+    <div class="party">
+      <div class="label">{{ doc.partner_label }}</div>
+      <div class="name" dir="{{ doc.partner.name | direction }}">{{ doc.partner.name }}</div>
+      {% for detail in [doc.partner.address, doc.partner.email, doc.partner.phone] if detail %}
+        <div dir="{{ detail | direction }}">{{ detail }}</div>
+      {% endfor %}
+    </div>
+    <table class="details">
+      {% if doc.number %}<tr class="number"><td>{{ doc.number_label }}</td><td>{{ doc.number }}</td></tr>{% endif %}
+      {% for label, value in doc.details %}
+        <tr><td>{{ label }}</td><td>{{ value }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr>
+    </thead>
+    <tbody>
+      {% for line in doc.lines %}
+        <tr>
+          <td>
+            <div dir="{{ line.name | direction }}">{{ line.name }}</div>
+            <div class="sku">{{ line.sku }}</div>
+          </td>
+          <td class="num">{{ line.quantity | quantity }}</td>
+          <td class="num">{{ line.unit_price | money }}</td>
+          <td class="num">{{ line.subtotal | money }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="total">
+    <div><span class="label">Total</span><span class="amount">{{ doc.total | money }}</span></div>
+  </div>
+</body>
+</html>

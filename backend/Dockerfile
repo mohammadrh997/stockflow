@@ -21,7 +21,11 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
 RUN groupadd --system app && useradd --system --gid app --no-create-home app
-
+# Pango is the system library WeasyPrint uses to lay out text in the PDFs
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 \
+    && rm -rf /var/lib/apt/lists/*
+    
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY alembic.ini ./
