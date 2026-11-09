@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { Money } from '@/components/Money'
 import { Quantity } from '@/components/Quantity'
 import { ProductName } from '@/components/RecordNames'
-import { Button } from '@/components/ui/button'
+import { RemoveLineButton } from './RemoveLineButton'
 import { formatQuantity } from '@/lib/format'
 import { LineField } from './LineField'
 import { checkQuantity, checkUnitPrice } from './lineRules'
@@ -16,11 +16,22 @@ type Props = {
   total: string
   editable: boolean
   hint?: LineHint
+  // Once confirmed: how much of each line was received or delivered, e.g. "4 of 10".
+  // Columns such as "Received 4 of 10": a header and, per line, how much is done.
+  progress?: { header: string; done: (lineId: number) => string }[]
   onUpdate: (lineId: number, changes: LineChanges) => Promise<unknown>
   onDelete: (lineId: number) => Promise<unknown>
 }
 
-export function OrderLinesTable({ lines, total, editable, hint, onUpdate, onDelete }: Props) {
+export function OrderLinesTable({
+  lines,
+  total,
+  editable,
+  hint,
+  progress,
+  onUpdate,
+  onDelete,
+}: Props) {
   const [deleteError, setDeleteError] = useState<unknown>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
@@ -90,20 +101,29 @@ export function OrderLinesTable({ lines, total, editable, hint, onUpdate, onDele
       cell: (line) => <Money value={line.subtotal} />,
     },
   ]
+  for (const [index, column] of (progress ?? []).entries()) {
+    columns.splice(2 + index, 0, {
+      header: column.header,
+      className: 'text-right',
+      cell: (line) => (
+        <span className="tabular-nums">
+          {formatQuantity(column.done(line.id))}
+          <span className="text-muted-foreground"> of {formatQuantity(line.quantity)}</span>
+        </span>
+      ),
+    })
+  }
   if (editable) {
     columns.push({
       header: 'Actions',
       className: 'text-right',
       cell: (line) => (
         <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
+          <RemoveLineButton
+            productId={line.product_id}
             disabled={deletingId === line.id}
             onClick={() => handleDelete(line.id)}
-          >
-            Remove
-          </Button>
+          />
         </div>
       ),
     })

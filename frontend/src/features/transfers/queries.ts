@@ -7,6 +7,7 @@ export type Transfer = Schemas['TransferRead']
 export type TransferType = Schemas['TransferType']
 export type TransferState = Schemas['TransferState']
 export type StockMove = Schemas['StockMoveRead']
+export type TransferLine = Schemas['TransferLineRead']
 
 export const TRANSFER_TYPE_LABELS: Record<TransferType, string> = {
   receipt: 'Receipt',
@@ -34,11 +35,12 @@ export function useTransfers(params: TransferListParams, options: { enabled?: bo
   })
 }
 
-export function useTransfer(id: number) {
+export function useTransfer(id: number, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['transfer', id],
     queryFn: () =>
       unwrap(api.GET('/transfers/{transfer_id}', { params: { path: { transfer_id: id } } })),
+    enabled: options.enabled,
   })
 }
 
@@ -60,15 +62,33 @@ function useStoreTransfer() {
   }
 }
 
+export type ValidateRequest = {
+  locationId: number | null
+  // How much of each line moves now; leave out to move everything.
+  lines?: Schemas['TransferLineDone'][]
+}
+
 export function useValidateTransfer(id: number) {
   const store = useStoreTransfer()
   return useMutation({
-    mutationFn: (locationId: number | null) =>
+    mutationFn: ({ locationId, lines }: ValidateRequest) =>
       unwrap(
         api.POST('/transfers/{transfer_id}/validate', {
           params: { path: { transfer_id: id } },
-          body: { location_id: locationId },
+          body: { location_id: locationId, lines },
         }),
+      ),
+    onSuccess: store,
+  })
+}
+
+// Drops what is left on a backorder and closes its order with what actually moved.
+export function useCancelBackorder(id: number) {
+  const store = useStoreTransfer()
+  return useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/transfers/{transfer_id}/cancel', { params: { path: { transfer_id: id } } }),
       ),
     onSuccess: store,
   })

@@ -143,7 +143,14 @@ describe('layout', () => {
     const links = within(nav)
       .getAllByRole('link')
       .map((link) => link.textContent)
-    expect(links).toEqual(['Stock', 'Products', 'Partners', 'Warehouses', 'Sales orders'])
+    expect(links).toEqual([
+      'Stock',
+      'Products',
+      'Partners',
+      'Warehouses',
+      'Sales orders',
+      'Invoices',
+    ])
   })
 
   it('shows every section to admins', async () => {
@@ -152,7 +159,7 @@ describe('layout', () => {
     renderApp('/')
 
     const nav = await screen.findByRole('navigation', { name: 'Main' })
-    expect(within(nav).getAllByRole('link')).toHaveLength(8)
+    expect(within(nav).getAllByRole('link')).toHaveLength(9)
   })
 
   it('switches between light and dark from the header', async () => {

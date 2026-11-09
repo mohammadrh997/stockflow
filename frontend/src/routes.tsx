@@ -51,6 +51,8 @@ const SalesOrdersPage = lazyPage(
   'SalesOrdersPage',
 )
 const StockPage = lazyPage(() => import('@/features/stock/StockPage'), 'StockPage')
+const InvoicePage = lazyPage(() => import('@/features/invoices/InvoicePage'), 'InvoicePage')
+const InvoicesPage = lazyPage(() => import('@/features/invoices/InvoicesPage'), 'InvoicesPage')
 const NewAdjustmentPage = lazyPage(
   () => import('@/features/transfers/NewAdjustmentPage'),
   'NewAdjustmentPage',
@@ -134,6 +136,18 @@ export const routes: RouteObject[] = [
                   { index: true, element: <SalesOrdersPage /> },
                   { path: 'new', element: <NewSalesOrderPage /> },
                   { path: ':orderId', element: <SalesOrderPage /> },
+                ],
+              },
+              {
+                path: 'invoices',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'sales') || can(user, 'purchase')}>
+                    <Outlet />
+                  </RequireAccess>
+                ),
+                children: [
+                  { index: true, element: <InvoicesPage /> },
+                  { path: ':invoiceId', element: <InvoicePage /> },
                 ],
               },
               {

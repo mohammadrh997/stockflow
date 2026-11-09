@@ -16,7 +16,12 @@ import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AddLineForm } from '@/features/orders/AddLineForm'
-import { LinkedTransferButtons } from '@/features/orders/LinkedTransferButtons'
+import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
+import { OrderInvoicesButton } from '@/features/orders/OrderInvoicesButton'
+import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useOrderInvoices'
+import { OrderMovementNote } from '@/features/orders/OrderMovementNote'
+import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
+import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
 import { OrderDetailsForm } from '@/features/orders/OrderDetailsForm'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
 import { formatDateTime } from '@/lib/format'
@@ -36,6 +41,17 @@ export function SalesOrderPage() {
   const lines = useSalesOrderLines(id)
   const confirm = useSalesOrderAction(id, 'confirm')
   const cancel = useSalesOrderAction(id, 'cancel')
+  // Transfers need inventory access to read, and exist only once the order is confirmed.
+  const seesTransfers =
+    can(user, 'inventory') && order.data !== undefined && order.data.state !== 'draft'
+  const transfers = useOrderTransfers({ sales_order_id: id }, seesTransfers)
+  // Invoicing is for users of the order's module, once the order is confirmed.
+  const seesInvoices =
+    can(user, 'sales') &&
+    order.data !== undefined &&
+    order.data.state !== 'draft' &&
+    order.data.state !== 'cancelled'
+  const invoices = useOrderInvoices({ sales_order_id: id }, seesInvoices)
   const isDraft = order.data?.state === 'draft'
   const availability = useAvailabilityHint(order.data?.warehouse_id, isDraft)
 
@@ -47,6 +63,10 @@ export function SalesOrderPage() {
   const canEdit = isDraft && can(user, 'sales')
   const canManage = can(user, 'sales', 'manager')
   const canCancel = canManage && (isDraft || data.state === 'confirmed')
+  const trail = [
+    { to: '/sales-orders', label: 'Sales orders' },
+    { to: `/sales-orders/${data.id}`, label: data.reference },
+  ]
 
   return (
     <div className="grid gap-8">
@@ -61,14 +81,23 @@ export function SalesOrderPage() {
         }
         actions={
           <>
-            {!isDraft && can(user, 'inventory') && (
-              <LinkedTransferButtons
-                kind="delivery"
-                filter={{ sales_order_id: data.id }}
-                trail={[
-                  { to: '/sales-orders', label: 'Sales orders' },
-                  { to: `/sales-orders/${data.id}`, label: data.reference },
-                ]}
+            {seesTransfers && (
+              <OrderTransfersButton kind="delivery" transfers={transfers.transfers} trail={trail} />
+            )}
+            {seesInvoices && (
+              <OrderInvoicesButton kind="invoice" invoices={invoices.invoices} trail={trail} />
+            )}
+            {seesInvoices && (
+              <CreateInvoiceButton
+                kind="invoice"
+                order={data}
+                disabledReason={nothingToInvoiceReason(
+                  'delivery',
+                  data.lines,
+                  seesTransfers ? transfers : null,
+                  invoices.invoiced,
+                )}
+                trail={trail}
               />
             )}
             {canManage && isDraft && (
@@ -88,27 +117,49 @@ export function SalesOrderPage() {
               </DisabledReason>
             )}
             {canCancel && (
-              <ConfirmDialog
-                trigger={<Button variant="outline">Cancel order</Button>}
-                title={`Cancel ${data.reference}?`}
-                description={
-                  isDraft
-                    ? 'The draft is kept for reference but can no longer be used.'
-                    : 'Its delivery is cancelled and the reserved stock is released. This cannot be undone.'
+              <DisabledReason
+                reason={
+                  transfers.hasMoved
+                    ? 'Goods have already shipped. Cancel the backorder instead.'
+                    : null
                 }
-                confirmLabel="Cancel order"
-                destructive
-                onConfirm={async () => {
-                  await cancel.mutateAsync()
-                  toast.success(`Cancelled ${data.reference}`)
-                }}
-              />
+              >
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="outline" disabled={transfers.hasMoved}>
+                      Cancel order
+                    </Button>
+                  }
+                  title={`Cancel ${data.reference}?`}
+                  description={
+                    isDraft
+                      ? 'The draft is kept for reference but can no longer be used.'
+                      : 'Its delivery is cancelled and the reserved stock is released. This cannot be undone.'
+                  }
+                  confirmLabel="Cancel order"
+                  destructive
+                  onConfirm={async () => {
+                    await cancel.mutateAsync()
+                    toast.success(`Cancelled ${data.reference}`)
+                  }}
+                />
+              </DisabledReason>
             )}
           </>
         }
       />
 
-      <ProgressTrack steps={['draft', 'confirmed', 'delivered']} state={data.state} />
+      <div className="flex flex-wrap items-center gap-3">
+        <ProgressTrack steps={['draft', 'confirmed', 'delivered']} state={data.state} />
+        {seesTransfers && (
+          <OrderMovementNote
+            kind="delivery"
+            state={data.state}
+            lines={data.lines}
+            transfers={transfers}
+          />
+        )}
+      </div>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
         <section className="grid min-w-0 gap-3">
@@ -117,6 +168,10 @@ export function SalesOrderPage() {
             lines={data.lines}
             total={data.total}
             editable={canEdit}
+            progress={[
+              ...(seesTransfers ? [{ header: 'Delivered', done: transfers.moved }] : []),
+              ...(seesInvoices ? [{ header: 'Invoiced', done: invoices.invoiced }] : []),
+            ]}
             hint={canEdit ? availability : undefined}
             onUpdate={(lineId, changes) => lines.update.mutateAsync({ lineId, changes })}
             onDelete={(lineId) => lines.remove.mutateAsync(lineId)}

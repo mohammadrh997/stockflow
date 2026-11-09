@@ -63,6 +63,11 @@ describe('errorMessage', () => {
     expect(errorMessage(error)).toBe('Field required String too long')
   })
 
+  it('shows a 422 sent as a plain message', () => {
+    const error = new ApiError(422, "due_date can't be before invoice_date")
+    expect(errorMessage(error)).toBe("due_date can't be before invoice_date")
+  })
+
   it('handles errors that are not from the API', () => {
     expect(errorMessage(new TypeError('boom'))).toBe('Something went wrong. Please try again.')
   })
@@ -88,6 +93,19 @@ describe('applyFieldErrors', () => {
       message: 'Input should be greater than 0',
     })
     expect(unmatched).toEqual(['each product can only be counted once per adjustment'])
+  })
+
+  it('returns a plain-text 422 above the form instead of dropping it', () => {
+    const setError = vi.fn()
+
+    const unmatched = applyFieldErrors<Form>(
+      new ApiError(422, "due_date can't be before invoice_date"),
+      fields,
+      setError,
+    )
+
+    expect(setError).not.toHaveBeenCalled()
+    expect(unmatched).toEqual(["due_date can't be before invoice_date"])
   })
 
   it('returns the readable message for other errors', () => {

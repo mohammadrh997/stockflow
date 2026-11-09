@@ -1,6 +1,8 @@
 import { useLocation, useParams } from 'react-router'
 
 import { ApiError } from '@/api/errors'
+import { can } from '@/auth/permissions'
+import { useAuth } from '@/auth/useAuth'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
@@ -12,7 +14,10 @@ import { Quantity } from '@/components/Quantity'
 import { LocationName, ProductName, WarehouseName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDateTime } from '@/lib/format'
+import { BackorderLinks } from './BackorderLinks'
+import { CancelBackorderButton } from './CancelBackorderButton'
 import { TRANSFER_TYPE_LABELS, useTransfer, type StockMove } from './queries'
+import { TransferLinesTable } from './TransferLinesTable'
 import { TransferOrigin } from './TransferOrigin'
 import { ValidateTransferDialog } from './ValidateTransferDialog'
 
@@ -37,6 +42,7 @@ const columns: Column<StockMove>[] = [
 
 export function TransferPage() {
   const id = Number(useParams().transferId)
+  const { user } = useAuth()
   const transfer = useTransfer(id)
   // Opened from an order, the trail leads back through that order.
   const trail = (useLocation().state as { trail?: Crumb[] } | null)?.trail ?? [
@@ -52,6 +58,8 @@ export function TransferPage() {
   const { data } = transfer
   const fromOrder = data.transfer_type === 'receipt' || data.transfer_type === 'delivery'
   const canValidate = fromOrder && data.state === 'ready'
+  const canCancelBackorder =
+    canValidate && data.backorder_of_id !== null && can(user, 'inventory', 'manager')
 
   return (
     <div className="grid gap-8">
@@ -64,7 +72,12 @@ export function TransferPage() {
             <StateBadge state={data.state} />
           </>
         }
-        actions={canValidate && <ValidateTransferDialog transfer={data} />}
+        actions={
+          <>
+            {canCancelBackorder && <CancelBackorderButton transfer={data} />}
+            {canValidate && <ValidateTransferDialog transfer={data} />}
+          </>
+        }
       />
 
       {fromOrder && <ProgressTrack steps={['ready', 'done']} state={data.state} />}
@@ -83,6 +96,7 @@ export function TransferPage() {
               <dd>
                 <TransferOrigin transfer={data} />
               </dd>
+              <BackorderLinks transfer={data} trail={trail} />
             </>
           )}
           <dt className="text-muted-foreground">Created</dt>
@@ -96,21 +110,26 @@ export function TransferPage() {
         </dl>
       </Panel>
 
-      <section className="grid gap-3">
-        <h2 className="text-lg font-semibold">Moves</h2>
-        <DataTable
-          columns={columns}
-          rows={data.moves}
-          rowKey={(move) => move.id}
-          isPending={false}
-          error={null}
-          emptyMessage={
-            data.state === 'ready'
-              ? 'Stock moves are recorded when the transfer is validated.'
-              : 'No stock moves.'
-          }
-        />
-      </section>
+      {fromOrder && (
+        <section className="grid gap-3">
+          <h2 className="text-lg font-semibold">Products</h2>
+          <TransferLinesTable transfer={data} />
+        </section>
+      )}
+
+      {(!fromOrder || data.moves.length > 0) && (
+        <section className="grid gap-3">
+          <h2 className="text-lg font-semibold">Moves</h2>
+          <DataTable
+            columns={columns}
+            rows={data.moves}
+            rowKey={(move) => move.id}
+            isPending={false}
+            error={null}
+            emptyMessage="No stock moves."
+          />
+        </section>
+      )}
     </div>
   )
 }

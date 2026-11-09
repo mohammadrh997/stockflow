@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -48,6 +48,7 @@ describe('partners', () => {
     let body: unknown
     server.use(
       http.get(`${API}/partners/1`, () => HttpResponse.json(makePartner())),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
       http.patch(`${API}/partners/1`, async ({ request }) => {
         body = await request.json()
         return HttpResponse.json(makePartner({ email: null }))
@@ -80,5 +81,60 @@ describe('partners', () => {
     expect(await screen.findByLabelText('Name')).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
+  })
+
+  it('shows what is still owed on open bills', async () => {
+    const bill = (id: number, due: string, dueDate: string) => ({
+      id,
+      number: `BILL0000${id}`,
+      invoice_type: 'vendor_bill',
+      state: 'posted',
+      partner_id: 1,
+      sales_order_id: null,
+      purchase_order_id: 7,
+      invoice_date: '2026-01-01',
+      due_date: dueDate,
+      posted_at: '2026-01-01T10:00:00Z',
+      posted_by_id: 1,
+      created_at: '2026-01-01T10:00:00Z',
+      created_by_id: 1,
+      amount_total: '100.00',
+      amount_paid: '0',
+      amount_due: due,
+      payment_state: due === '0.00' ? 'paid' : 'not_paid',
+      lines: [],
+      payments: [],
+    })
+    let query: URLSearchParams | undefined
+    server.use(
+      http.get(`${API}/partners/1`, () => HttpResponse.json(makePartner())),
+      http.get(`${API}/invoices`, ({ request }) => {
+        query = new URL(request.url).searchParams
+        return HttpResponse.json([
+          bill(1, '0.00', '2026-01-31'),
+          bill(2, '40.50', '2000-01-31'),
+          bill(3, '100.00', '2999-01-31'),
+        ])
+      }),
+    )
+    signInAs(makeUser({ purchase_access: 'user', sales_access: 'user' }))
+    renderApp('/partners/1')
+
+    const open = await screen.findByRole('list', { name: 'Open bills' })
+    expect(
+      within(open)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['BILL00002', 'BILL00003'])
+    expect(within(open).getByText('Overdue')).toBeInTheDocument()
+    expect(screen.getByText('You owe').parentElement).toHaveTextContent('140.50')
+    expect(screen.getByRole('link', { name: 'All bills' })).toHaveAttribute(
+      'href',
+      '/invoices?type=vendor_bill&partner=1',
+    )
+    expect(query?.get('state')).toBe('posted')
+    expect(query?.get('partner_id')).toBe('1')
+    // Acme is only a supplier, so there are no customer invoices to show.
+    expect(screen.queryByRole('heading', { name: 'Invoices' })).not.toBeInTheDocument()
   })
 })

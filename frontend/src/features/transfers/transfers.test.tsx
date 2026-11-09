@@ -19,6 +19,8 @@ function makeTransfer(overrides: Partial<Transfer> = {}): Transfer {
     created_at: '2026-01-01T10:00:00Z',
     validated_at: null,
     validated_by_id: null,
+    backorder_of_id: null,
+    lines: [],
     moves: [],
     ...overrides,
   }
@@ -58,6 +60,7 @@ const desk = {
 
 function mockReferenceData() {
   server.use(
+    http.get(`${API}/transfers`, () => HttpResponse.json([])),
     http.get(`${API}/warehouses`, () =>
       HttpResponse.json([{ id: 1, name: 'Main', code: 'WH', default_location_id: 4 }]),
     ),
@@ -77,6 +80,184 @@ function mockReferenceData() {
 
 const inventoryUser = makeUser({ inventory_access: 'user' })
 const inventoryManager = makeUser({ inventory_access: 'manager' })
+
+const deskLine = {
+  id: 51,
+  product_id: 3,
+  quantity: '10.000',
+  purchase_line_id: 11,
+  sales_line_id: null,
+}
+
+describe('partial validation', () => {
+  function mockReadyReceipt() {
+    mockReferenceData()
+    let body: unknown
+    server.use(
+      http.get(`${API}/transfers/30`, () => HttpResponse.json(makeTransfer({ lines: [deskLine] }))),
+      http.get(`${API}/transfers`, () => HttpResponse.json([])),
+      http.post(`${API}/transfers/30/validate`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(
+          makeTransfer({ state: 'done', lines: [{ ...deskLine, quantity: '4.000' }] }),
+        )
+      }),
+    )
+    return () => body
+  }
+
+  async function openDialog() {
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Validate' }))
+    const dialog = await screen.findByRole('dialog')
+    return { user, dialog }
+  }
+
+  it('sends only the quantity that arrived and says the rest goes to a backorder', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    const quantity = await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    expect(quantity).toHaveValue('10')
+    await user.clear(quantity)
+    await user.type(quantity, '4')
+
+    expect(within(dialog).getByText(/goes to a new backorder/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Validate part' }))
+
+    await waitFor(() =>
+      expect(body()).toEqual({ location_id: null, lines: [{ line_id: 51, quantity: '4' }] }),
+    )
+  })
+
+  it('stops more than planned before sending', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    const quantity = await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    await user.clear(quantity)
+    await user.type(quantity, '12')
+    await user.click(within(dialog).getByRole('button', { name: 'Validate' }))
+
+    expect(await within(dialog).findByText('At most 10.')).toBeInTheDocument()
+    expect(body()).toBeUndefined()
+  })
+
+  it('needs at least one quantity', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    const quantity = await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    await user.clear(quantity)
+    await user.type(quantity, '0')
+    await user.click(within(dialog).getByRole('button', { name: 'Validate part' }))
+
+    expect(
+      await within(dialog).findByText('Enter a quantity on at least one line.'),
+    ).toBeInTheDocument()
+    expect(body()).toBeUndefined()
+  })
+
+  it('sends no per-line detail when everything moves', async () => {
+    const body = mockReadyReceipt()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+    const { user, dialog } = await openDialog()
+
+    await within(dialog).findByRole('textbox', { name: 'Quantity for Desk' })
+    await user.click(within(dialog).getByRole('button', { name: 'Validate' }))
+
+    await waitFor(() => expect(body()).toEqual({ location_id: null }))
+  })
+})
+
+describe('backorders', () => {
+  const original = makeTransfer({
+    state: 'done',
+    lines: [{ ...deskLine, quantity: '4.000' }],
+    moves: [move],
+  })
+  const backorder = makeTransfer({
+    id: 40,
+    reference: 'WH/IN/00008',
+    backorder_of_id: 30,
+    lines: [{ ...deskLine, id: 52, quantity: '6.000' }],
+  })
+
+  function mockChain() {
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/transfers/30`, () => HttpResponse.json(original)),
+      http.get(`${API}/transfers/40`, () => HttpResponse.json(backorder)),
+      http.get(`${API}/transfers`, () => HttpResponse.json([original, backorder])),
+    )
+  }
+
+  it('links a transfer to its backorder and back', async () => {
+    mockChain()
+    signInAs(inventoryUser)
+    renderApp('/transfers/30')
+
+    expect(await screen.findByRole('link', { name: 'WH/IN/00008' })).toHaveAttribute(
+      'href',
+      '/transfers/40',
+    )
+    expect(screen.getByRole('columnheader', { name: 'Moved' })).toBeInTheDocument()
+  })
+
+  it('shows what a backorder still has to move and where it came from', async () => {
+    mockChain()
+    signInAs(inventoryUser)
+    renderApp('/transfers/40')
+
+    expect(await screen.findByRole('link', { name: 'WH/IN/00003' })).toHaveAttribute(
+      'href',
+      '/transfers/30',
+    )
+    expect(screen.getByRole('columnheader', { name: 'To move' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel backorder' })).not.toBeInTheDocument()
+  })
+
+  it('lets inventory managers cancel a backorder after confirming', async () => {
+    mockChain()
+    let cancelled = false
+    server.use(
+      http.post(`${API}/transfers/40/cancel`, () => {
+        cancelled = true
+        return HttpResponse.json({ ...backorder, state: 'cancelled' })
+      }),
+    )
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/transfers/40')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Cancel backorder' }))
+    const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText(/closed as received with what arrived/)).toBeInTheDocument()
+    expect(cancelled).toBe(false)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel backorder' }))
+
+    await waitFor(() => expect(cancelled).toBe(true))
+    expect(await screen.findByRole('columnheader', { name: 'Not moved' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer to cancel a transfer that is not a backorder', async () => {
+    mockReferenceData()
+    server.use(http.get(`${API}/transfers/30`, () => HttpResponse.json(makeTransfer())))
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/transfers/30')
+
+    expect(await screen.findByRole('button', { name: 'Validate' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel backorder' })).not.toBeInTheDocument()
+  })
+})
 
 describe('transfer page', () => {
   it('validates a receipt into the default location and refreshes stock and orders', async () => {
@@ -100,9 +281,8 @@ describe('transfer page', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
     const user = userEvent.setup()
 
-    expect(
-      await screen.findByText('Stock moves are recorded when the transfer is validated.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Products' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Moves' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Validate' }))
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: 'Validate' }))
@@ -111,7 +291,7 @@ describe('transfer page', () => {
       expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('done'),
     )
     expect(body).toEqual({ location_id: null })
-    const row = screen.getByRole('link', { name: 'Desk' }).closest('tr')!
+    const row = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
     expect(within(row).getByText('Supplier')).toBeInTheDocument()
     expect(within(row).getByText('Stock')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()

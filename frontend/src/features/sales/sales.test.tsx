@@ -63,6 +63,7 @@ function mockApi(order: () => SalesOrder) {
     http.get(`${API}/products/3`, () => HttpResponse.json(product(3, 'Desk'))),
     http.get(`${API}/products/4`, () => HttpResponse.json(product(4, 'Lamp'))),
     http.get(`${API}/transfers`, () => HttpResponse.json([])),
+    http.get(`${API}/invoices`, () => HttpResponse.json([])),
     http.get(`${API}/stock`, ({ request }) => {
       stockRequests.push(new URL(request.url).searchParams)
       return HttpResponse.json([
@@ -150,5 +151,170 @@ describe('sales order page', () => {
     renderApp('/sales-orders/8')
 
     expect(await screen.findByRole('heading', { name: 'No access' })).toBeInTheDocument()
+  })
+})
+
+describe('invoicing a sales order', () => {
+  const delivered = makeOrder({ state: 'delivered' })
+
+  function delivery(quantities: Record<number, string>) {
+    return {
+      id: 31,
+      reference: 'WH/OUT/00004',
+      state: 'done',
+      warehouse_id: 1,
+      purchase_order_id: null,
+      sales_order_id: 8,
+      created_at: '2026-01-01T10:00:00Z',
+      validated_at: '2026-01-02T10:00:00Z',
+      validated_by_id: 1,
+      backorder_of_id: null,
+      moves: [],
+      lines: Object.entries(quantities).map(([lineId, quantity], index) => ({
+        id: index + 1,
+        product_id: Number(lineId) === 21 ? 3 : 4,
+        quantity,
+        purchase_line_id: null,
+        sales_line_id: Number(lineId),
+      })),
+    }
+  }
+
+  function invoice(id: number, state: string, quantities: Record<number, string>) {
+    return {
+      id,
+      number: state === 'draft' ? null : `INV0000${id}`,
+      invoice_type: 'customer_invoice',
+      state,
+      partner_id: 6,
+      sales_order_id: 8,
+      purchase_order_id: null,
+      invoice_date: null,
+      due_date: null,
+      posted_at: null,
+      posted_by_id: null,
+      created_at: '2026-01-03T10:00:00Z',
+      created_by_id: 1,
+      amount_total: '0',
+      amount_paid: '0',
+      amount_due: '0',
+      payment_state: 'not_paid',
+      payments: [],
+      lines: Object.entries(quantities).map(([lineId, quantity], index) => ({
+        id: id * 10 + index,
+        product_id: Number(lineId) === 21 ? 3 : 4,
+        quantity,
+        unit_price: '50.00',
+        subtotal: '0',
+        sales_line_id: Number(lineId),
+        purchase_line_id: null,
+      })),
+    }
+  }
+
+  it('shows what is invoiced, ignoring cancelled invoices, and lists them', async () => {
+    mockApi(() => delivered)
+    server.use(
+      http.get(`${API}/transfers`, () =>
+        HttpResponse.json([delivery({ 21: '4.000', 22: '1.000' })]),
+      ),
+      http.get(`${API}/invoices`, () =>
+        HttpResponse.json([
+          invoice(2, 'posted', { 21: '3.000' }),
+          invoice(1, 'cancelled', { 21: '4.000', 22: '1.000' }),
+        ]),
+      ),
+    )
+    signInAs(makeUser({ sales_access: 'user', inventory_access: 'user' }))
+    renderApp('/sales-orders/8')
+    const user = userEvent.setup()
+
+    const desk = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
+    // Delivered 4 of 4; invoiced 3 of 4, as the cancelled invoice no longer counts.
+    await waitFor(() =>
+      expect(
+        within(desk)
+          .getAllByText(/of 4$/)
+          .map((part) => part.parentElement?.textContent),
+      ).toEqual(['4 of 4', '3 of 4']),
+    )
+    expect(screen.getByRole('button', { name: 'Create invoice' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Invoices (2)' }))
+    const list = await screen.findByRole('list', { name: 'Invoices' })
+    const links = within(list).getAllByRole('link')
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/invoices/1', '/invoices/2'])
+    expect(within(list).getByText('INV00002')).toBeInTheDocument()
+  })
+
+  it('says why there is nothing to invoice', async () => {
+    mockApi(() => delivered)
+    server.use(
+      http.get(`${API}/transfers`, () =>
+        HttpResponse.json([delivery({ 21: '4.000', 22: '1.000' })]),
+      ),
+      http.get(`${API}/invoices`, () =>
+        HttpResponse.json([invoice(1, 'draft', { 21: '4.000', 22: '1.000' })]),
+      ),
+    )
+    signInAs(makeUser({ sales_access: 'user', inventory_access: 'user' }))
+    renderApp('/sales-orders/8')
+
+    expect(
+      await screen.findByLabelText('Everything delivered is already invoiced.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create invoice' })).toBeDisabled()
+    expect(screen.getByRole('link', { name: 'Invoice Draft #1, draft' })).toBeInTheDocument()
+  })
+
+  it('drafts an invoice and opens it', async () => {
+    mockApi(() => delivered)
+    let body: unknown
+    const draft = invoice(3, 'draft', { 21: '4.000' })
+    server.use(
+      http.post(`${API}/invoices`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(draft, { status: 201 })
+      }),
+      http.get(`${API}/invoices/3`, () => HttpResponse.json(draft)),
+    )
+    // Without inventory access the page can't tell what moved, so the server decides.
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/sales-orders/8')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Create invoice' }))
+
+    expect(await screen.findByRole('heading', { name: /Draft #3/ })).toBeInTheDocument()
+    expect(body).toEqual({ sales_order_id: 8 })
+    // The breadcrumb leads back through the order.
+    const trail = screen.getByRole('navigation', { name: /breadcrumb/i })
+    expect(within(trail).getByRole('link', { name: 'SO00008' })).toHaveAttribute(
+      'href',
+      '/sales-orders/8',
+    )
+  })
+
+  it('explains a refusal when nothing is left to invoice', async () => {
+    mockApi(() => delivered)
+    server.use(
+      http.post(`${API}/invoices`, () => HttpResponse.json({ detail: 'SO00008' }, { status: 409 })),
+    )
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/sales-orders/8')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Create invoice' }))
+
+    expect(await screen.findByText('Nothing left to invoice on SO00008.')).toBeInTheDocument()
+  })
+
+  it('is not offered on drafts', async () => {
+    mockApi(() => makeOrder())
+    signInAs(makeUser({ sales_access: 'manager', inventory_access: 'user' }))
+    renderApp('/sales-orders/8')
+
+    expect(await screen.findByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create invoice' })).not.toBeInTheDocument()
   })
 })
