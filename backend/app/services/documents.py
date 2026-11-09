@@ -5,6 +5,7 @@ record and turns it into a `Document`; `render` fills the template and WeasyPrin
 the HTML into a PDF.
 """
 
+import asyncio
 import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -12,12 +13,10 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import Response
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.models.invoice import Invoice, InvoiceLine, InvoiceState, InvoiceType
@@ -34,10 +33,6 @@ ASSETS = APP_DIR / "assets"  # fonts and logo; the template's relative URLs poin
 
 
 class DocumentNotAvailable(Exception): ...  # 409: the record's state can't be printed
-
-
-# Tells the OpenAPI docs (and the frontend's generated client) that the body is a PDF
-PDF_RESPONSE: dict[int | str, dict] = {200: {"content": {"application/pdf": {}}}}
 
 
 @dataclass
@@ -106,14 +101,9 @@ def render(doc: Document) -> bytes:
     return pdf
 
 
-async def pdf_response(doc: Document) -> Response:
+async def render_pdf(doc: Document) -> bytes:
     # Rendering takes ~100 ms of CPU. In a thread, so other requests keep being served.
-    pdf = await run_in_threadpool(render, doc)
-    return Response(
-        content=pdf,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{doc.filename}"'},
-    )
+    return await asyncio.to_thread(render, doc)
 
 
 # ---- builders ----

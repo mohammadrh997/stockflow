@@ -13,6 +13,7 @@ from app.dependencies import (
 )
 from app.models.invoice import Invoice, InvoiceState, InvoiceType
 from app.models.user import Access, User
+from app.routers.pdf import PDF_RESPONSE, pdf_response
 from app.schemas.invoice import (
     InvoiceCreate,
     InvoiceLineUpdate,
@@ -23,7 +24,7 @@ from app.schemas.invoice import (
 from app.services import documents
 from app.services import invoice as invoice_service
 from app.services.common import LineNotFound
-from app.services.documents import PDF_RESPONSE, DocumentNotAvailable
+from app.services.documents import DocumentNotAvailable
 from app.services.invoice import (
     InvalidDueDate,
     InvoiceAlreadyCancelled,
@@ -185,4 +186,4 @@ async def invoice_pdf(db: DBsession, invoice_id: int, user: CurrentUser):
         doc = await documents.invoice_document(db, invoice_id)
     except DocumentNotAvailable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
-    return await documents.pdf_response(doc)
+    return pdf_response(await documents.render_pdf(doc), doc.filename)
