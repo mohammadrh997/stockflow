@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { addDays, today } from '@/lib/dates'
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
@@ -308,5 +308,65 @@ describe('invoice page', () => {
     expect(screen.queryByText('Not paid')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Register payment' })).not.toBeInTheDocument()
     expect(screen.queryByText('Overdue')).not.toBeInTheDocument()
+  })
+
+  describe('PDF', () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it('downloads under the name the server gives', async () => {
+      mockInvoice(posted)
+      let auth: string | null = null
+      server.use(
+        http.get(`${API}/invoices/5/pdf`, ({ request }) => {
+          auth = request.headers.get('Authorization')
+          return new HttpResponse(new Blob(['%PDF-1.7']), {
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': 'attachment; filename="INV00001.pdf"',
+            },
+          })
+        }),
+      )
+      URL.createObjectURL = vi.fn(() => 'blob:pdf')
+      URL.revokeObjectURL = vi.fn()
+      const saved: string[] = []
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        saved.push(this.download)
+      })
+      signInAs(salesUser)
+      renderApp('/invoices/5')
+      const user = userEvent.setup()
+
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }))
+
+      await waitFor(() => expect(saved).toEqual(['INV00001.pdf']))
+      expect(auth).toMatch(/^Bearer /)
+    })
+
+    it('says why a PDF is refused', async () => {
+      mockInvoice(posted)
+      server.use(
+        http.get(`${API}/invoices/5/pdf`, () =>
+          HttpResponse.json({ detail: "cancelled invoices can't be printed" }, { status: 409 }),
+        ),
+      )
+      signInAs(salesUser)
+      renderApp('/invoices/5')
+      const user = userEvent.setup()
+
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }))
+      expect(await screen.findByText("cancelled invoices can't be printed")).toBeInTheDocument()
+    })
+
+    it('is not offered on a cancelled invoice', async () => {
+      mockInvoice({ ...posted, state: 'cancelled' })
+      signInAs(salesUser)
+      renderApp('/invoices/5')
+
+      expect(await screen.findByRole('heading', { name: /INV00001/ })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
+    })
   })
 })

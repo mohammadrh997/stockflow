@@ -16,6 +16,7 @@ import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
 import { formatDoneBy } from '@/lib/format'
+import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
@@ -74,7 +75,18 @@ export function InvoicePage() {
             <OverdueBadge invoice={data} today={today()} />
           </>
         }
-        actions={<InvoiceActions invoice={data} />}
+        actions={
+          <>
+            {/* The server refuses to print a cancelled invoice. */}
+            {data.state !== 'cancelled' && (
+              <DownloadPdfButton
+                source={{ kind: 'invoice', id: data.id }}
+                fallbackName={invoiceTitle(data)}
+              />
+            )}
+            <InvoiceActions invoice={data} />
+          </>
+        }
       />
 
       <ProgressTrack steps={['draft', 'posted']} state={data.state} />

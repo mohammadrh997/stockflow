@@ -16,6 +16,7 @@ import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AddLineForm } from '@/features/orders/AddLineForm'
+import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
 import { OrderInvoicesButton } from '@/features/orders/OrderInvoicesButton'
 import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useOrderInvoices'
@@ -81,6 +82,12 @@ export function SalesOrderPage() {
         }
         actions={
           <>
+            {data.state !== 'cancelled' && (
+              <DownloadPdfButton
+                source={{ kind: 'sales-order', id: data.id }}
+                fallbackName={data.reference}
+              />
+            )}
             {seesTransfers && (
               <OrderTransfersButton kind="delivery" transfers={transfers.transfers} trail={trail} />
             )}
