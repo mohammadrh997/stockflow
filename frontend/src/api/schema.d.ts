@@ -264,6 +264,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invoices/{invoice_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Invoice Pdf */
+        get: operations["invoice_pdf_invoices__invoice_id__pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/partners": {
         parameters: {
             query?: never;
@@ -439,6 +456,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sales-orders/{order_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Order Pdf */
+        get: operations["order_pdf_sales_orders__order_id__pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/purchase-orders": {
         parameters: {
             query?: never;
@@ -538,6 +572,23 @@ export interface paths {
         put?: never;
         /** Cancel Order */
         post: operations["cancel_order_purchase_orders__order_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/purchase-orders/{order_id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Order Pdf */
+        get: operations["order_pdf_purchase_orders__order_id__pdf_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -968,15 +1019,13 @@ export interface components {
             due_date: string | null;
             /** Posted At */
             posted_at: string | null;
-            /** Posted By Id */
-            posted_by_id: number | null;
+            posted_by: components["schemas"]["UserSummary"] | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
-            /** Created By Id */
-            created_by_id: number;
+            created_by: components["schemas"]["UserSummary"];
             /** Amount Total */
             amount_total: string | null;
             /** Lines */
@@ -1078,8 +1127,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Created By Id */
-            created_by_id: number;
+            created_by: components["schemas"]["UserSummary"];
         };
         /** PartnerUpdate */
         PartnerUpdate: {
@@ -1138,8 +1186,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Created By Id */
-            created_by_id: number;
+            created_by: components["schemas"]["UserSummary"];
         };
         /**
          * PaymentState
@@ -1181,8 +1228,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Created By Id */
-            created_by_id: number;
+            created_by: components["schemas"]["UserSummary"];
         };
         /** ProductUpdate */
         ProductUpdate: {
@@ -1252,8 +1298,7 @@ export interface components {
             /** Warehouse Id */
             warehouse_id: number;
             state: components["schemas"]["PurchaseState"];
-            /** Created By Id */
-            created_by_id: number;
+            created_by: components["schemas"]["UserSummary"];
             /**
              * Created At
              * Format: date-time
@@ -1328,8 +1373,7 @@ export interface components {
             /** Warehouse Id */
             warehouse_id: number;
             state: components["schemas"]["SalesState"];
-            /** Created By Id */
-            created_by_id: number;
+            created_by: components["schemas"]["UserSummary"];
             /**
              * Created At
              * Format: date-time
@@ -1436,8 +1480,7 @@ export interface components {
             created_at: string;
             /** Validated At */
             validated_at: string | null;
-            /** Validated By Id */
-            validated_by_id: number | null;
+            validated_by: components["schemas"]["UserSummary"] | null;
             /** Backorder Of Id */
             backorder_of_id: number | null;
             /** Lines */
@@ -1532,6 +1575,16 @@ export interface components {
             created_at: string;
             /** Is Active */
             is_active: boolean;
+        };
+        /**
+         * UserSummary
+         * @description Who created, posted or validated a record.
+         */
+        UserSummary: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** UserUpdate */
         UserUpdate: {
@@ -2239,6 +2292,37 @@ export interface operations {
             };
         };
     };
+    invoice_pdf_invoices__invoice_id__pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_partners_partners_get: {
         parameters: {
             query?: {
@@ -2734,6 +2818,37 @@ export interface operations {
             };
         };
     };
+    order_pdf_sales_orders__order_id__pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_orders_purchase_orders_get: {
         parameters: {
             query?: {
@@ -3019,6 +3134,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PurchaseOrderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    order_pdf_purchase_orders__order_id__pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
                 };
             };
             /** @description Validation Error */

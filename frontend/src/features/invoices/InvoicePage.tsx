@@ -5,8 +5,8 @@ import { ApiError } from '@/api/errors'
 import { canOnInvoices } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { DataTable, type Column } from '@/components/DataTable'
+import { DoneByRows } from '@/components/DoneByRows'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { ForbiddenPage } from '@/components/ForbiddenPage'
 import { Money } from '@/components/Money'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
@@ -16,7 +16,7 @@ import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
-import { formatDateTime } from '@/lib/format'
+import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
@@ -28,6 +28,7 @@ type Payment = Invoice['payments'][number]
 const paymentColumns: Column<Payment>[] = [
   { header: 'Date', cell: (payment) => formatDate(payment.paid_on) },
   { header: 'Reference', cell: (payment) => payment.reference ?? '—' },
+  { header: 'Recorded by', cell: (payment) => payment.created_by.name },
   {
     header: 'Amount',
     className: 'text-right',
@@ -58,9 +59,6 @@ export function InvoicePage() {
   }
 
   const { data } = invoice
-  // The API doesn't limit reading by invoice type yet, so the page does.
-  if (!canOnInvoices(user, data.invoice_type)) return <ForbiddenPage />
-
   const customer = data.invoice_type === 'customer_invoice'
   const editable = data.state === 'draft' && canOnInvoices(user, data.invoice_type)
 
@@ -77,7 +75,18 @@ export function InvoicePage() {
             <OverdueBadge invoice={data} today={today()} />
           </>
         }
-        actions={<InvoiceActions invoice={data} />}
+        actions={
+          <>
+            {/* The server prints only for the invoice's own module, and never a cancelled one. */}
+            {data.state !== 'cancelled' && canOnInvoices(user, data.invoice_type) && (
+              <DownloadPdfButton
+                source={{ kind: 'invoice', id: data.id }}
+                fallbackName={invoiceTitle(data)}
+              />
+            )}
+            <InvoiceActions invoice={data} />
+          </>
+        }
       />
 
       <ProgressTrack steps={['draft', 'posted']} state={data.state} />
@@ -122,8 +131,10 @@ export function InvoicePage() {
               <Detail label="Due date">
                 {data.due_date ? formatDate(data.due_date) : 'Set when posted'}
               </Detail>
-              {data.posted_at && <Detail label="Posted">{formatDateTime(data.posted_at)}</Detail>}
-              <Detail label="Created">{formatDateTime(data.created_at)}</Detail>
+              {data.posted_at && (
+                <DoneByRows label="Posted" at={data.posted_at} by={data.posted_by} />
+              )}
+              <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
             </dl>
           </Panel>
 

@@ -19,7 +19,7 @@ function partner(id: number, name: string, role: 'customer' | 'supplier') {
     is_supplier: role === 'supplier',
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
-    created_by_id: 1,
+    created_by: { id: 1, name: 'Admin' },
   }
 }
 
@@ -32,7 +32,7 @@ const stool = {
   image_key: null,
   is_active: true,
   created_at: '2026-01-01T00:00:00Z',
-  created_by_id: 1,
+  created_by: { id: 1, name: 'Admin' },
 }
 
 function mockDraftPurchaseOrder() {
@@ -47,7 +47,7 @@ function mockDraftPurchaseOrder() {
         partner_id: 5,
         warehouse_id: 1,
         state: 'draft',
-        created_by_id: 1,
+        created_by: { id: 1, name: 'Admin' },
         created_at: '2026-01-01T10:00:00Z',
         lines: [],
         total: '0',

@@ -23,7 +23,12 @@ export function can(
   return RANK[user[ACCESS_FIELD[module]]] >= RANK[level ?? 'user']
 }
 
-// Customer invoices follow sales access, vendor bills follow purchase access.
+// Anyone with sales or purchase access can read both kinds of invoice.
+export function canViewInvoices(user: User | null | undefined): boolean {
+  return can(user, 'sales') || can(user, 'purchase')
+}
+
+// Changing them follows the module: customer invoices need sales, vendor bills purchase.
 export function canOnInvoices(
   user: User | null | undefined,
   invoiceType: 'customer_invoice' | 'vendor_bill',

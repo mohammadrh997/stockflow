@@ -38,7 +38,7 @@ class PurchaseOrder(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_by: Mapped["User"] = relationship()
+    created_by: Mapped["User"] = relationship(lazy="selectin")
     lines: Mapped[list["PurchaseOrderLine"]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
     )

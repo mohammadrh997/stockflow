@@ -32,6 +32,15 @@ AccessName = Annotated[
 ]
 
 
+class UserSummary(BaseModel):
+    """Who created, posted or validated a record."""
+
+    model_config = {"from_attributes": True}
+
+    id: int
+    name: str
+
+
 class UserBase(BaseModel):
     email: Annotated[EmailStr, AfterValidator(str.lower)]
     name: str = Field(min_length=1, max_length=30)

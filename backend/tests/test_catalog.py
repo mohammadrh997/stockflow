@@ -25,7 +25,7 @@ async def test_create_product_normalizes_sku_and_sets_creator(client, make_user)
     assert response.status_code == 201
     body = response.json()
     assert body["sku"] == "CHR-001"
-    assert body["created_by_id"] == manager.id
+    assert body["created_by"] == {"id": manager.id, "name": manager.name}
 
 
 async def test_duplicate_sku_is_rejected(client, make_user):

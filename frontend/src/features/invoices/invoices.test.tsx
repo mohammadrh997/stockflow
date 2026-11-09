@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { addDays, today } from '@/lib/dates'
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
@@ -30,9 +30,9 @@ function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
     invoice_date: null,
     due_date: null,
     posted_at: null,
-    posted_by_id: null,
+    posted_by: null,
     created_at: '2026-11-01T10:00:00Z',
-    created_by_id: 1,
+    created_by: { id: 1, name: 'Admin' },
     amount_total: '200.00',
     lines: [line],
     payments: [],
@@ -64,7 +64,7 @@ function mockReferenceData() {
         is_supplier: false,
         is_active: true,
         created_at: '2026-01-01T00:00:00Z',
-        created_by_id: 1,
+        created_by: { id: 1, name: 'Admin' },
       }),
     ),
     http.get(`${API}/products/3`, () =>
@@ -77,7 +77,7 @@ function mockReferenceData() {
         image_key: null,
         is_active: true,
         created_at: '2026-01-01T00:00:00Z',
-        created_by_id: 1,
+        created_by: { id: 1, name: 'Admin' },
       }),
     ),
     http.get(`${API}/sales-orders/8`, () =>
@@ -87,7 +87,7 @@ function mockReferenceData() {
         partner_id: 6,
         warehouse_id: 1,
         state: 'confirmed',
-        created_by_id: 1,
+        created_by: { id: 1, name: 'Admin' },
         created_at: '2026-01-01T10:00:00Z',
         lines: [],
         total: '0',
@@ -100,7 +100,7 @@ const salesUser = makeUser({ sales_access: 'user' })
 const salesManager = makeUser({ sales_access: 'manager' })
 
 describe('invoice list', () => {
-  it('shows only the invoices a sales user can use, with payment and overdue status', async () => {
+  it('opens on customer invoices for sales users, with payment and overdue status', async () => {
     mockReferenceData()
     let query: URLSearchParams | undefined
     server.use(
@@ -114,13 +114,16 @@ describe('invoice list', () => {
 
     const row = (await screen.findByRole('link', { name: 'INV00001' })).closest('tr')!
     expect(query?.get('invoice_type')).toBe('customer_invoice')
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Customer invoices' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
     expect(within(row).getByText('Not paid')).toBeInTheDocument()
     expect(within(row).getByText('Overdue')).toBeInTheDocument()
     expect(await within(row).findByRole('link', { name: 'SO00008' })).toBeInTheDocument()
   })
 
-  it('offers both tabs to people with sales and purchase access', async () => {
+  it('lets purchase users read customer invoices too, starting on their bills', async () => {
     mockReferenceData()
     const types: (string | null)[] = []
     server.use(
@@ -129,14 +132,16 @@ describe('invoice list', () => {
         return HttpResponse.json([])
       }),
     )
-    signInAs(makeUser({ sales_access: 'user', purchase_access: 'user' }))
+    signInAs(makeUser({ purchase_access: 'user' }))
     renderApp('/invoices')
     const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('tab', { name: 'Vendor bills' }))
-
-    await waitFor(() => expect(types.at(-1)).toBe('vendor_bill'))
     expect(await screen.findByText('No vendor bills yet.')).toBeInTheDocument()
+    expect(types[0]).toBe('vendor_bill')
+    await user.click(screen.getByRole('tab', { name: 'Customer invoices' }))
+
+    await waitFor(() => expect(types.at(-1)).toBe('customer_invoice'))
+    expect(await screen.findByText('No customer invoices yet.')).toBeInTheDocument()
   })
 
   it('is only for sales or purchase users', async () => {
@@ -153,12 +158,19 @@ describe('invoice page', () => {
     server.use(http.get(`${API}/invoices/5`, () => HttpResponse.json(invoice)))
   }
 
-  it('hides an invoice type the user has no access to', async () => {
+  it('shows an invoice from another module read-only', async () => {
     mockInvoice(makeInvoice())
     signInAs(makeUser({ purchase_access: 'manager' }))
     renderApp('/invoices/5')
 
-    expect(await screen.findByRole('heading', { name: 'No access' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Draft #5/ })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Desk' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    // The server only prints for the invoice's own module.
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Post|Cancel invoice|Remove/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('lets sales users edit a draft in place but not post it', async () => {
@@ -231,7 +243,7 @@ describe('invoice page', () => {
                 paid_on: today(),
                 reference: 'TRF-1',
                 created_at: '2026-11-01T10:00:00Z',
-                created_by_id: 1,
+                created_by: { id: 1, name: 'Admin' },
               },
             ],
             amount_paid: '50.00',
@@ -267,6 +279,9 @@ describe('invoice page', () => {
     )
     expect(await screen.findByText('Partly paid')).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'TRF-1' })).toBeInTheDocument()
+    // Who recorded it, and who drafted the invoice.
+    expect(screen.getByRole('cell', { name: 'Admin' })).toBeInTheDocument()
+    expect(screen.getByText('Created by').nextElementSibling).toHaveTextContent('Admin')
   })
 
   it('cannot be cancelled once it has payments', async () => {
@@ -279,7 +294,7 @@ describe('invoice page', () => {
           paid_on: '2026-10-10',
           reference: null,
           created_at: '2026-10-10T10:00:00Z',
-          created_by_id: 1,
+          created_by: { id: 1, name: 'Admin' },
         },
       ],
       amount_paid: '200.00',
@@ -295,5 +310,65 @@ describe('invoice page', () => {
     expect(screen.queryByText('Not paid')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Register payment' })).not.toBeInTheDocument()
     expect(screen.queryByText('Overdue')).not.toBeInTheDocument()
+  })
+
+  describe('PDF', () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it('downloads under the name the server gives', async () => {
+      mockInvoice(posted)
+      let auth: string | null = null
+      server.use(
+        http.get(`${API}/invoices/5/pdf`, ({ request }) => {
+          auth = request.headers.get('Authorization')
+          return new HttpResponse(new Blob(['%PDF-1.7']), {
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': 'attachment; filename="INV00001.pdf"',
+            },
+          })
+        }),
+      )
+      URL.createObjectURL = vi.fn(() => 'blob:pdf')
+      URL.revokeObjectURL = vi.fn()
+      const saved: string[] = []
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        saved.push(this.download)
+      })
+      signInAs(salesUser)
+      renderApp('/invoices/5')
+      const user = userEvent.setup()
+
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }))
+
+      await waitFor(() => expect(saved).toEqual(['INV00001.pdf']))
+      expect(auth).toMatch(/^Bearer /)
+    })
+
+    it('says why a PDF is refused', async () => {
+      mockInvoice(posted)
+      server.use(
+        http.get(`${API}/invoices/5/pdf`, () =>
+          HttpResponse.json({ detail: "cancelled invoices can't be printed" }, { status: 409 }),
+        ),
+      )
+      signInAs(salesUser)
+      renderApp('/invoices/5')
+      const user = userEvent.setup()
+
+      await user.click(await screen.findByRole('button', { name: 'Download PDF' }))
+      expect(await screen.findByText("cancelled invoices can't be printed")).toBeInTheDocument()
+    })
+
+    it('is not offered on a cancelled invoice', async () => {
+      mockInvoice({ ...posted, state: 'cancelled' })
+      signInAs(salesUser)
+      renderApp('/invoices/5')
+
+      expect(await screen.findByRole('heading', { name: /INV00001/ })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
+    })
   })
 })

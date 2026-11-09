@@ -36,10 +36,10 @@ const ALL = 'all'
 export function InvoicesPage() {
   const { user } = useAuth()
   const list = useListParams()
-  // Each person only sees the kinds of invoice their access covers.
-  const types = (['customer_invoice', 'vendor_bill'] as InvoiceType[]).filter((type) =>
-    canOnInvoices(user, type),
-  )
+  // Everyone here can read both kinds; the kind they work on comes first.
+  const types: InvoiceType[] = canOnInvoices(user, 'customer_invoice')
+    ? ['customer_invoice', 'vendor_bill']
+    : ['vendor_bill', 'customer_invoice']
   const requested = list.get('type') as InvoiceType
   const type = types.includes(requested) ? requested : types[0]
   const state = (list.get('state') || undefined) as InvoiceState | undefined

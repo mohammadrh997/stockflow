@@ -6,6 +6,7 @@ import { canEditPartners } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { ArchivedBadge } from '@/components/ArchivedBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { DoneByRows } from '@/components/DoneByRows'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
@@ -78,6 +79,9 @@ export function PartnerPage() {
             toast.success('Partner saved')
           }}
         />
+        <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
+          <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+        </dl>
       </Panel>
       <PartnerInvoices partner={data} />
     </div>

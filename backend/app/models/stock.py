@@ -59,7 +59,7 @@ class Transfer(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
-    validated_by: Mapped["User | None"] = relationship()
+    validated_by: Mapped["User | None"] = relationship(lazy="selectin")
     lines: Mapped[list["TransferLine"]] = relationship(
         back_populates="transfer", cascade="all, delete-orphan"
     )

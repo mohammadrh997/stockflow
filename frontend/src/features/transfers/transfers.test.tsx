@@ -18,7 +18,7 @@ function makeTransfer(overrides: Partial<Transfer> = {}): Transfer {
     sales_order_id: null,
     created_at: '2026-01-01T10:00:00Z',
     validated_at: null,
-    validated_by_id: null,
+    validated_by: null,
     backorder_of_id: null,
     lines: [],
     moves: [],
@@ -35,6 +35,7 @@ const move = {
   purchase_line_id: 11,
   sales_line_id: null,
   note: null,
+  // Moves still carry only the id.
   created_by_id: 1,
   created_at: '2026-01-02T10:00:00Z',
 }
@@ -55,7 +56,7 @@ const desk = {
   image_key: null,
   is_active: true,
   created_at: '2026-01-01T00:00:00Z',
-  created_by_id: 1,
+  created_by: { id: 1, name: 'Admin' },
 }
 
 function mockReferenceData() {
@@ -273,7 +274,14 @@ describe('transfer page', () => {
       http.post(`${API}/transfers/30/validate`, async ({ request }) => {
         body = await request.json()
         validated = true
-        return HttpResponse.json(makeTransfer({ state: 'done', moves: [move] }))
+        return HttpResponse.json(
+          makeTransfer({
+            state: 'done',
+            moves: [move],
+            validated_at: '2026-01-02T10:00:00Z',
+            validated_by: { id: 2, name: 'Sara' },
+          }),
+        )
       }),
     )
     signInAs(inventoryUser)
@@ -295,6 +303,7 @@ describe('transfer page', () => {
     expect(within(row).getByText('Supplier')).toBeInTheDocument()
     expect(within(row).getByText('Stock')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Validate' })).not.toBeInTheDocument()
+    expect(screen.getByText('Validated by').nextElementSibling).toHaveTextContent('Sara')
     for (const key of ['stock', 'transfers', 'purchase-order', 'sales-order']) {
       expect(invalidate).toHaveBeenCalledWith({ queryKey: [key] })
     }

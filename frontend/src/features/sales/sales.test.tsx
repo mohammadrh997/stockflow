@@ -14,7 +14,7 @@ function makeOrder(overrides: Partial<SalesOrder> = {}): SalesOrder {
     partner_id: 6,
     warehouse_id: 1,
     state: 'draft',
-    created_by_id: 1,
+    created_by: { id: 1, name: 'Admin' },
     created_at: '2026-01-01T10:00:00Z',
     lines: [
       { id: 21, product_id: 3, quantity: '4.000', unit_price: '50.00', subtotal: '200.00' },
@@ -35,7 +35,7 @@ function product(id: number, name: string) {
     image_key: null,
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
-    created_by_id: 1,
+    created_by: { id: 1, name: 'Admin' },
   }
 }
 
@@ -57,7 +57,7 @@ function mockApi(order: () => SalesOrder) {
         is_supplier: false,
         is_active: true,
         created_at: '2026-01-01T00:00:00Z',
-        created_by_id: 1,
+        created_by: { id: 1, name: 'Admin' },
       }),
     ),
     http.get(`${API}/products/3`, () => HttpResponse.json(product(3, 'Desk'))),
@@ -167,7 +167,7 @@ describe('invoicing a sales order', () => {
       sales_order_id: 8,
       created_at: '2026-01-01T10:00:00Z',
       validated_at: '2026-01-02T10:00:00Z',
-      validated_by_id: 1,
+      validated_by: { id: 1, name: 'Admin' },
       backorder_of_id: null,
       moves: [],
       lines: Object.entries(quantities).map(([lineId, quantity], index) => ({
@@ -192,9 +192,9 @@ describe('invoicing a sales order', () => {
       invoice_date: null,
       due_date: null,
       posted_at: null,
-      posted_by_id: null,
+      posted_by: null,
       created_at: '2026-01-03T10:00:00Z',
-      created_by_id: 1,
+      created_by: { id: 1, name: 'Admin' },
       amount_total: '0',
       amount_paid: '0',
       amount_due: '0',
