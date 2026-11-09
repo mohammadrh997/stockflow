@@ -5,6 +5,7 @@ from pydantic import BaseModel, computed_field
 
 from app.models.purchase import PurchaseState
 from app.schemas.common import Price, Quantity
+from app.schemas.user import UserSummary
 
 
 class PurchaseOrderLineCreate(BaseModel):
@@ -51,7 +52,7 @@ class PurchaseOrderRead(BaseModel):
     partner_id: int
     warehouse_id: int
     state: PurchaseState
-    created_by_id: int
+    created_by: UserSummary
     created_at: datetime
     lines: list[PurchaseOrderLineRead]
 

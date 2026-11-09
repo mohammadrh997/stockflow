@@ -5,6 +5,7 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, Field
 
 from app.schemas.common import Price
+from app.schemas.user import UserSummary
 
 Sku = Annotated[
     str, AfterValidator(lambda s: s.strip().upper()), Field(min_length=1, max_length=64)
@@ -36,4 +37,4 @@ class ProductRead(BaseModel):
     image_key: str | None
     is_active: bool
     created_at: datetime
-    created_by_id: int
+    created_by: UserSummary

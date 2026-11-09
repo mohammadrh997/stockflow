@@ -62,10 +62,10 @@ class Invoice(Base):
     due_date: Mapped[date | None] = mapped_column(Date())
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     posted_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
-    posted_by: Mapped["User | None"] = relationship(foreign_keys=[posted_by_id])
+    posted_by: Mapped["User | None"] = relationship(foreign_keys=[posted_by_id], lazy="selectin")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_by: Mapped["User"] = relationship(foreign_keys=[created_by_id])
+    created_by: Mapped["User"] = relationship(foreign_keys=[created_by_id], lazy="selectin")
     amount_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     lines: Mapped[list["InvoiceLine"]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan"
@@ -109,4 +109,4 @@ class Payment(Base):
     paid_on: Mapped[date] = mapped_column(Date())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_by: Mapped["User"] = relationship()
+    created_by: Mapped["User"] = relationship(lazy="selectin")

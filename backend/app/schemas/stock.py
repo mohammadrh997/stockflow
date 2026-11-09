@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.models.stock import TransferState, TransferType
 from app.schemas.common import Quantity
+from app.schemas.user import UserSummary
 
 
 class StockRow(BaseModel):
@@ -72,7 +73,7 @@ class TransferRead(BaseModel):
     sales_order_id: int | None
     created_at: datetime
     validated_at: datetime | None
-    validated_by_id: int | None
+    validated_by: UserSummary | None
     backorder_of_id: int | None
     lines: list[TransferLineRead]
     moves: list[StockMoveRead]

@@ -3,6 +3,8 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, EmailStr, Field
 
+from app.schemas.user import UserSummary
+
 
 class PartnerCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
@@ -28,4 +30,4 @@ class PartnerRead(PartnerCreate):
     id: int
     is_active: bool
     created_at: datetime
-    created_by_id: int
+    created_by: UserSummary

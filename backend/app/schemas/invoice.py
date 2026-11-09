@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, computed_field, model_validator
 
 from app.models.invoice import InvoiceState, InvoiceType
 from app.schemas.common import Amount, Price, Quantity, line_subtotal
+from app.schemas.user import UserSummary
 
 
 class InvoiceCreate(BaseModel):
@@ -68,7 +69,7 @@ class PaymentRead(BaseModel):
     paid_on: date
     reference: str | None
     created_at: datetime
-    created_by_id: int
+    created_by: UserSummary
 
 
 class PaymentState(enum.StrEnum):
@@ -90,9 +91,9 @@ class InvoiceRead(BaseModel):
     invoice_date: date | None
     due_date: date | None
     posted_at: datetime | None
-    posted_by_id: int | None
+    posted_by: UserSummary | None
     created_at: datetime
-    created_by_id: int
+    created_by: UserSummary
     amount_total: Decimal | None
     lines: list[InvoiceLineRead]
     payments: list[PaymentRead]
