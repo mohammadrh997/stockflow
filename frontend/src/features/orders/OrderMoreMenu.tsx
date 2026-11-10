@@ -18,7 +18,7 @@ export function OrderMoreMenu({ source, reference }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" aria-label="More actions">
+        <Button variant="outline" size="icon-sm" aria-label="More actions">
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>

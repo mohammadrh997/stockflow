@@ -77,21 +77,21 @@ export function PurchaseOrderPage() {
               <StateBadge state={data.state} />
             </>
           }
+          // Less frequent actions about the order itself, next to its number.
+          nameActions={
+            data.state !== 'cancelled' && (
+              <OrderMoreMenu
+                source={{ kind: 'purchase-order', id: data.id }}
+                reference={data.reference}
+              />
+            )
+          }
         />
       }
       status={
         <>
           <ProgressTrack steps={['draft', 'confirmed', 'received']} state={data.state} />
-        </>
-      }
-      actions={
-        <>
-          {seesTransfers && (
-            <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
-          )}
-          {seesInvoices && (
-            <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
-          )}
+          {/* Billing is the next step after the status, so it sits beside it. */}
           {seesInvoices && (
             <CreateInvoiceButton
               kind="bill"
@@ -104,6 +104,16 @@ export function PurchaseOrderPage() {
               )}
               trail={trail}
             />
+          )}
+        </>
+      }
+      actions={
+        <>
+          {seesTransfers && (
+            <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
+          )}
+          {seesInvoices && (
+            <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
           )}
           {canManage && isDraft && (
             <DisabledReason
@@ -149,13 +159,6 @@ export function PurchaseOrderPage() {
                 }}
               />
             </DisabledReason>
-          )}
-          {/* Last, after the main actions; the server can't print a cancelled order. */}
-          {data.state !== 'cancelled' && (
-            <OrderMoreMenu
-              source={{ kind: 'purchase-order', id: data.id }}
-              reference={data.reference}
-            />
           )}
         </>
       }

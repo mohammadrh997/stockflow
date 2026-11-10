@@ -79,21 +79,21 @@ export function SalesOrderPage() {
               <StateBadge state={data.state} />
             </>
           }
+          // Less frequent actions about the order itself, next to its number.
+          nameActions={
+            data.state !== 'cancelled' && (
+              <OrderMoreMenu
+                source={{ kind: 'sales-order', id: data.id }}
+                reference={data.reference}
+              />
+            )
+          }
         />
       }
       status={
         <>
           <ProgressTrack steps={['draft', 'confirmed', 'delivered']} state={data.state} />
-        </>
-      }
-      actions={
-        <>
-          {seesTransfers && (
-            <OrderTransfersButton kind="delivery" transfers={transfers.transfers} trail={trail} />
-          )}
-          {seesInvoices && (
-            <OrderInvoicesButton kind="invoice" invoices={invoices.invoices} trail={trail} />
-          )}
+          {/* Billing is the next step after the status, so it sits beside it. */}
           {seesInvoices && (
             <CreateInvoiceButton
               kind="invoice"
@@ -106,6 +106,16 @@ export function SalesOrderPage() {
               )}
               trail={trail}
             />
+          )}
+        </>
+      }
+      actions={
+        <>
+          {seesTransfers && (
+            <OrderTransfersButton kind="delivery" transfers={transfers.transfers} trail={trail} />
+          )}
+          {seesInvoices && (
+            <OrderInvoicesButton kind="invoice" invoices={invoices.invoices} trail={trail} />
           )}
           {canManage && isDraft && (
             <DisabledReason
@@ -151,13 +161,6 @@ export function SalesOrderPage() {
                 }}
               />
             </DisabledReason>
-          )}
-          {/* Last, after the main actions; the server can't print a cancelled order. */}
-          {data.state !== 'cancelled' && (
-            <OrderMoreMenu
-              source={{ kind: 'sales-order', id: data.id }}
-              reference={data.reference}
-            />
           )}
         </>
       }
