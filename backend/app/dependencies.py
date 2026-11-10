@@ -92,8 +92,16 @@ def has_access(user: User, module: Module, level: Access) -> bool:
     return user.is_admin or _access_level(user, module) >= level
 
 
-def get_storage() -> Storage:
-    storage = configured_storage()
+def get_optional_storage() -> Storage | None:
+    """The bucket, or None if it isn't configured. Tests override this one."""
+    return configured_storage()
+
+
+OptionalStorageDep = Annotated[Storage | None, Depends(get_optional_storage)]
+
+
+def get_storage(storage: OptionalStorageDep) -> Storage:
+    """For endpoints that can't work without the bucket (uploads)."""
     if storage is None:
         raise HTTPException(status_code=503, detail="Image storage isn't configured")
     return storage

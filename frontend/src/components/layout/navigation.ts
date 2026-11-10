@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Boxes,
+  Building2,
   Package,
   ReceiptText,
   ShoppingCart,
@@ -52,6 +53,12 @@ export const NAV_ITEMS: NavItem[] = [
     visible: (user) => can(user, 'inventory'),
   },
   { to: '/users', label: 'Users', icon: UserCog, visible: (user) => can(user, 'admin') },
+  {
+    to: '/settings/company',
+    label: 'Company',
+    icon: Building2,
+    visible: (user) => can(user, 'admin'),
+  },
 ]
 
 export function visibleNavItems(user: User | undefined): NavItem[] {

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import uuid
 
 from sqlalchemy import select
@@ -9,9 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.product import Product
 from app.schemas.product import ProductCreate, ProductUpdate
 from app.services import images
-from app.services.storage import Storage
-
-logger = logging.getLogger(__name__)
+from app.services.storage import Storage, delete_quietly
 
 
 class SKUAlreadyExists(Exception):
@@ -87,15 +84,6 @@ async def _lock_product(db: AsyncSession, product_id: int) -> Product:
     return product
 
 
-async def _delete_quietly(storage: Storage, key: str) -> None:
-    # The database no longer points at this file. If deleting it fails, it's only an
-    # unused file in the bucket, so log it rather than fail a request that succeeded.
-    try:
-        await storage.delete(key)
-    except Exception:
-        logger.warning("Could not delete unused image %s", key, exc_info=True)
-
-
 async def set_image(db: AsyncSession, storage: Storage, product_id: int, data: bytes) -> Product:
     await fetch_product(db, product_id)  # 404 before doing any work
     await db.rollback()  # end that read, so no connection is held during the slow part
@@ -109,10 +97,10 @@ async def set_image(db: AsyncSession, storage: Storage, product_id: int, data: b
         await db.commit()
     except Exception:
         await db.rollback()
-        await _delete_quietly(storage, key)  # nothing points at the new file
+        await delete_quietly(storage, key)  # nothing points at the new file
         raise
     if old_key:
-        await _delete_quietly(storage, old_key)
+        await delete_quietly(storage, old_key)
     await db.refresh(product)
     return product
 
@@ -122,6 +110,6 @@ async def remove_image(db: AsyncSession, storage: Storage, product_id: int) -> P
     old_key, product.image_key = product.image_key, None
     await db.commit()
     if old_key:
-        await _delete_quietly(storage, old_key)
+        await delete_quietly(storage, old_key)
     await db.refresh(product)
     return product

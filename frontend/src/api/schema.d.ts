@@ -73,6 +73,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/company": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company */
+        get: operations["get_company_settings_company_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Company */
+        patch: operations["update_company_settings_company_patch"];
+        trace?: never;
+    };
+    "/settings/company/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload Logo */
+        put: operations["upload_logo_settings_company_logo_put"];
+        post?: never;
+        /** Delete Logo */
+        delete: operations["delete_logo_settings_company_logo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users": {
         parameters: {
             query?: never;
@@ -956,11 +992,50 @@ export interface components {
              */
             client_secret?: string | null;
         };
+        /** Body_upload_logo_settings_company_logo_put */
+        Body_upload_logo_settings_company_logo_put: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_product_image_products__product_id__image_put */
         Body_upload_product_image_products__product_id__image_put: {
             /** File */
             file: string;
         };
+        /** CompanyRead */
+        CompanyRead: {
+            /** Name */
+            name: string;
+            /** Address */
+            address: string | null;
+            /** Phone */
+            phone: string | null;
+            /** Email */
+            email: string | null;
+            currency: components["schemas"]["Currency"];
+            /** Logo Url */
+            logo_url: string | null;
+            /** Currency Locked */
+            currency_locked: boolean;
+        };
+        /** CompanyUpdate */
+        CompanyUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Address */
+            address?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+            currency?: components["schemas"]["Currency"] | null;
+        };
+        /**
+         * Currency
+         * @description The currencies a company can work in (ISO 4217 codes). Add one here to offer it.
+         * @enum {string}
+         */
+        Currency: "USD" | "IQD" | "EUR" | "GBP" | "SAR" | "AED" | "KWD" | "JOD" | "TRY";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1816,6 +1891,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_settings_company_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyRead"];
+                };
+            };
+        };
+    };
+    update_company_settings_company_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_logo_settings_company_logo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_logo_settings_company_logo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_logo_settings_company_logo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyRead"];
                 };
             };
         };

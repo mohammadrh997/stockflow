@@ -1,4 +1,4 @@
-"""Turns an uploaded file into the one format we store: a WebP of at most 800 px."""
+"""Turns an uploaded file into the one format we store: a WebP, 800 px at most by default."""
 
 import io
 
@@ -13,7 +13,7 @@ ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
 class InvalidImage(Exception): ...
 
 
-def to_webp(data: bytes) -> bytes:
+def to_webp(data: bytes, max_side: int = MAX_SIDE) -> bytes:
     try:
         with Image.open(io.BytesIO(data)) as original:  # reads the header only, not the pixels
             if original.format not in ALLOWED_FORMATS:
@@ -21,7 +21,7 @@ def to_webp(data: bytes) -> bytes:
             if original.width * original.height > MAX_PIXELS:
                 raise InvalidImage("the image has too many pixels")
             image = ImageOps.exif_transpose(original)  # phone photos store rotation in EXIF
-            image.thumbnail((MAX_SIDE, MAX_SIDE))  # shrinks, keeps proportions, never enlarges
+            image.thumbnail((max_side, max_side))  # shrinks, keeps proportions, never enlarges
             image = image.convert("RGBA" if image.has_transparency_data else "RGB")
             out = io.BytesIO()
             image.save(out, "WEBP", quality=82)  # a fresh file: no EXIF, GPS or extra data

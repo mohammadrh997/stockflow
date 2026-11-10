@@ -17,6 +17,8 @@ import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
+import { CurrencyCode } from '@/features/company/CurrencyCode'
+import { useCurrency } from '@/features/company/queries'
 import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
@@ -26,16 +28,19 @@ import { INVOICE_TYPE_LABELS, useInvoice, type Invoice } from './queries'
 
 type Payment = Invoice['payments'][number]
 
-const paymentColumns: Column<Payment>[] = [
-  { header: 'Date', cell: (payment) => formatDate(payment.paid_on) },
-  { header: 'Reference', cell: (payment) => payment.reference ?? '—' },
-  { header: 'Recorded by', cell: (payment) => payment.created_by.name },
-  {
-    header: 'Amount',
-    className: 'text-right',
-    cell: (payment) => <Money value={payment.amount} />,
-  },
-]
+function paymentColumns(currency: string | undefined): Column<Payment>[] {
+  return [
+    { header: 'Date', cell: (payment) => formatDate(payment.paid_on) },
+    { header: 'Reference', cell: (payment) => payment.reference ?? '—' },
+    { header: 'Recorded by', cell: (payment) => payment.created_by.name },
+    {
+      // In the heading, like the PDF, rather than on every row.
+      header: currency ? `Amount (${currency})` : 'Amount',
+      className: 'text-right',
+      cell: (payment) => <Money value={payment.amount} />,
+    },
+  ]
+}
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -50,6 +55,7 @@ export function InvoicePage() {
   const id = Number(useParams().invoiceId)
   const { user } = useAuth()
   const invoice = useInvoice(id)
+  const currency = useCurrency()
   // Opened from an order, the trail leads back through that order.
   const fromOrder = (useLocation().state as { trail?: Crumb[] } | null)?.trail
 
@@ -86,8 +92,8 @@ export function InvoicePage() {
       }
       actions={
         <>
-          {/* The server prints only for the invoice's own module, and never a cancelled one. */}
-          {data.state !== 'cancelled' && canOnInvoices(user, data.invoice_type) && (
+          {/* Anyone who can read the invoice can print it, unless it was cancelled. */}
+          {data.state !== 'cancelled' && (
             <DownloadPdfButton
               source={{ kind: 'invoice', id: data.id }}
               fallbackName={invoiceTitle(data)}
@@ -130,14 +136,17 @@ export function InvoicePage() {
               <dt className="text-muted-foreground">Total</dt>
               <dd className="text-right font-medium">
                 <Money value={data.amount_total ?? '0'} />
+                <CurrencyCode />
               </dd>
               <dt className="text-muted-foreground">Paid</dt>
               <dd className="text-right">
                 <Money value={data.amount_paid} />
+                <CurrencyCode />
               </dd>
               <dt className="border-t pt-2 font-medium">Amount due</dt>
               <dd className="border-t pt-2 text-right text-lg font-semibold">
                 <Money value={data.amount_due} />
+                <CurrencyCode />
               </dd>
             </>
           ) : (
@@ -146,6 +155,7 @@ export function InvoicePage() {
               <dt className="font-medium">Total</dt>
               <dd className="text-right text-lg font-semibold">
                 <Money value={data.amount_total ?? '0'} />
+                <CurrencyCode />
               </dd>
             </>
           )}
@@ -155,7 +165,7 @@ export function InvoicePage() {
       <section className="grid min-w-0 gap-3">
         <h2 className="text-lg font-semibold">Payments</h2>
         <DataTable
-          columns={paymentColumns}
+          columns={paymentColumns(currency)}
           rows={data.payments}
           rowKey={(payment) => payment.id}
           isPending={false}

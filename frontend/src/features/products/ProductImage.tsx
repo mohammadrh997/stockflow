@@ -1,36 +1,12 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ApiError, errorMessage } from '@/api/errors'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { ProductThumb } from '@/components/ProductThumb'
 import { Button } from '@/components/ui/button'
+import { checkImageFile, IMAGE_TYPES, uploadErrorMessage } from '@/lib/imageUpload'
 import { useProductImage, type Product } from './queries'
-
-// The same limits as the server, checked first so a wrong file fails at once.
-const TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_BYTES = 5 * 1024 * 1024
-
-function checkImageFile(file: File): string | null {
-  if (!TYPES.includes(file.type)) return 'Choose a JPEG, PNG or WebP image.'
-  if (file.size > MAX_BYTES) return 'The image must be 5 MB or smaller.'
-  return null
-}
-
-// The general messages don't fit uploads: say what is wrong with the image instead.
-function uploadErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 413) return 'The image must be 5 MB or smaller.'
-    if (error.status === 503 && error.detail === "Image storage isn't configured") {
-      return "Image uploads aren't set up on this server yet."
-    }
-    if (error.status === 422 && typeof error.detail === 'string') {
-      return `${error.detail.charAt(0).toUpperCase()}${error.detail.slice(1)}.`
-    }
-  }
-  return errorMessage(error)
-}
 
 type Props = { product: Product; canManage: boolean }
 
@@ -68,7 +44,7 @@ export function ProductImage({ product, canManage }: Props) {
           <input
             ref={input}
             type="file"
-            accept={TYPES.join(',')}
+            accept={IMAGE_TYPES.join(',')}
             className="sr-only"
             aria-label="Image file"
             tabIndex={-1}

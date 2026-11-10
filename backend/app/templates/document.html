@@ -34,7 +34,7 @@
   .top { display: flex; justify-content: space-between; align-items: flex-start; }
   .top h1 { margin: 0; white-space: nowrap; font-size: 26pt; font-weight: 700; color: #111827; letter-spacing: -.3px; }
   .company { text-align: right; }
-  .company img { width: 56px; height: 56px; margin-bottom: 6px; }
+  .company img { max-width: 50mm; max-height: 15mm; margin-bottom: 6px; }
   .company .name { font-size: 11pt; font-weight: 700; color: #111827; }
   .company .lines { white-space: pre-line; color: #4B5563; }
   .company [dir] { text-align: right; }
@@ -77,9 +77,11 @@
   <div class="top">
     <h1>{{ doc.title }}</h1>
     <div class="company">
-      <img src="logo.png" alt="">
+      {% if company.logo %}<img src="{{ company.logo }}" alt="">{% endif %}
       <div class="name" dir="{{ company.name | direction }}">{{ company.name }}</div>
-      {% if company.address %}<div class="lines" dir="{{ company.address | direction }}">{{ company.address }}</div>{% endif %}
+      {% for detail in [company.address, company.phone, company.email] if detail %}
+        <div class="lines" dir="{{ detail | direction }}">{{ detail }}</div>
+      {% endfor %}
     </div>
   </div>
 
@@ -101,7 +103,7 @@
 
   <table class="items">
     <thead>
-      <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr>
+      <tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount ({{ company.currency }})</th></tr>
     </thead>
     <tbody>
       {% for line in doc.lines %}
@@ -119,7 +121,7 @@
   </table>
 
   <div class="total">
-    <div><span class="label">Total</span><span class="amount">{{ doc.total | money }}</span></div>
+    <div><span class="label">Total</span><span class="amount">{{ doc.total | money }} {{ company.currency }}</span></div>
   </div>
 </body>
 </html>

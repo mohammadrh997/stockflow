@@ -16,9 +16,6 @@ class Settings(BaseSettings):
     client_ip_header: str | None = None
     admin_name: str = "Admin"
     admin_password: SecretStr | None = Field(default=None, min_length=8, max_length=128)
-    # Printed at the top of PDFs; the address may span several lines
-    company_name: str = "ClearCypher"
-    company_address: str | None = "Karrada, Baghdad, Iraq\n+964 770 000 0000"
     # Product images go to an S3-compatible bucket (Backblaze B2 in the demo).
     storage_endpoint: str | None = None  # e.g. https://s3.us-east-005.backblazeb2.com
     storage_region: str | None = None  # e.g. us-east-005

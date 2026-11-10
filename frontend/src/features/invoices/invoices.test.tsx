@@ -166,8 +166,8 @@ describe('invoice page', () => {
     expect(await screen.findByRole('heading', { name: /Draft #5/ })).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'Desk' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
-    // The server only prints for the invoice's own module.
-    expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
+    // Reading is enough to print it.
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Post|Cancel invoice|Remove/ }),
     ).not.toBeInTheDocument()
@@ -262,6 +262,7 @@ describe('invoice page', () => {
     const dialog = await screen.findByRole('dialog')
     const amount = within(dialog).getByLabelText('Amount')
     expect(amount).toHaveValue('200.00')
+    expect(within(dialog).getByText('USD')).toBeInTheDocument()
 
     await user.clear(amount)
     await user.type(amount, '250')
@@ -279,6 +280,7 @@ describe('invoice page', () => {
     )
     expect(await screen.findByText('Partly paid')).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'TRF-1' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Amount (USD)' })).toBeInTheDocument()
     // Who recorded it, and who drafted the invoice.
     expect(screen.getByRole('cell', { name: 'Admin' })).toBeInTheDocument()
     expect(screen.getByText('Created by').nextElementSibling).toHaveTextContent('Admin')

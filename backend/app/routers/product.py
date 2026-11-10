@@ -13,9 +13,10 @@ from app.dependencies import (
 )
 from app.models.product import Product
 from app.models.user import Access, User
+from app.routers.uploads import read_image_upload
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
 from app.services import product as product_service
-from app.services.images import MAX_UPLOAD_BYTES, InvalidImage
+from app.services.images import InvalidImage
 from app.services.product import ProductNotFound, SKUAlreadyExists
 
 router = APIRouter(
@@ -94,9 +95,7 @@ async def unarchive_products(db: DBsession, product_id: int, user: InventoryMana
 async def upload_product_image(
     db: DBsession, product_id: int, file: UploadFile, storage: StorageDep, user: InventoryManager
 ):
-    data = await file.read(MAX_UPLOAD_BYTES + 1)  # one byte more tells us it's too big
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="The image must be 5 MB or smaller")
+    data = await read_image_upload(file)
     try:
         return await product_service.set_image(db, storage, product_id, data)
     except ProductNotFound:

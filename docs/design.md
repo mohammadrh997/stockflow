@@ -76,6 +76,15 @@ Invoices, vendor bills, sales orders and purchase orders print from one HTML tem
 - **The fonts are bundled** (Noto Sans and Noto Sans Arabic), so a PDF looks the same on every machine. Arabic names are laid out right to left.
 - **WeasyPrint may only load our own fonts and logo.** It fetches every URL a document refers to. User input is escaped, so it can't add one today, but the fetcher refuses anything outside `app/assets` anyway: no other files on the server and no network, including internal addresses.
 
+## Company settings
+
+The business using StockFlow (its name, address, phone, email, logo and currency) lives in one database row, so an admin can change it from the app instead of the server's settings. A database check allows only that one row. A new install starts as "My Company" in USD with no logo; the demo seed fills in ClearCypher's details. "Powered by ClearCypher Technologies" is the product's own signature, so it stays fixed in the PDF footer.
+
+- **The currency locks once an invoice has a number.** Amounts are stored without a currency, so changing it from IQD to USD would silently relabel every invoice already sent. Once any invoice has been issued (posted, even if later cancelled), changing the currency returns 409. One company, one currency; history stays true without a currency column on every invoice.
+- **That check can't race a posting.** Between "no invoice has a number" and the commit, an invoice could be posted. The settings update takes a `SHARE` lock on the invoices table for that moment, which makes posting wait. Only the rare currency change pays for it; posting never waits on the settings.
+- **The logo goes through the image pipeline,** at 400 px with transparency kept. PDFs embed it as a `data:` URL that the server reads from storage itself and keeps in memory, so rendering still never touches the network. If it can't be read, the PDF prints without it.
+- **The PDF endpoints get storage as an optional dependency.** Uploads need the bucket and answer 503 without it; printing only uses it for the logo, so it works either way.
+
 ## Product images
 
 - **Uploads are checked by decoding them,** not by trusting the filename or content type. Only real JPEG, PNG and WebP files are accepted, and the pixel count is checked from the header before decoding, so a small file can't unpack into gigabytes.

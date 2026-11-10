@@ -1,3 +1,4 @@
+from app.models.company import CompanySettings
 from app.models.invoice import Invoice, InvoiceLine, Payment
 from app.models.partner import Partner
 from app.models.product import Product
@@ -22,4 +23,5 @@ __all__ = [
     "Invoice",
     "InvoiceLine",
     "Payment",
+    "CompanySettings",
 ]

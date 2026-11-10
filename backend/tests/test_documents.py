@@ -7,6 +7,7 @@ try:
 except OSError:  # Pango isn't installed (Windows dev machines); CI and Docker have it
     pytest.skip("WeasyPrint needs the Pango library", allow_module_level=True)
 
+from PIL import Image
 from pypdf import PdfReader
 
 from app.models.user import Access
@@ -44,7 +45,7 @@ async def test_posted_invoice_pdf_has_the_number_lines_and_total(client, boss):
     text = pdf_text(response)
 
     assert 'filename="INV00001.pdf"' in response.headers["content-disposition"]
-    for expected in ("Invoice", "INV00001", "CHR-001", "200.00", so["reference"], "ClearCypher"):
+    for expected in ("Invoice", "INV00001", "CHR-001", "200.00 USD", so["reference"], "My Company"):
         assert expected in text
     assert "DRAFT" not in text
 
@@ -183,3 +184,28 @@ def test_pdfs_can_load_bundled_assets_and_nothing_else():
     ):
         with pytest.raises(ValueError):
             fetcher.fetch(url)
+
+
+async def test_pdfs_use_the_company_settings_and_logo(client, boss, storage, make_user):
+    admin = auth(await make_user(is_admin=True))
+    await client.patch(
+        "/settings/company",
+        json={"name": "ClearCypher", "phone": "+964 770 000 0000", "currency": "IQD"},
+        headers=admin,
+    )
+    logo = io.BytesIO()
+    Image.new("RGB", (300, 300), "orange").save(logo, "PNG")
+    await client.put(
+        "/settings/company/logo",
+        files={"file": ("logo.png", logo.getvalue(), "image/png")},
+        headers=admin,
+    )
+    so, _ = await delivered_and_invoiced(client, boss)
+
+    response = await client.get(f"/sales-orders/{so['id']}/pdf", headers=boss)
+    text = pdf_text(response)
+    for expected in ("ClearCypher", "+964 770 000 0000", "200.00 IQD", "AMOUNT (IQD)"):
+        assert expected in text
+    assert "Powered by ClearCypher Technologies" in text  # the footer never changes
+    [page] = PdfReader(io.BytesIO(response.content)).pages
+    assert len(page.images) == 1  # the logo, embedded

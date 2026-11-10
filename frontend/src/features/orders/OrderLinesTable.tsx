@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Money } from '@/components/Money'
+import { CurrencyCode } from '@/features/company/CurrencyCode'
 import { Quantity } from '@/components/Quantity'
 import { ProductName } from '@/components/RecordNames'
 import { RemoveLineButton } from './RemoveLineButton'
@@ -144,6 +145,7 @@ export function OrderLinesTable({
         <span className="text-muted-foreground">Total</span>
         <span className="font-semibold">
           <Money value={total} />
+          <CurrencyCode />
         </span>
       </div>
     </div>

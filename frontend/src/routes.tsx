@@ -55,6 +55,7 @@ const SalesOrdersPage = lazyPage(
   'SalesOrdersPage',
 )
 const StockPage = lazyPage(() => import('@/features/stock/StockPage'), 'StockPage')
+const CompanyPage = lazyPage(() => import('@/features/company/CompanyPage'), 'CompanyPage')
 const InvoicePage = lazyPage(() => import('@/features/invoices/InvoicePage'), 'InvoicePage')
 const InvoicesPage = lazyPage(() => import('@/features/invoices/InvoicesPage'), 'InvoicesPage')
 const NewAdjustmentPage = lazyPage(
@@ -198,6 +199,14 @@ export const routes: RouteObject[] = [
                   { path: 'new', element: <NewUserPage /> },
                   { path: ':userId', element: <UserPage /> },
                 ],
+              },
+              {
+                path: 'settings/company',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'admin')}>
+                    <CompanyPage />
+                  </RequireAccess>
+                ),
               },
               { path: '*', element: <NotFoundPage /> },
             ],

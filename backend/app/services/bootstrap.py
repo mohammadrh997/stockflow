@@ -1,10 +1,12 @@
 import logging
 
 from sqlalchemy import exists, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.company import CompanySettings
 from app.models.user import User
 from app.models.warehouse import Location, LocationType, Warehouse
 from app.schemas.user import UserCreate
@@ -54,7 +56,18 @@ async def ensure_virtual_locations(db: AsyncSession) -> None:
             await db.rollback()
 
 
+async def ensure_company(db: AsyncSession) -> None:
+    # A new install starts neutral; an admin fills in the real details later
+    await db.execute(
+        insert(CompanySettings)
+        .values(id=1, name="My Company", currency="USD")
+        .on_conflict_do_nothing()  # it exists, or another worker just created it
+    )
+    await db.commit()
+
+
 async def ensure_defaults(db: AsyncSession) -> None:
+    await ensure_company(db)
     await ensure_virtual_locations(db)
     if await db.scalar(select(exists().select_from(Warehouse))):
         return

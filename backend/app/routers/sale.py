@@ -2,7 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.dependencies import CurrentUser, DBsession, Module, pagination_params, require_access
+from app.dependencies import (
+    CurrentUser,
+    DBsession,
+    Module,
+    OptionalStorageDep,
+    pagination_params,
+    require_access,
+)
 from app.models.sale import SalesState
 from app.models.user import Access, User
 from app.routers.pdf import PDF_RESPONSE, pdf_response
@@ -139,9 +146,9 @@ async def cancel_order(db: DBsession, order_id: int, user: SalesManager):
 
 
 @router.get("/{order_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
-async def order_pdf(db: DBsession, order_id: int):
+async def order_pdf(db: DBsession, order_id: int, storage: OptionalStorageDep):
     try:
-        doc = await documents.sales_order_document(db, order_id)
+        doc = await documents.sales_order_document(db, order_id, storage)
     except SalesOrderNotFound:
         raise HTTPException(status_code=404, detail="Order Was Not Found") from None
     except DocumentNotAvailable as exc:
