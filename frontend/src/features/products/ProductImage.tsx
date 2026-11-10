@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { ApiError, errorMessage } from '@/api/errors'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { Panel } from '@/components/Panel'
 import { ProductThumb } from '@/components/ProductThumb'
 import { Button } from '@/components/ui/button'
 import { useProductImage, type Product } from './queries'
@@ -35,7 +34,8 @@ function uploadErrorMessage(error: unknown): string {
 
 type Props = { product: Product; canManage: boolean }
 
-export function ProductImagePanel({ product, canManage }: Props) {
+// Sits inside the product's block, beside its fields; managers change it from here.
+export function ProductImage({ product, canManage }: Props) {
   const image = useProductImage(product.id)
   const input = useRef<HTMLInputElement>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -56,10 +56,12 @@ export function ProductImagePanel({ product, canManage }: Props) {
   }
 
   return (
-    <Panel className="grid gap-4">
-      <h2 className="font-semibold">Image</h2>
-      <ProductThumb url={product.image_url} className="aspect-square w-full max-w-64" />
-      {!hasImage && <p className="text-sm text-muted-foreground">No image yet.</p>}
+    <div className="grid content-start gap-3">
+      <ProductThumb
+        url={product.image_url}
+        className="aspect-square w-40 rounded-lg sm:w-full"
+        label={hasImage ? undefined : 'No image yet'}
+      />
       {problem && <ErrorMessage message={problem} />}
       {canManage && (
         <div className="flex flex-wrap gap-2">
@@ -75,13 +77,18 @@ export function ProductImagePanel({ product, canManage }: Props) {
               event.target.value = '' // so choosing the same file again still uploads
             }}
           />
-          <Button variant="outline" disabled={busy} onClick={() => input.current?.click()}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => input.current?.click()}
+          >
             {image.upload.isPending ? 'Uploading…' : hasImage ? 'Replace image' : 'Upload image'}
           </Button>
           {hasImage && (
             <ConfirmDialog
               trigger={
-                <Button variant="ghost" disabled={busy}>
+                <Button variant="ghost" size="sm" disabled={busy}>
                   Remove image
                 </Button>
               }
@@ -97,11 +104,7 @@ export function ProductImagePanel({ product, canManage }: Props) {
           )}
         </div>
       )}
-      {canManage && (
-        <p className="text-xs text-muted-foreground">
-          JPEG, PNG or WebP up to 5 MB. It's resized to 800 px.
-        </p>
-      )}
-    </Panel>
+      {canManage && <p className="text-xs text-muted-foreground">JPEG, PNG or WebP, up to 5 MB.</p>}
+    </div>
   )
 }

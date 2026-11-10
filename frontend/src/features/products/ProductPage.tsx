@@ -14,7 +14,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import { ProductForm } from './ProductForm'
-import { ProductImagePanel } from './ProductImagePanel'
+import { ProductImage } from './ProductImage'
 import { useProduct, useSetProductArchived, useUpdateProduct } from './queries'
 
 export function ProductPage() {
@@ -65,30 +65,35 @@ export function ProductPage() {
           )
         }
       />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <Panel>
-          <ProductForm
-            // Remount with what the server saved (it upper-cases the SKU, for example).
-            key={[data.id, data.name, data.sku, data.sale_price, data.cost_price].join('|')}
-            readOnly={!canManage}
-            submitLabel="Save changes"
-            defaultValues={{
-              name: data.name,
-              sku: data.sku,
-              sale_price: data.sale_price,
-              cost_price: data.cost_price,
-            }}
-            onSubmit={async (values) => {
-              await updateProduct.mutateAsync(values)
-              toast.success('Product saved')
-            }}
-          />
-          <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
-            <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
-          </dl>
-        </Panel>
-        <ProductImagePanel product={data} canManage={canManage} />
-      </div>
+      <Panel>
+        {/* The picture sits top right beside the fields; on phones it comes first. */}
+        <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_11rem]">
+          <div className="sm:order-last">
+            <ProductImage product={data} canManage={canManage} />
+          </div>
+          <div className="min-w-0">
+            <ProductForm
+              // Remount with what the server saved (it upper-cases the SKU, for example).
+              key={[data.id, data.name, data.sku, data.sale_price, data.cost_price].join('|')}
+              readOnly={!canManage}
+              submitLabel="Save changes"
+              defaultValues={{
+                name: data.name,
+                sku: data.sku,
+                sale_price: data.sale_price,
+                cost_price: data.cost_price,
+              }}
+              onSubmit={async (values) => {
+                await updateProduct.mutateAsync(values)
+                toast.success('Product saved')
+              }}
+            />
+            <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
+              <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+            </dl>
+          </div>
+        </div>
+      </Panel>
     </div>
   )
 }

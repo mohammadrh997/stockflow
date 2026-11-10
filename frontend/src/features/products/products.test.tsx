@@ -237,7 +237,7 @@ describe('product image', () => {
     renderApp('/products/1')
     const user = userEvent.setup()
 
-    expect(await screen.findByText('No image yet.')).toBeInTheDocument()
+    expect(await screen.findByText('No image yet')).toBeInTheDocument()
     await user.upload(screen.getByLabelText('Image file'), png())
 
     await waitFor(() => expect(uploaded).toMatch(/^multipart\/form-data; boundary=/))
@@ -291,7 +291,7 @@ describe('product image', () => {
     )
 
     await waitFor(() => expect(removed).toBe(true))
-    expect(await screen.findByText('No image yet.')).toBeInTheDocument()
+    expect(await screen.findByText('No image yet')).toBeInTheDocument()
   })
 
   it('only shows the picture to people who cannot manage products', async () => {
@@ -301,7 +301,7 @@ describe('product image', () => {
     signInAs(viewer)
     renderApp('/products/1')
 
-    expect(await screen.findByRole('heading', { name: 'Image' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Desk' })).toBeInTheDocument()
     expect(document.querySelector(`img[src="${url}"]`)).not.toBeNull()
     expect(screen.queryByLabelText('Image file')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /image/i })).not.toBeInTheDocument()
