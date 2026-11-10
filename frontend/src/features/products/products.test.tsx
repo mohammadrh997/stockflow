@@ -377,7 +377,7 @@ describe('product smart buttons', () => {
     renderApp('/products/1')
     const user = userEvent.setup()
 
-    const stock = await screen.findByRole('link', { name: /12 on hand/ })
+    const stock = await screen.findByRole('link', { name: '12 on hand, 9 available' })
     expect(stock).toHaveTextContent('9 available')
     expect(stock).toHaveAttribute('href', '/stock?product=1')
 
@@ -471,7 +471,7 @@ describe('product moves', () => {
     signInAs(makeUser({ inventory_access: 'user' }))
     renderApp('/products/1')
 
-    const button = await screen.findByRole('link', { name: /10 in · 4 out/ })
+    const button = await screen.findByRole('link', { name: '10 in · 4 out, Counts +5 / −1' })
     expect(button).toHaveTextContent('Counts +5 / −1')
     expect(button).toHaveAttribute('href', '/products/1/moves')
     expect(states).toEqual(['done'])

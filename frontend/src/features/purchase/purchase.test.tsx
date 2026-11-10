@@ -329,7 +329,7 @@ describe('purchase order page', () => {
     ).toBeInTheDocument()
 
     // One receipt done, its backorder still waiting.
-    const receipts = screen.getByRole('button', { name: /^2 receipts/ })
+    const receipts = screen.getByRole('button', { name: '2 receipts, 1 waiting' })
     expect(receipts).toHaveTextContent('1 waiting')
     await user.click(receipts)
     const history = await screen.findByRole('list', { name: 'Receipts' })
@@ -372,7 +372,7 @@ describe('purchase order page', () => {
     signInAs(makeUser({ purchase_access: 'user', inventory_access: 'user' }))
     renderApp('/purchase-orders/7')
 
-    expect(await screen.findByRole('link', { name: /^1 receipt/ })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: '1 receipt, 1 waiting' })).toHaveAttribute(
       'href',
       '/transfers/21',
     )

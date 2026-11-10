@@ -176,14 +176,16 @@ describe('partners', () => {
     signInAs(makeUser({ sales_access: 'user' }))
     renderApp('/partners/1')
 
-    const sales = await screen.findByRole('link', { name: /2 sales orders/ })
+    const sales = await screen.findByRole('link', { name: '2 sales orders, 120.50 in total' })
     expect(sales).toHaveTextContent('120.50 in total')
     expect(sales).toHaveAttribute('href', '/sales-orders?partner=1')
     expect(queries[0]).toContain('partner_id=1')
-    const invoiced = await screen.findByRole('link', { name: /150.00 invoiced/ })
+    const invoiced = await screen.findByRole('link', { name: '150.00 invoiced, 40.00 still due' })
     expect(invoiced).toHaveTextContent('40.00 still due')
     expect(invoiced).toHaveAttribute('href', '/invoices?type=customer_invoice&partner=1')
-    expect(await screen.findByRole('link', { name: /0.00 billed/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: '0.00 billed, 0.00 still due' }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /purchase order/ })).not.toBeInTheDocument()
   })
 })

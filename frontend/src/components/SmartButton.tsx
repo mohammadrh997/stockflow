@@ -23,7 +23,12 @@ export function SmartButtonFace({ icon: Icon, value, label, detail }: Props) {
         <span className="text-sm">
           <span className="font-semibold tabular-nums">{value}</span> {label}
         </span>
-        {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
+        {detail && (
+          <span className="text-xs text-muted-foreground">
+            {/* Heard, not seen: keeps screen readers from running the two lines together. */}
+            <span className="sr-only">,</span> {detail}
+          </span>
+        )}
       </span>
     </>
   )
