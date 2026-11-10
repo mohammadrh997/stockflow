@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { api, type Schemas } from '@/api/client'
 import { unwrap } from '@/api/errors'
+import { fileUpload } from '@/lib/imageUpload'
 
 export type Product = Schemas['ProductRead']
 export type ProductCreate = Schemas['ProductCreate']
@@ -81,13 +82,7 @@ export function useProductImage(id: number) {
       unwrap(
         api.PUT('/products/{product_id}/image', {
           params,
-          // The generated type says string; the server takes the file as multipart form data.
-          body: { file: file as unknown as string },
-          bodySerializer: (body) => {
-            const form = new FormData()
-            form.append('file', body.file as unknown as File)
-            return form
-          },
+          ...fileUpload(file),
         }),
       ),
     onSuccess: store,
