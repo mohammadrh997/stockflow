@@ -19,7 +19,7 @@ import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
 import { OrderInvoicesButton } from '@/features/orders/OrderInvoicesButton'
 import { OrderMoreMenu } from '@/features/orders/OrderMoreMenu'
 import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useOrderInvoices'
-import { OrderMovementNote } from '@/features/orders/OrderMovementNote'
+import { orderMovementText } from '@/features/orders/orderMovement'
 import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
 import { OrderDetailsPanel } from '@/features/orders/OrderDetailsPanel'
@@ -82,14 +82,6 @@ export function PurchaseOrderPage() {
       status={
         <>
           <ProgressTrack steps={['draft', 'confirmed', 'received']} state={data.state} />
-          {seesTransfers && (
-            <OrderMovementNote
-              kind="receipt"
-              state={data.state}
-              lines={data.lines}
-              transfers={transfers}
-            />
-          )}
         </>
       }
       actions={
@@ -173,6 +165,16 @@ export function PurchaseOrderPage() {
           order={data}
           editable={canEdit}
           onSave={(details) => updateOrder.mutateAsync(details)}
+          note={
+            seesTransfers
+              ? orderMovementText({
+                  kind: 'receipt',
+                  state: data.state,
+                  lines: data.lines,
+                  transfers,
+                })
+              : null
+          }
         />
       }
     >

@@ -48,28 +48,31 @@ export function ProductPage() {
               {!data.is_active && <ArchivedBadge />}
             </>
           }
+          // Archiving changes the record itself, so it stays up with its name.
+          actions={
+            canManage && (
+              <ConfirmDialog
+                trigger={<Button variant="outline">{archiving ? 'Archive' : 'Unarchive'}</Button>}
+                title={archiving ? `Archive ${data.name}?` : `Unarchive ${data.name}?`}
+                description={
+                  archiving
+                    ? 'Archived products are hidden from lists and cannot be added to new orders.'
+                    : 'The product will appear in lists and can be ordered again.'
+                }
+                confirmLabel={archiving ? 'Archive' : 'Unarchive'}
+                destructive={archiving}
+                onConfirm={async () => {
+                  await setArchived.mutateAsync(archiving)
+                  toast.success(archiving ? `Archived ${data.name}` : `Unarchived ${data.name}`)
+                }}
+              />
+            )
+          }
         />
       }
       actions={
         <>
           <ProductSmartButtons productId={data.id} />
-          {canManage && (
-            <ConfirmDialog
-              trigger={<Button variant="outline">{archiving ? 'Archive' : 'Unarchive'}</Button>}
-              title={archiving ? `Archive ${data.name}?` : `Unarchive ${data.name}?`}
-              description={
-                archiving
-                  ? 'Archived products are hidden from lists and cannot be added to new orders.'
-                  : 'The product will appear in lists and can be ordered again.'
-              }
-              confirmLabel={archiving ? 'Archive' : 'Unarchive'}
-              destructive={archiving}
-              onConfirm={async () => {
-                await setArchived.mutateAsync(archiving)
-                toast.success(archiving ? `Archived ${data.name}` : `Unarchived ${data.name}`)
-              }}
-            />
-          )}
         </>
       }
       details={

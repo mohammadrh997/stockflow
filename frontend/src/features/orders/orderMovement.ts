@@ -15,8 +15,8 @@ const WORDS = {
 }
 
 // A word on progress the steps alone can't show: part moved with a backorder waiting,
-// or the order closed although not everything moved.
-export function OrderMovementNote({ kind, state, lines, transfers }: Props) {
+// or the order closed although not everything moved. Null when there is nothing to add.
+export function orderMovementText({ kind, state, lines, transfers }: Props): string | null {
   const words = WORDS[kind]
   const short = lines.some((line) => compareQuantities(transfers.moved(line.id), line.quantity) < 0)
 
@@ -29,10 +29,5 @@ export function OrderMovementNote({ kind, state, lines, transfers }: Props) {
     text = `Closed with only part ${words.closed}; the rest was cancelled`
   }
 
-  if (!text) return null
-  return (
-    <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-      {text}
-    </span>
-  )
+  return text
 }
