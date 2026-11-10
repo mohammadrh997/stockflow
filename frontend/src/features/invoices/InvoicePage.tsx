@@ -86,8 +86,8 @@ export function InvoicePage() {
       }
       actions={
         <>
-          {/* The server prints only for the invoice's own module, and never a cancelled one. */}
-          {data.state !== 'cancelled' && canOnInvoices(user, data.invoice_type) && (
+          {/* Anyone who can read the invoice can print it, unless it was cancelled. */}
+          {data.state !== 'cancelled' && (
             <DownloadPdfButton
               source={{ kind: 'invoice', id: data.id }}
               fallbackName={invoiceTitle(data)}
