@@ -10,8 +10,10 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
     "asyncpg>=0.32.0",
+    "boto3>=1.43.127",
     "fastapi[standard]>=0.143.5",
     "jinja2>=3.1.6",
+    "pillow>=13.0.0",
     "pwdlib[argon2]>=0.3.1",
     "pydantic-settings>=2.16.0",
     "pyjwt>=2.15.1",
@@ -22,6 +24,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "boto3-stubs[s3]>=1.43.127",
     "mypy>=2.4.0",
     "pypdf>=7.0.0",
     "pytest>=9.1.1",

@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 
 from app.dependencies import (
     DBsession,
     Module,
+    StorageDep,
     get_current_user,
     pagination_params,
     require_access,
@@ -14,6 +15,7 @@ from app.models.product import Product
 from app.models.user import Access, User
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
 from app.services import product as product_service
+from app.services.images import MAX_UPLOAD_BYTES, InvalidImage
 from app.services.product import ProductNotFound, SKUAlreadyExists
 
 router = APIRouter(
@@ -84,5 +86,30 @@ async def archive_products(db: DBsession, product_id: int, user: InventoryManage
 async def unarchive_products(db: DBsession, product_id: int, user: InventoryManager):
     try:
         return await product_service.set_active(db, product_id, active=True)
+    except ProductNotFound:
+        raise HTTPException(status_code=404, detail="Product Was Not Found") from None
+
+
+@router.put("/{product_id}/image", response_model=ProductRead)
+async def upload_product_image(
+    db: DBsession, product_id: int, file: UploadFile, storage: StorageDep, user: InventoryManager
+):
+    data = await file.read(MAX_UPLOAD_BYTES + 1)  # one byte more tells us it's too big
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="The image must be 5 MB or smaller")
+    try:
+        return await product_service.set_image(db, storage, product_id, data)
+    except ProductNotFound:
+        raise HTTPException(status_code=404, detail="Product Was Not Found") from None
+    except InvalidImage as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@router.delete("/{product_id}/image", response_model=ProductRead)
+async def delete_product_image(
+    db: DBsession, product_id: int, storage: StorageDep, user: InventoryManager
+):
+    try:
+        return await product_service.remove_image(db, storage, product_id)
     except ProductNotFound:
         raise HTTPException(status_code=404, detail="Product Was Not Found") from None
