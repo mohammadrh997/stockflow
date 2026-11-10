@@ -17,9 +17,9 @@ import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AddLineForm } from '@/features/orders/AddLineForm'
-import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
 import { OrderInvoicesButton } from '@/features/orders/OrderInvoicesButton'
+import { OrderMoreMenu } from '@/features/orders/OrderMoreMenu'
 import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useOrderInvoices'
 import { OrderMovementNote } from '@/features/orders/OrderMovementNote'
 import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
@@ -80,12 +80,6 @@ export function PurchaseOrderPage() {
         }
         actions={
           <>
-            {data.state !== 'cancelled' && (
-              <DownloadPdfButton
-                source={{ kind: 'purchase-order', id: data.id }}
-                fallbackName={data.reference}
-              />
-            )}
             {seesTransfers && (
               <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
             )}
@@ -149,6 +143,13 @@ export function PurchaseOrderPage() {
                   }}
                 />
               </DisabledReason>
+            )}
+            {/* Last, after the main actions; the server can't print a cancelled order. */}
+            {data.state !== 'cancelled' && (
+              <OrderMoreMenu
+                source={{ kind: 'purchase-order', id: data.id }}
+                reference={data.reference}
+              />
             )}
           </>
         }

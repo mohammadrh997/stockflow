@@ -318,3 +318,46 @@ describe('invoicing a sales order', () => {
     expect(screen.queryByRole('button', { name: 'Create invoice' })).not.toBeInTheDocument()
   })
 })
+
+describe('order PDF', () => {
+  it('downloads from the More menu', async () => {
+    mockApi(() => makeOrder({ state: 'confirmed' }))
+    let requested = false
+    server.use(
+      http.get(`${API}/sales-orders/8/pdf`, () => {
+        requested = true
+        return new HttpResponse(new Blob(['%PDF-1.7']), {
+          headers: { 'Content-Disposition': 'attachment; filename="SO00008.pdf"' },
+        })
+      }),
+    )
+    URL.createObjectURL = vi.fn(() => 'blob:pdf')
+    URL.revokeObjectURL = vi.fn()
+    const saved: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push(this.download)
+    })
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/sales-orders/8')
+    const user = userEvent.setup()
+
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'More actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Download PDF' }))
+
+    await waitFor(() => expect(saved).toEqual(['SO00008.pdf']))
+    expect(requested).toBe(true)
+    click.mockRestore()
+  })
+
+  it('is not offered on a cancelled order', async () => {
+    mockApi(() => makeOrder({ state: 'cancelled' }))
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/sales-orders/8')
+
+    expect(await screen.findByRole('heading', { name: /SO00008/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument()
+  })
+})
