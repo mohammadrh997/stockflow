@@ -307,3 +307,92 @@ describe('product image', () => {
     expect(screen.queryByRole('button', { name: /image/i })).not.toBeInTheDocument()
   })
 })
+
+describe('product smart buttons', () => {
+  function order(id: number, state: string, lines: [number, string][]) {
+    return {
+      id,
+      reference: `SO${String(id).padStart(5, '0')}`,
+      partner_id: 6,
+      warehouse_id: 1,
+      state,
+      created_at: '2026-01-01T10:00:00Z',
+      created_by: { id: 1, name: 'Admin' },
+      total: '0',
+      lines: lines.map(([productId, quantity], index) => ({
+        id: id * 10 + index,
+        product_id: productId,
+        quantity,
+        unit_price: '1.00',
+        subtotal: '0',
+      })),
+    }
+  }
+
+  it('shows stock and every sales order holding the product, across pages', async () => {
+    const skips: string[] = []
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+      http.get(`${API}/stock`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get('product_id')).toBe('1')
+        return HttpResponse.json([
+          {
+            product_id: 1,
+            sku: 'DESK-1',
+            product_name: 'Desk',
+            warehouse_id: 1,
+            on_hand: '10.000',
+            reserved: '3.000',
+            available: '7.000',
+          },
+          {
+            product_id: 1,
+            sku: 'DESK-1',
+            product_name: 'Desk',
+            warehouse_id: 2,
+            on_hand: '2.000',
+            reserved: '0.000',
+            available: '2.000',
+          },
+        ])
+      }),
+      http.get(`${API}/sales-orders`, ({ request }) => {
+        const skip = new URL(request.url).searchParams.get('skip') ?? ''
+        skips.push(skip)
+        if (skip === '0') {
+          // A full page: 98 orders for other products, then two with the desk.
+          return HttpResponse.json([
+            ...Array.from({ length: 98 }, (_, i) => order(i + 1, 'confirmed', [[2, '1.000']])),
+            order(99, 'confirmed', [
+              [1, '4.000'],
+              [1, '1.000'],
+            ]),
+            order(100, 'cancelled', [[1, '9.000']]),
+          ])
+        }
+        return HttpResponse.json([order(101, 'draft', [[1, '2.000']])])
+      }),
+    )
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/products/1')
+    const user = userEvent.setup()
+
+    const stock = await screen.findByRole('link', { name: /12 on hand/ })
+    expect(stock).toHaveTextContent('9 available')
+    expect(stock).toHaveAttribute('href', '/stock?product=1')
+
+    // The cancelled order is left out; the draft is listed but not counted as sold.
+    const sales = await screen.findByRole('button', { name: 'sales orders: 2' })
+    expect(sales).toHaveTextContent('5 sold')
+    expect(skips).toEqual(['0', '100'])
+    expect(screen.queryByRole('button', { name: /purchase orders/ })).not.toBeInTheDocument()
+
+    await user.click(sales)
+    const list = await screen.findByRole('list', { name: 'sales orders' })
+    expect(
+      within(list)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/sales-orders/101', '/sales-orders/99'])
+  })
+})

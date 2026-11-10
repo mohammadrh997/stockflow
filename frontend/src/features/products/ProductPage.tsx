@@ -15,6 +15,7 @@ import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import { ProductForm } from './ProductForm'
 import { ProductImage } from './ProductImage'
+import { ProductSmartButtons } from './ProductSmartButtons'
 import { useProduct, useSetProductArchived, useUpdateProduct } from './queries'
 
 export function ProductPage() {
@@ -65,12 +66,11 @@ export function ProductPage() {
           )
         }
       />
-      <Panel>
-        {/* The picture sits top right beside the fields; on phones it comes first. */}
-        <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_11rem]">
-          <div className="sm:order-last">
-            <ProductImage product={data} canManage={canManage} />
-          </div>
+      <Panel className="grid gap-6">
+        <ProductSmartButtons productId={data.id} />
+        {/* The picture sits right beside the fields it belongs to; on phones, above them. */}
+        <div className="grid gap-6 sm:grid-cols-[9rem_minmax(0,1fr)]">
+          <ProductImage product={data} canManage={canManage} />
           <div className="min-w-0">
             <ProductForm
               // Remount with what the server saved (it upper-cases the SKU, for example).
