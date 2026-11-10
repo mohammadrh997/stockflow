@@ -159,7 +159,7 @@ describe('layout', () => {
     renderApp('/')
 
     const nav = await screen.findByRole('navigation', { name: 'Main' })
-    expect(within(nav).getAllByRole('link')).toHaveLength(9)
+    expect(within(nav).getAllByRole('link')).toHaveLength(10)
   })
 
   it('switches between light and dark from the header', async () => {
