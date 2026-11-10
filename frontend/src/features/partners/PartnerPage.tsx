@@ -50,11 +50,15 @@ export function PartnerPage() {
               {!data.is_active && <ArchivedBadge />}
             </>
           }
-          // Archiving changes the record itself, so it stays up with its name.
-          actions={
+          // Archiving changes the record itself, so it sits right next to its name.
+          nameActions={
             canEdit && (
               <ConfirmDialog
-                trigger={<Button variant="outline">{archiving ? 'Archive' : 'Unarchive'}</Button>}
+                trigger={
+                  <Button variant="outline" size="sm">
+                    {archiving ? 'Archive' : 'Unarchive'}
+                  </Button>
+                }
                 title={archiving ? `Archive ${data.name}?` : `Unarchive ${data.name}?`}
                 description={
                   archiving
