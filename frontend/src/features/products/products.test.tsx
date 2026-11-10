@@ -15,7 +15,7 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     sku: 'DESK-1',
     sale_price: '50.00',
     cost_price: '30.00',
-    image_key: null,
+    image_url: null,
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
     created_by: { id: 1, name: 'Admin' },
