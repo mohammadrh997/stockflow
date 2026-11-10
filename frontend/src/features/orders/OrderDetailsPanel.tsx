@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 
-import { DetailItem, DetailStrip, DoneByItems } from '@/components/DetailStrip'
+import { DoneByRows } from '@/components/DoneByRows'
 import { Panel } from '@/components/Panel'
 import { PartnerName, WarehouseName } from '@/components/RecordNames'
 import { OrderDetailsForm, type OrderDetails } from './OrderDetailsForm'
@@ -17,15 +17,17 @@ type Props = {
   onSave: (details: OrderDetails) => Promise<unknown>
 }
 
-// Who the order is for, from which warehouse, and who made it: above the lines, so it's
-// read first. On a draft that can be edited, the partner and warehouse are fields.
+const ROWS = 'grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm'
+
+// Who the order is for, from which warehouse, and who made it, as a block above the lines
+// (like a transfer's). On a draft that can be edited, the partner and warehouse are fields.
 export function OrderDetailsPanel({ role, order, editable, onSave }: Props) {
-  const created = <DoneByItems label="Created" at={order.created_at} by={order.created_by} />
+  const created = <DoneByRows label="Created" at={order.created_at} by={order.created_by} />
 
   return (
     <Panel>
       {editable ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid gap-4">
           <OrderDetailsForm
             // Remount with what the server saved.
             key={`${order.partner_id}|${order.warehouse_id}`}
@@ -37,20 +39,20 @@ export function OrderDetailsPanel({ role, order, editable, onSave }: Props) {
               toast.success('Order saved')
             }}
           />
-          <div className="lg:w-80">
-            <DetailStrip>{created}</DetailStrip>
-          </div>
+          <dl className={`${ROWS} border-t pt-4`}>{created}</dl>
         </div>
       ) : (
-        <DetailStrip>
-          <DetailItem label={role === 'customer' ? 'Customer' : 'Supplier'}>
+        <dl className={ROWS}>
+          <dt className="text-muted-foreground">{role === 'customer' ? 'Customer' : 'Supplier'}</dt>
+          <dd>
             <PartnerName id={order.partner_id} />
-          </DetailItem>
-          <DetailItem label="Warehouse">
+          </dd>
+          <dt className="text-muted-foreground">Warehouse</dt>
+          <dd>
             <WarehouseName id={order.warehouse_id} />
-          </DetailItem>
+          </dd>
           {created}
-        </DetailStrip>
+        </dl>
       )}
     </Panel>
   )

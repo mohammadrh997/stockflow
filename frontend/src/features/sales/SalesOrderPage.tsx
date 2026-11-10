@@ -166,35 +166,41 @@ export function SalesOrderPage() {
         )}
       </div>
 
-      <OrderDetailsPanel
-        role="customer"
-        order={data}
-        editable={canEdit}
-        onSave={(details) => updateOrder.mutateAsync(details)}
-      />
-
-      <section className="grid min-w-0 gap-3">
-        <h2 className="text-lg font-semibold">Lines</h2>
-        <OrderLinesTable
-          lines={data.lines}
-          total={data.total}
-          editable={canEdit}
-          progress={[
-            ...(seesTransfers ? [{ header: 'Delivered', done: transfers.moved }] : []),
-            ...(seesInvoices ? [{ header: 'Invoiced', done: invoices.invoiced }] : []),
-          ]}
-          hint={canEdit ? availability : undefined}
-          onUpdate={(lineId, changes) => lines.update.mutateAsync({ lineId, changes })}
-          onDelete={(lineId) => lines.remove.mutateAsync(lineId)}
-        />
-        {canEdit && (
-          <AddLineForm
-            defaultPrice="sale_price"
-            hint={availability}
-            onAdd={(line) => lines.add.mutateAsync(line)}
+      {/* The right-hand column is kept free for an activity log later. */}
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid min-w-0 content-start gap-8">
+          <OrderDetailsPanel
+            role="customer"
+            order={data}
+            editable={canEdit}
+            onSave={(details) => updateOrder.mutateAsync(details)}
           />
-        )}
-      </section>
+
+          <section className="grid min-w-0 gap-3">
+            <h2 className="text-lg font-semibold">Lines</h2>
+            <OrderLinesTable
+              lines={data.lines}
+              total={data.total}
+              editable={canEdit}
+              progress={[
+                ...(seesTransfers ? [{ header: 'Delivered', done: transfers.moved }] : []),
+                ...(seesInvoices ? [{ header: 'Invoiced', done: invoices.invoiced }] : []),
+              ]}
+              hint={canEdit ? availability : undefined}
+              onUpdate={(lineId, changes) => lines.update.mutateAsync({ lineId, changes })}
+              onDelete={(lineId) => lines.remove.mutateAsync(lineId)}
+            />
+            {canEdit && (
+              <AddLineForm
+                defaultPrice="sale_price"
+                hint={availability}
+                onAdd={(line) => lines.add.mutateAsync(line)}
+              />
+            )}
+          </section>
+        </div>
+        <div className="hidden xl:block" />
+      </div>
     </div>
   )
 }
