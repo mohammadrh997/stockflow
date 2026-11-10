@@ -1,9 +1,9 @@
-import { ChevronDown, PackageCheck, Send } from 'lucide-react'
+import { PackageCheck, Send } from 'lucide-react'
 import { Link } from 'react-router'
 
 import type { Crumb } from '@/components/PageHeader'
+import { SMART_BUTTON, SmartButtonFace } from '@/components/SmartButton'
 import { StateBadge } from '@/components/StateBadge'
-import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Transfer } from '@/features/transfers/queries'
 
@@ -15,46 +15,41 @@ type Props = {
 }
 
 const LABELS = {
-  receipt: { one: 'Receipt', many: 'Receipts', icon: PackageCheck },
-  delivery: { one: 'Delivery', many: 'Deliveries', icon: Send },
+  receipt: { one: 'receipt', many: 'receipts', icon: PackageCheck, verb: 'received' },
+  delivery: { one: 'delivery', many: 'deliveries', icon: Send, verb: 'delivered' },
 }
 
-// One transfer opens directly; several open a short history, oldest first.
+// A smart button for an order's receipts or deliveries: one opens directly, several open a
+// short history, oldest first.
 export function OrderTransfersButton({ kind, transfers, trail }: Props) {
-  const { one, many, icon: Icon } = LABELS[kind]
+  const { one, many, icon, verb } = LABELS[kind]
   const reference = new Map(transfers.map((t) => [t.id, t.reference]))
 
   if (transfers.length === 0) return null
 
+  const waiting = transfers.filter((t) => t.state === 'ready').length
+  const face = (
+    <SmartButtonFace
+      icon={icon}
+      value={transfers.length}
+      label={transfers.length === 1 ? one : many}
+      detail={waiting > 0 ? `${waiting} waiting` : `All ${verb}`}
+    />
+  )
+
   if (transfers.length === 1) {
-    const [transfer] = transfers
     return (
-      <Button asChild variant="outline">
-        <Link
-          to={`/transfers/${transfer.id}`}
-          state={{ trail }}
-          aria-label={`${one} ${transfer.reference}, ${transfer.state}`}
-        >
-          <Icon />
-          {one}
-          <span className="text-muted-foreground">{transfer.reference}</span>
-          <StateBadge state={transfer.state} />
-        </Link>
-      </Button>
+      <Link to={`/transfers/${transfers[0].id}`} state={{ trail }} className={SMART_BUTTON}>
+        {face}
+      </Link>
     )
   }
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline">
-          <Icon />
-          {many} ({transfers.length})
-          <ChevronDown className="opacity-60" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-2">
-        <ul aria-label={many} className="grid gap-1">
+      <PopoverTrigger className={SMART_BUTTON}>{face}</PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-2">
+        <ul aria-label={many.charAt(0).toUpperCase() + many.slice(1)} className="grid gap-1">
           {transfers.map((transfer) => (
             <li key={transfer.id}>
               <Link

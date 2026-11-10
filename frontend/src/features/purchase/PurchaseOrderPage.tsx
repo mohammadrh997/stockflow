@@ -77,12 +77,6 @@ export function PurchaseOrderPage() {
         }
         actions={
           <>
-            {seesTransfers && (
-              <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
-            )}
-            {seesInvoices && (
-              <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
-            )}
             {seesInvoices && (
               <CreateInvoiceButton
                 kind="bill"
@@ -151,6 +145,18 @@ export function PurchaseOrderPage() {
           </>
         }
       />
+
+      {/* Smart buttons: what this order led to, right under its header. */}
+      {(seesTransfers || seesInvoices) && (
+        <div className="flex flex-wrap gap-2">
+          {seesTransfers && (
+            <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
+          )}
+          {seesInvoices && (
+            <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <ProgressTrack steps={['draft', 'confirmed', 'received']} state={data.state} />

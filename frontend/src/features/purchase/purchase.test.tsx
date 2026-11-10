@@ -330,7 +330,10 @@ describe('purchase order page', () => {
       screen.getByLabelText('Goods have already arrived. Cancel the backorder instead.'),
     ).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Receipts \(2\)/ }))
+    // One receipt done, its backorder still waiting.
+    const receipts = screen.getByRole('button', { name: /^2 receipts/ })
+    expect(receipts).toHaveTextContent('1 waiting')
+    await user.click(receipts)
     const history = await screen.findByRole('list', { name: 'Receipts' })
     const items = within(history).getAllByRole('link')
     expect(items.map((item) => item.getAttribute('href'))).toEqual([
@@ -371,7 +374,7 @@ describe('purchase order page', () => {
     signInAs(makeUser({ purchase_access: 'user', inventory_access: 'user' }))
     renderApp('/purchase-orders/7')
 
-    expect(await screen.findByRole('link', { name: /Receipt WH\/IN\/00007/ })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /^1 receipt/ })).toHaveAttribute(
       'href',
       '/transfers/21',
     )

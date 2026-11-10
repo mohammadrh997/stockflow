@@ -240,7 +240,7 @@ describe('invoicing a sales order', () => {
     )
     expect(screen.getByRole('button', { name: 'Create invoice' })).toBeEnabled()
 
-    await user.click(screen.getByRole('button', { name: 'Invoices (2)' }))
+    await user.click(screen.getByRole('button', { name: /^2 invoices/ }))
     const list = await screen.findByRole('list', { name: 'Invoices' })
     const links = within(list).getAllByRole('link')
     expect(links.map((link) => link.getAttribute('href'))).toEqual(['/invoices/1', '/invoices/2'])
@@ -264,7 +264,8 @@ describe('invoicing a sales order', () => {
       await screen.findByLabelText('Everything delivered is already invoiced.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create invoice' })).toBeDisabled()
-    expect(screen.getByRole('link', { name: 'Invoice Draft #1, draft' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^1 invoice/ })).toHaveTextContent('None posted yet')
+    expect(screen.getByRole('link', { name: /^1 invoice/ })).toHaveAttribute('href', '/invoices/1')
   })
 
   it('drafts an invoice and opens it', async () => {
