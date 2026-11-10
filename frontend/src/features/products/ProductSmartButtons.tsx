@@ -1,12 +1,11 @@
 import { ArrowLeftRight, Boxes, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import { can } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
+import { SMART_BUTTON, SmartButtonFace, SmartButtonLoading } from '@/components/SmartButton'
 import { StateBadge } from '@/components/StateBadge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useStock } from '@/features/stock/queries'
 import { formatQuantity } from '@/lib/format'
 import { sumQuantities, toThousandths } from '@/lib/quantity'
@@ -18,33 +17,6 @@ import {
   type ProductOrders,
 } from './useProductOrders'
 
-const BUTTON =
-  'flex min-w-36 items-center gap-3 rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-muted/60'
-
-function Face({
-  icon: Icon,
-  value,
-  label,
-  detail,
-}: {
-  icon: LucideIcon
-  value: ReactNode
-  label: string
-  detail?: ReactNode
-}) {
-  return (
-    <>
-      <Icon className="size-5 shrink-0 text-primary" />
-      <span className="grid leading-tight">
-        <span className="text-sm">
-          <span className="font-semibold tabular-nums">{value}</span> {label}
-        </span>
-        {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
-      </span>
-    </>
-  )
-}
-
 function StockButton({ productId }: { productId: number }) {
   const stock = useStock({ product_id: productId })
   const rows = stock.data ?? []
@@ -52,12 +24,10 @@ function StockButton({ productId }: { productId: number }) {
   const available = sumQuantities(rows.map((row) => row.available))
 
   return (
-    <Link to={`/stock?product=${productId}`} className={BUTTON}>
-      <Face
+    <Link to={`/stock?product=${productId}`} className={SMART_BUTTON}>
+      <SmartButtonFace
         icon={Boxes}
-        value={
-          stock.isPending ? <Skeleton className="inline-block h-4 w-6" /> : formatQuantity(onHand)
-        }
+        value={stock.isPending ? <SmartButtonLoading /> : formatQuantity(onHand)}
         label="on hand"
         detail={stock.isPending ? undefined : `${formatQuantity(available)} available`}
       />
@@ -76,8 +46,8 @@ function MovesButton({ productId }: { productId: number }) {
       : 'Moves history'
 
   return (
-    <Link to={`/products/${productId}/moves`} className={BUTTON}>
-      <Face
+    <Link to={`/products/${productId}/moves`} className={SMART_BUTTON}>
+      <SmartButtonFace
         icon={ArrowLeftRight}
         value={
           moves.error ? (
@@ -89,7 +59,7 @@ function MovesButton({ productId }: { productId: number }) {
               {plus} <span className="font-normal">out</span>
             </>
           ) : (
-            <Skeleton className="inline-block h-4 w-16" />
+            <SmartButtonLoading wide />
           )
         }
         label=""
@@ -114,10 +84,13 @@ function OrdersButton({ query, icon, label, done, path }: OrdersProps) {
 
   return (
     <Popover>
-      <PopoverTrigger className={BUTTON} aria-label={count === null ? label : `${label}: ${count}`}>
-        <Face
+      <PopoverTrigger
+        className={SMART_BUTTON}
+        aria-label={count === null ? label : `${label}: ${count}`}
+      >
+        <SmartButtonFace
           icon={icon}
-          value={query.isError ? '?' : (count ?? <Skeleton className="inline-block h-4 w-6" />)}
+          value={query.isError ? '?' : (count ?? <SmartButtonLoading />)}
           // "1 sales order", "2 sales orders"
           label={data?.orders.length === 1 ? label.replace(/s$/, '') : label}
           detail={data && `${formatQuantity(data.committed)} ${done}`}

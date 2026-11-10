@@ -15,6 +15,7 @@ import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import { PartnerForm } from './PartnerForm'
 import { PartnerInvoices } from './PartnerInvoices'
+import { PartnerSmartButtons } from './PartnerSmartButtons'
 import { partnerFormValues, toPartnerPayload } from './partnerValues'
 import { usePartner, useSetPartnerArchived, useUpdatePartner } from './queries'
 
@@ -67,6 +68,7 @@ export function PartnerPage() {
           )
         }
       />
+      <PartnerSmartButtons partner={data} />
       <Panel>
         <PartnerForm
           // Remount with what the server saved (it lower-cases the email, for example).
