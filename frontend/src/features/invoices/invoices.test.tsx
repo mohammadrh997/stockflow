@@ -262,6 +262,7 @@ describe('invoice page', () => {
     const dialog = await screen.findByRole('dialog')
     const amount = within(dialog).getByLabelText('Amount')
     expect(amount).toHaveValue('200.00')
+    expect(within(dialog).getByText('USD')).toBeInTheDocument()
 
     await user.clear(amount)
     await user.type(amount, '250')
@@ -279,6 +280,7 @@ describe('invoice page', () => {
     )
     expect(await screen.findByText('Partly paid')).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'TRF-1' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Amount (USD)' })).toBeInTheDocument()
     // Who recorded it, and who drafted the invoice.
     expect(screen.getByRole('cell', { name: 'Admin' })).toBeInTheDocument()
     expect(screen.getByText('Created by').nextElementSibling).toHaveTextContent('Admin')

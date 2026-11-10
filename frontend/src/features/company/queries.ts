@@ -19,6 +19,11 @@ export function useCompany() {
   })
 }
 
+// The currency code, e.g. "USD", or undefined until the company has loaded.
+export function useCurrency(): Currency | undefined {
+  return useCompany().data?.currency
+}
+
 function useStoreCompany() {
   const queryClient = useQueryClient()
   return (company: Company) => queryClient.setQueryData(companyKey, company)

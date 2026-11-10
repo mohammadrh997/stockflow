@@ -16,6 +16,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from '@/components/ui/input-group'
+import { useCurrency } from '@/features/company/queries'
 import { today } from '@/lib/dates'
 import { formatMoney, PRICE_PATTERN } from '@/lib/format'
 import { compareQuantities, toThousandths } from '@/lib/quantity'
@@ -27,6 +34,7 @@ const FIELDS = ['amount', 'paid_on', 'reference'] as const
 
 export function RegisterPaymentDialog({ invoice }: { invoice: Invoice }) {
   const pay = useRegisterPayment(invoice.id)
+  const currency = useCurrency()
   const [open, setOpen] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const defaults = { amount: invoice.amount_due, paid_on: today(), reference: '' }
@@ -76,20 +84,30 @@ export function RegisterPaymentDialog({ invoice }: { invoice: Invoice }) {
           {formError && <ErrorMessage message={formError} />}
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Amount" htmlFor="payment-amount" error={errors.amount?.message}>
-              <Input
-                id="payment-amount"
-                inputMode="decimal"
-                aria-invalid={errors.amount ? true : undefined}
-                {...register('amount', {
-                  required: 'Enter an amount.',
-                  pattern: { value: PRICE_PATTERN, message: 'Use a number with up to 2 decimals.' },
-                  validate: (value) =>
-                    toThousandths(value) <= 0n
-                      ? 'Must be more than 0.'
-                      : compareQuantities(value, invoice.amount_due) <= 0 ||
-                        `At most ${formatMoney(invoice.amount_due)} is due.`,
-                })}
-              />
+              <InputGroup>
+                <InputGroupInput
+                  id="payment-amount"
+                  inputMode="decimal"
+                  aria-invalid={errors.amount ? true : undefined}
+                  {...register('amount', {
+                    required: 'Enter an amount.',
+                    pattern: {
+                      value: PRICE_PATTERN,
+                      message: 'Use a number with up to 2 decimals.',
+                    },
+                    validate: (value) =>
+                      toThousandths(value) <= 0n
+                        ? 'Must be more than 0.'
+                        : compareQuantities(value, invoice.amount_due) <= 0 ||
+                          `At most ${formatMoney(invoice.amount_due)} is due.`,
+                  })}
+                />
+                {currency && (
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupText>{currency}</InputGroupText>
+                  </InputGroupAddon>
+                )}
+              </InputGroup>
             </FormField>
             <FormField label="Paid on" htmlFor="payment-date" error={errors.paid_on?.message}>
               <Input
