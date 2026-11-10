@@ -66,17 +66,43 @@ export function PurchaseOrderPage() {
 
   return (
     <div className="grid gap-8">
-      <PageHeader
-        pageTitle={data.reference}
-        trail={[{ to: '/purchase-orders', label: 'Purchase orders' }]}
-        title={
-          <>
-            {data.reference}
-            <StateBadge state={data.state} />
-          </>
-        }
-        actions={
-          <>
+      {/* The status sits right under the order number. */}
+      <div className="grid gap-3">
+        <PageHeader
+          pageTitle={data.reference}
+          trail={[{ to: '/purchase-orders', label: 'Purchase orders' }]}
+          title={
+            <>
+              {data.reference}
+              <StateBadge state={data.state} />
+            </>
+          }
+        />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <ProgressTrack steps={['draft', 'confirmed', 'received']} state={data.state} />
+          {seesTransfers && (
+            <OrderMovementNote
+              kind="receipt"
+              state={data.state}
+              lines={data.lines}
+              transfers={transfers}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* The right-hand column is kept free for an activity log later. */}
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid min-w-0 content-start gap-8">
+          {/* On the right above the details: what the order led to, then what can be done. */}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {seesTransfers && (
+              <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
+            )}
+            {seesInvoices && (
+              <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
+            )}
             {seesInvoices && (
               <CreateInvoiceButton
                 kind="bill"
@@ -142,37 +168,7 @@ export function PurchaseOrderPage() {
                 reference={data.reference}
               />
             )}
-          </>
-        }
-      />
-
-      {/* Smart buttons: what this order led to, right under its header. */}
-      {(seesTransfers || seesInvoices) && (
-        <div className="flex flex-wrap gap-2">
-          {seesTransfers && (
-            <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
-          )}
-          {seesInvoices && (
-            <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-3">
-        <ProgressTrack steps={['draft', 'confirmed', 'received']} state={data.state} />
-        {seesTransfers && (
-          <OrderMovementNote
-            kind="receipt"
-            state={data.state}
-            lines={data.lines}
-            transfers={transfers}
-          />
-        )}
-      </div>
-
-      {/* The right-hand column is kept free for an activity log later. */}
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="grid min-w-0 content-start gap-8">
+          </div>
           <OrderDetailsPanel
             role="supplier"
             order={data}
