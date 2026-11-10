@@ -11,6 +11,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
+import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import { ProductForm } from './ProductForm'
@@ -36,18 +37,23 @@ export function ProductPage() {
   const archiving = data.is_active
 
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        pageTitle={data.name}
-        trail={[{ to: '/products', label: 'Products' }]}
-        title={
-          <>
-            {data.name}
-            {!data.is_active && <ArchivedBadge />}
-          </>
-        }
-        actions={
-          canManage && (
+    <RecordLayout
+      header={
+        <PageHeader
+          pageTitle={data.name}
+          trail={[{ to: '/products', label: 'Products' }]}
+          title={
+            <>
+              {data.name}
+              {!data.is_active && <ArchivedBadge />}
+            </>
+          }
+        />
+      }
+      actions={
+        <>
+          <ProductSmartButtons productId={data.id} />
+          {canManage && (
             <ConfirmDialog
               trigger={<Button variant="outline">{archiving ? 'Archive' : 'Unarchive'}</Button>}
               title={archiving ? `Archive ${data.name}?` : `Unarchive ${data.name}?`}
@@ -63,37 +69,38 @@ export function ProductPage() {
                 toast.success(archiving ? `Archived ${data.name}` : `Unarchived ${data.name}`)
               }}
             />
-          )
-        }
-      />
-      <ProductSmartButtons productId={data.id} />
-      <Panel>
-        {/* The picture sits right beside the fields it belongs to; on phones, above them. */}
-        <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
-          <ProductImage product={data} canManage={canManage} />
-          <div className="min-w-0">
-            <ProductForm
-              // Remount with what the server saved (it upper-cases the SKU, for example).
-              key={[data.id, data.name, data.sku, data.sale_price, data.cost_price].join('|')}
-              readOnly={!canManage}
-              submitLabel="Save changes"
-              defaultValues={{
-                name: data.name,
-                sku: data.sku,
-                sale_price: data.sale_price,
-                cost_price: data.cost_price,
-              }}
-              onSubmit={async (values) => {
-                await updateProduct.mutateAsync(values)
-                toast.success('Product saved')
-              }}
-            />
-            <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
-              <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
-            </dl>
+          )}
+        </>
+      }
+      details={
+        <Panel>
+          {/* The picture sits right beside the fields it belongs to; on phones, above them. */}
+          <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
+            <ProductImage product={data} canManage={canManage} />
+            <div className="min-w-0">
+              <ProductForm
+                // Remount with what the server saved (it upper-cases the SKU, for example).
+                key={[data.id, data.name, data.sku, data.sale_price, data.cost_price].join('|')}
+                readOnly={!canManage}
+                submitLabel="Save changes"
+                defaultValues={{
+                  name: data.name,
+                  sku: data.sku,
+                  sale_price: data.sale_price,
+                  cost_price: data.cost_price,
+                }}
+                onSubmit={async (values) => {
+                  await updateProduct.mutateAsync(values)
+                  toast.success('Product saved')
+                }}
+              />
+              <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
+                <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+              </dl>
+            </div>
           </div>
-        </div>
-      </Panel>
-    </div>
+        </Panel>
+      }
+    />
   )
 }

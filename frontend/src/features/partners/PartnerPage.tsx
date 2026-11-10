@@ -11,6 +11,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
+import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import { PartnerForm } from './PartnerForm'
@@ -38,18 +39,23 @@ export function PartnerPage() {
   const values = partnerFormValues(data)
 
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        pageTitle={data.name}
-        trail={[{ to: '/partners', label: 'Partners' }]}
-        title={
-          <>
-            {data.name}
-            {!data.is_active && <ArchivedBadge />}
-          </>
-        }
-        actions={
-          canEdit && (
+    <RecordLayout
+      header={
+        <PageHeader
+          pageTitle={data.name}
+          trail={[{ to: '/partners', label: 'Partners' }]}
+          title={
+            <>
+              {data.name}
+              {!data.is_active && <ArchivedBadge />}
+            </>
+          }
+        />
+      }
+      actions={
+        <>
+          <PartnerSmartButtons partner={data} />
+          {canEdit && (
             <ConfirmDialog
               trigger={<Button variant="outline">{archiving ? 'Archive' : 'Unarchive'}</Button>}
               title={archiving ? `Archive ${data.name}?` : `Unarchive ${data.name}?`}
@@ -65,27 +71,29 @@ export function PartnerPage() {
                 toast.success(archiving ? `Archived ${data.name}` : `Unarchived ${data.name}`)
               }}
             />
-          )
-        }
-      />
-      <PartnerSmartButtons partner={data} />
-      <Panel>
-        <PartnerForm
-          // Remount with what the server saved (it lower-cases the email, for example).
-          key={JSON.stringify(values)}
-          readOnly={!canEdit}
-          submitLabel="Save changes"
-          defaultValues={values}
-          onSubmit={async (formValues) => {
-            await updatePartner.mutateAsync(toPartnerPayload(formValues))
-            toast.success('Partner saved')
-          }}
-        />
-        <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
-          <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
-        </dl>
-      </Panel>
+          )}
+        </>
+      }
+      details={
+        <Panel>
+          <PartnerForm
+            // Remount with what the server saved (it lower-cases the email, for example).
+            key={JSON.stringify(values)}
+            readOnly={!canEdit}
+            submitLabel="Save changes"
+            defaultValues={values}
+            onSubmit={async (formValues) => {
+              await updatePartner.mutateAsync(toPartnerPayload(formValues))
+              toast.success('Partner saved')
+            }}
+          />
+          <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
+            <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+          </dl>
+        </Panel>
+      }
+    >
       <PartnerInvoices partner={data} />
-    </div>
+    </RecordLayout>
   )
 }

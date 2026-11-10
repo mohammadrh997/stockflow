@@ -9,6 +9,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
 import { PageHeader, type Crumb } from '@/components/PageHeader'
+import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
 import { Quantity } from '@/components/Quantity'
@@ -63,51 +64,53 @@ export function TransferPage() {
     canValidate && data.backorder_of_id !== null && can(user, 'inventory', 'manager')
 
   return (
-    <div className="grid gap-8">
-      <PageHeader
-        pageTitle={data.reference}
-        trail={trail}
-        title={
-          <>
-            {data.reference}
-            <StateBadge state={data.state} />
-          </>
-        }
-        actions={
-          <>
-            {canCancelBackorder && <CancelBackorderButton transfer={data} />}
-            {canValidate && <ValidateTransferDialog transfer={data} />}
-          </>
-        }
-      />
-
-      {fromOrder && <ProgressTrack steps={['ready', 'done']} state={data.state} />}
-
-      <Panel>
-        <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-muted-foreground">Type</dt>
-          <dd>{TRANSFER_TYPE_LABELS[data.transfer_type]}</dd>
-          <dt className="text-muted-foreground">Warehouse</dt>
-          <dd>
-            <WarehouseName id={data.warehouse_id} />
-          </dd>
-          {(data.purchase_order_id !== null || data.sales_order_id !== null) && (
+    <RecordLayout
+      header={
+        <PageHeader
+          pageTitle={data.reference}
+          trail={trail}
+          title={
             <>
-              <dt className="text-muted-foreground">Order</dt>
-              <dd>
-                <TransferOrigin transfer={data} />
-              </dd>
-              <BackorderLinks transfer={data} trail={trail} />
+              {data.reference}
+              <StateBadge state={data.state} />
             </>
-          )}
-          <dt className="text-muted-foreground">Created</dt>
-          <dd>{formatDateTime(data.created_at)}</dd>
-          {data.validated_at && (
-            <DoneByRows label="Validated" at={data.validated_at} by={data.validated_by} />
-          )}
-        </dl>
-      </Panel>
-
+          }
+        />
+      }
+      status={<>{fromOrder && <ProgressTrack steps={['ready', 'done']} state={data.state} />}</>}
+      actions={
+        <>
+          {canCancelBackorder && <CancelBackorderButton transfer={data} />}
+          {canValidate && <ValidateTransferDialog transfer={data} />}
+        </>
+      }
+      details={
+        <Panel>
+          <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+            <dt className="text-muted-foreground">Type</dt>
+            <dd>{TRANSFER_TYPE_LABELS[data.transfer_type]}</dd>
+            <dt className="text-muted-foreground">Warehouse</dt>
+            <dd>
+              <WarehouseName id={data.warehouse_id} />
+            </dd>
+            {(data.purchase_order_id !== null || data.sales_order_id !== null) && (
+              <>
+                <dt className="text-muted-foreground">Order</dt>
+                <dd>
+                  <TransferOrigin transfer={data} />
+                </dd>
+                <BackorderLinks transfer={data} trail={trail} />
+              </>
+            )}
+            <dt className="text-muted-foreground">Created</dt>
+            <dd>{formatDateTime(data.created_at)}</dd>
+            {data.validated_at && (
+              <DoneByRows label="Validated" at={data.validated_at} by={data.validated_by} />
+            )}
+          </dl>
+        </Panel>
+      }
+    >
       {fromOrder && (
         <section className="grid gap-3">
           <h2 className="text-lg font-semibold">Products</h2>
@@ -128,6 +131,6 @@ export function TransferPage() {
           />
         </section>
       )}
-    </div>
+    </RecordLayout>
   )
 }
