@@ -65,6 +65,34 @@ export function PurchaseOrderPage() {
     { to: `/purchase-orders/${data.id}`, label: data.reference },
   ]
 
+  const cancelButton = canCancel && (
+    <DisabledReason
+      reason={
+        transfers.hasMoved ? 'Goods have already arrived. Cancel the backorder instead.' : null
+      }
+    >
+      <ConfirmDialog
+        trigger={
+          <Button variant="outline" disabled={transfers.hasMoved}>
+            Cancel order
+          </Button>
+        }
+        title={`Cancel ${data.reference}?`}
+        description={
+          isDraft
+            ? 'The draft is kept for reference but can no longer be used.'
+            : 'Its receipt is cancelled too. This cannot be undone.'
+        }
+        confirmLabel="Cancel order"
+        destructive
+        onConfirm={async () => {
+          await cancel.mutateAsync()
+          toast.success(`Cancelled ${data.reference}`)
+        }}
+      />
+    </DisabledReason>
+  )
+
   return (
     <RecordLayout
       header={
@@ -105,16 +133,7 @@ export function PurchaseOrderPage() {
               trail={trail}
             />
           )}
-        </>
-      }
-      actions={
-        <>
-          {seesTransfers && (
-            <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
-          )}
-          {seesInvoices && (
-            <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
-          )}
+          {/* On a draft, the next steps sit right beside the status. */}
           {canManage && isDraft && (
             <DisabledReason
               reason={data.lines.length === 0 ? 'Add at least one line first.' : null}
@@ -131,35 +150,19 @@ export function PurchaseOrderPage() {
               />
             </DisabledReason>
           )}
-          {canCancel && (
-            <DisabledReason
-              reason={
-                transfers.hasMoved
-                  ? 'Goods have already arrived. Cancel the backorder instead.'
-                  : null
-              }
-            >
-              <ConfirmDialog
-                trigger={
-                  <Button variant="outline" disabled={transfers.hasMoved}>
-                    Cancel order
-                  </Button>
-                }
-                title={`Cancel ${data.reference}?`}
-                description={
-                  isDraft
-                    ? 'The draft is kept for reference but can no longer be used.'
-                    : 'Its receipt is cancelled too. This cannot be undone.'
-                }
-                confirmLabel="Cancel order"
-                destructive
-                onConfirm={async () => {
-                  await cancel.mutateAsync()
-                  toast.success(`Cancelled ${data.reference}`)
-                }}
-              />
-            </DisabledReason>
+          {isDraft && cancelButton}
+        </>
+      }
+      actions={
+        <>
+          {seesTransfers && (
+            <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
           )}
+          {seesInvoices && (
+            <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
+          )}
+          {/* Once confirmed, cancelling sits with the other buttons on the right. */}
+          {!isDraft && cancelButton}
         </>
       }
       details={
