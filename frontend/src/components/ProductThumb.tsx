@@ -34,7 +34,11 @@ export function ProductThumb({ url, className, label }: Props) {
       src={url}
       alt=""
       loading="lazy"
-      className={cn(box, 'object-cover')}
+      // Small thumbnails fill their square; a caller can ask for the whole picture instead.
+      className={cn(
+        'shrink-0 overflow-hidden rounded-md border bg-muted object-cover',
+        className ?? 'size-8',
+      )}
       onError={() => setFailedUrl(url)}
     />
   )

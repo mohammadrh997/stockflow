@@ -59,7 +59,7 @@ export function ProductImage({ product, canManage }: Props) {
     <div className="grid content-start gap-3">
       <ProductThumb
         url={product.image_url}
-        className="aspect-square w-40 rounded-lg sm:w-full"
+        className="aspect-square w-full max-w-64 rounded-lg bg-background object-contain"
         label={hasImage ? undefined : 'No image yet'}
       />
       {problem && <ErrorMessage message={problem} />}

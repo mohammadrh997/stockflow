@@ -66,10 +66,10 @@ export function ProductPage() {
           )
         }
       />
-      <Panel className="grid gap-6">
-        <ProductSmartButtons productId={data.id} />
+      <ProductSmartButtons productId={data.id} />
+      <Panel>
         {/* The picture sits right beside the fields it belongs to; on phones, above them. */}
-        <div className="grid gap-6 sm:grid-cols-[9rem_minmax(0,1fr)]">
+        <div className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
           <ProductImage product={data} canManage={canManage} />
           <div className="min-w-0">
             <ProductForm
