@@ -158,5 +158,28 @@ async def test_unknown_records_are_404_and_permissions_apply(client, boss, make_
     purchase_only = auth(await make_user(purchase_access=Access.manager))
     response = await client.get(f"/sales-orders/{so['id']}/pdf", headers=purchase_only)
     assert response.status_code == 403
+    # Like reading, printing an invoice is open to sales and purchase users alike
     response = await client.get(f"/invoices/{invoice['id']}/pdf", headers=purchase_only)
-    assert response.status_code == 403  # a customer invoice needs sales access
+    assert response.status_code == 200
+    inventory_only = auth(await make_user(inventory_access=Access.manager))
+    response = await client.get(f"/invoices/{invoice['id']}/pdf", headers=inventory_only)
+    assert response.status_code == 403
+
+
+def test_pdfs_can_load_bundled_assets_and_nothing_else():
+    from app.services.documents import ASSETS, _assets_only_fetcher
+
+    fetcher = _assets_only_fetcher()
+    font = (ASSETS / "fonts" / "NotoSans-Regular.ttf").as_uri()
+    response = fetcher.fetch(font)
+    assert response.read(4)  # the font loads
+    response.close()
+
+    for url in (
+        "http://169.254.169.254/latest/meta-data/",  # an internal address
+        "https://example.com/logo.png",
+        (ASSETS.parent / "core" / "config.py").as_uri(),  # a file outside assets
+        (ASSETS / ".." / "core" / "config.py").as_uri(),  # the same, via ..
+    ):
+        with pytest.raises(ValueError):
+            fetcher.fetch(url)

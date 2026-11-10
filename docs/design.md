@@ -66,6 +66,34 @@ Customer invoices come from sales orders, and vendor bills from purchase orders.
 
 This is billing, not accounting: there are no taxes, journal entries or credit notes yet.
 
+## PDFs
+
+Invoices, vendor bills, sales orders and purchase orders print from one HTML template, rendered by WeasyPrint. Each document type only builds the data the template needs (title, number, partner, lines, total), so the template knows nothing about where it came from.
+
+- **Drafts print, with a DRAFT watermark.** A draft invoice has no number yet and its totals aren't frozen, so it prints as "Draft invoice", totals calculated from its lines. People review drafts before posting; the watermark keeps a draft from being mistaken for the real thing. A draft order prints as a Quotation or a Request for quotation, which is meant to be sent. Cancelled records can't be printed.
+- **WeasyPrint is imported only when a PDF is rendered.** It needs the Pango system library, which the Docker image and CI install. Without it, only the PDF endpoints fail; the rest of the app starts normally, and the PDF tests are skipped.
+- **Rendering runs in a thread.** It's about 100 ms of CPU, which would otherwise block every other request.
+- **The fonts are bundled** (Noto Sans and Noto Sans Arabic), so a PDF looks the same on every machine. Arabic names are laid out right to left.
+- **WeasyPrint may only load our own fonts and logo.** It fetches every URL a document refers to. User input is escaped, so it can't add one today, but the fetcher refuses anything outside `app/assets` anyway: no other files on the server and no network, including internal addresses.
+
+## Product images
+
+- **Uploads are checked by decoding them,** not by trusting the filename or content type. Only real JPEG, PNG and WebP files are accepted, and the pixel count is checked from the header before decoding, so a small file can't unpack into gigabytes.
+- **Every image is re-encoded** as a WebP of at most 800 px. The stored file is a fresh one built from the pixels alone, so camera metadata, GPS location and anything hidden in the original are gone. Phone photos are turned upright first, from their EXIF rotation.
+- **The files live in an S3-compatible bucket** (Backblaze B2 in the demo), behind a small `Storage` interface. Tests use an in-memory version, so CI never touches the bucket. Without storage settings, uploads answer 503 and the rest of the app works.
+- **The bucket is public; that's deliberate.** Product photos are meant to be seen, so browsers load them straight from storage and cache them, without going through the API. Files that are actually private, such as supplier documents, would go in a separate private bucket with short-lived signed links.
+- **Every upload gets a new random name.** A URL's content then never changes, so browsers can cache an image for a year; a replaced photo shows up at once under its new URL. Random names also can't be guessed, unlike `products/42.webp`.
+- **The order on replace:** upload the new file, point the product at it and commit, then delete the old file. The product never points at a file that doesn't exist. If deleting the old file fails, it's logged rather than turned into an error, because the request has already succeeded. The product row is locked for the swap, so two uploads at once can't both delete the same old file and leave another behind.
+- **Oversized requests are refused before they're read.** FastAPI reads the whole body before any endpoint code runs, so a size check there comes too late. A small middleware refuses any request whose `Content-Length` is too big, and the endpoint still checks the size it actually reads, for clients that don't send the header. The middleware sits inside the CORS middleware, so even its 413 can be read by the frontend.
+
+## Who did what
+
+Orders, invoices, payments, transfers, products and partners return the user who created, posted or validated them as `{id, name}`, not a bare id. The users are loaded with `lazy="selectin"`: a separate small query for all the users on a page.
+
+A joined load would have been the obvious choice, and it breaks: it adds a `LEFT OUTER JOIN users` to the `SELECT ... FOR UPDATE` queries, which PostgreSQL refuses. With an inner join it would lock the user rows too, so two people confirming different orders created by the same user would wait on each other. The SQL log of the tests confirms the selectin queries never carry `FOR UPDATE`.
+
+Stock moves keep a bare `created_by_id`. They're only ever shown inside a transfer, which already names who validated it.
+
 ## Concurrency
 
 The bug this design guards against: two managers confirm two orders for the last 10 chairs at the same moment. Both read "10 available", both confirm, and the warehouse has promised 20.
@@ -85,7 +113,7 @@ The state check ("is this order still a draft?") happens *after* the lock is tak
 
 ## Permissions
 
-Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts and cancelling a backorder need an inventory manager. Customer invoices follow sales access and vendor bills follow purchase access: users draft them, managers post, cancel and record payments. Reading invoices is currently open to anyone with sales or purchase access; limiting it by type is on the list below.
+Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts and cancelling a backorder need an inventory manager. Customer invoices follow sales access and vendor bills follow purchase access: users draft them, managers post, cancel and record payments. Reading is broader on purpose: anyone with sales or purchase access can read and print both kinds of invoice, because in a small business the same people follow customer and supplier payments.
 
 The backend enforces every rule through FastAPI dependencies. The frontend only hides buttons the user can't use; it never decides.
 
@@ -129,6 +157,5 @@ The API is a Docker image on Render, and the database is on Neon. Migrations run
 
 - Transfers between warehouses, which would go through a transit location in two steps.
 - Credit notes, taxes, and the supplier's own bill number on vendor bills.
-- Limiting who can read invoices by type (sales users see customer invoices, purchase users see bills).
 - Units of measure, lots and serial numbers.
 - Reorder alerts, which would run in a background worker.

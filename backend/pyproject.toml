@@ -57,5 +57,5 @@ check_untyped_defs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["weasyprint"]  # ships no type hints
+module = ["weasyprint", "weasyprint.*"]  # ships no type hints
 ignore_missing_imports = true

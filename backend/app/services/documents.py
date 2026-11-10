@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import select
@@ -96,9 +98,31 @@ def render(doc: Document) -> bytes:
         doc=doc,
         company={"name": settings.company_name, "address": settings.company_address},
     )
-    pdf = HTML(string=html, base_url=str(ASSETS)).write_pdf()
+    pdf = HTML(string=html, base_url=str(ASSETS), url_fetcher=_assets_only_fetcher()).write_pdf()
     assert pdf is not None  # write_pdf() only returns None when given a target file
     return pdf
+
+
+def _assets_only_fetcher():
+    """A WeasyPrint fetcher that may load our fonts and logo, and nothing else.
+
+    WeasyPrint fetches every URL a document refers to. Ours only refer to app/assets,
+    but if a URL ever reached a template (a product image, say), this keeps a PDF from
+    reading other files on the server or calling internal addresses.
+    """
+    from weasyprint.urls import URLFetcher
+
+    class AssetsOnly(URLFetcher):
+        def fetch(self, url, headers=None):
+            parsed = urlparse(url)
+            if parsed.scheme != "file":
+                raise ValueError(f"only bundled assets can be loaded, not {url}")
+            path = Path(url2pathname(parsed.path)).resolve()
+            if not path.is_relative_to(ASSETS):
+                raise ValueError(f"only bundled assets can be loaded, not {url}")
+            return super().fetch(url, headers)
+
+    return AssetsOnly()
 
 
 async def render_pdf(doc: Document) -> bytes:
