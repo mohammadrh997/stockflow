@@ -17,6 +17,7 @@ import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
+import { CurrencyCode } from '@/features/company/CurrencyCode'
 import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
@@ -130,14 +131,17 @@ export function InvoicePage() {
               <dt className="text-muted-foreground">Total</dt>
               <dd className="text-right font-medium">
                 <Money value={data.amount_total ?? '0'} />
+                <CurrencyCode />
               </dd>
               <dt className="text-muted-foreground">Paid</dt>
               <dd className="text-right">
                 <Money value={data.amount_paid} />
+                <CurrencyCode />
               </dd>
               <dt className="border-t pt-2 font-medium">Amount due</dt>
               <dd className="border-t pt-2 text-right text-lg font-semibold">
                 <Money value={data.amount_due} />
+                <CurrencyCode />
               </dd>
             </>
           ) : (
@@ -146,6 +150,7 @@ export function InvoicePage() {
               <dt className="font-medium">Total</dt>
               <dd className="text-right text-lg font-semibold">
                 <Money value={data.amount_total ?? '0'} />
+                <CurrencyCode />
               </dd>
             </>
           )}
