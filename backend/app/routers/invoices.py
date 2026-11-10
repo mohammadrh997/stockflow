@@ -183,6 +183,7 @@ async def register_payment(
 
 @router.get("/{invoice_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
 async def invoice_pdf(db: DBsession, invoice_id: int, storage: OptionalStorageDep):
+    # Anyone who can read an invoice can print it (see get_invoice)
     try:
         doc = await documents.invoice_document(db, invoice_id, storage)
     except InvoiceNotFound:

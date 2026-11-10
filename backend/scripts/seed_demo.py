@@ -13,6 +13,7 @@ import io
 import os
 import sys
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -69,6 +70,15 @@ PRODUCTS = [
     ("CABLE-HDMI", "HDMI Cable 2 m", "9.50", "3.20"),
 ]
 
+DEMO_LOGO = Path(__file__).parent / "demo_assets" / "clearcypher-logo.png"
+COMPANY = {
+    "name": "ClearCypher",
+    "address": "Karrada, Baghdad, Iraq",
+    "phone": "+964 770 000 0000",
+    "email": "sales@clearcypher.example.com",
+    "currency": "USD",
+}
+
 # Left without an image on purpose, so the demo shows that state too
 WITHOUT_IMAGE = {"PAPER-A4", "CABLE-HDMI"}
 COLORS = ["#1F3A5F", "#E8590C", "#2F7D6D", "#6B4FA0", "#B23A48", "#3A6EA5", "#7A6A2F", "#4A5568"]
@@ -102,6 +112,14 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
     if api.get("/products", include_archived=True, limit=1):
         raise SeedError("This instance already has products. The seed only runs on empty data.")
 
+    print("Company")
+    api.patch("/settings/company", COMPANY)
+    response = api.upload("/settings/company/logo", "logo.png", DEMO_LOGO.read_bytes())
+    if response.status_code == 503:
+        print("  logo skipped: the API has no image storage configured")
+    else:
+        api._check(response)
+
     print("Warehouses and locations")
     main = api.get("/warehouses")[0]
     api.patch(f"/warehouses/{main['id']}", {"name": "Baghdad Warehouse"})
@@ -127,6 +145,7 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
             print("  skipped: the API has no image storage configured")
             break
         api._check(response)
+
     suppliers = [
         api.post("/partners", {"name": n, "email": e, "phone": p, "is_supplier": True})["id"]
         for n, e, p in SUPPLIERS
