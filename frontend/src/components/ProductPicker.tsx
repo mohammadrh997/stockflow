@@ -12,6 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useProduct, useProducts } from '@/features/products/queries'
 import { useDebouncedValue } from '@/lib/useListParams'
+import { ProductThumb } from '@/components/ProductThumb'
 import { cn } from '@/lib/utils'
 
 const RESULT_LIMIT = 20
@@ -101,6 +102,7 @@ export function ProductPicker({
                   }}
                 >
                   <Check className={cn(product.id === value ? 'opacity-100' : 'opacity-0')} />
+                  <ProductThumb url={product.image_url} className="size-6" />
                   <span className="truncate">{product.name}</span>
                   <span className="ml-auto text-xs text-muted-foreground">{product.sku}</span>
                 </CommandItem>

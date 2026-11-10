@@ -202,6 +202,24 @@ describe('product page', () => {
 describe('product image', () => {
   const url = 'https://images.test/products/abc.webp'
 
+  it('shows a small picture in the list, or a plain box without one', async () => {
+    server.use(
+      http.get(`${API}/products`, () =>
+        HttpResponse.json([
+          makeProduct({ image_url: url }),
+          makeProduct({ id: 2, name: 'Lamp', sku: 'LAMP' }),
+        ]),
+      ),
+    )
+    signInAs(viewer)
+    renderApp('/products')
+
+    const desk = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
+    const lamp = screen.getByRole('link', { name: 'Lamp' }).closest('tr')!
+    expect(desk.querySelector(`img[src="${url}"]`)).not.toBeNull()
+    expect(lamp.querySelector('img')).toBeNull()
+  })
+
   function png(name = 'desk.png', bytes = 10) {
     return new File([new Uint8Array(bytes)], name, { type: 'image/png' })
   }

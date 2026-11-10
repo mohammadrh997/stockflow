@@ -53,7 +53,7 @@ export function OrderLinesTable({
       cell: (line) => (
         <div className="grid gap-0.5">
           <span className="font-medium">
-            <ProductName id={line.product_id} />
+            <ProductName id={line.product_id} thumb />
           </span>
           {hint && <span className="text-xs text-muted-foreground">{hint(line.product_id)}</span>}
         </div>

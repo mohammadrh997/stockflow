@@ -8,6 +8,7 @@ import { DataTable, type Column } from '@/components/DataTable'
 import { ListToolbar, SearchInput, ShowArchivedToggle } from '@/components/ListToolbar'
 import { Money } from '@/components/Money'
 import { PageHeader } from '@/components/PageHeader'
+import { ProductThumb } from '@/components/ProductThumb'
 import { Pagination } from '@/components/Pagination'
 import { Button } from '@/components/ui/button'
 import { useListParams } from '@/lib/useListParams'
@@ -17,9 +18,12 @@ const columns: Column<Product>[] = [
   {
     header: 'Name',
     cell: (product) => (
-      <Link to={`/products/${product.id}`} className="font-medium hover:underline">
-        {product.name}
-      </Link>
+      <span className="flex items-center gap-2">
+        <ProductThumb url={product.image_url} />
+        <Link to={`/products/${product.id}`} className="font-medium hover:underline">
+          {product.name}
+        </Link>
+      </span>
     ),
   },
   { header: 'SKU', cell: (product) => product.sku },

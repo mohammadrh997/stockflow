@@ -31,7 +31,7 @@ export function InvoiceLinesTable({ invoice, editable }: { invoice: Invoice; edi
       header: 'Product',
       cell: (line) => (
         <span className="font-medium">
-          <ProductName id={line.product_id} />
+          <ProductName id={line.product_id} thumb />
         </span>
       ),
     },
