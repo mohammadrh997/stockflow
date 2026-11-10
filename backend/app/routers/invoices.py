@@ -181,10 +181,12 @@ async def register_payment(
 
 
 @router.get("/{invoice_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
-async def invoice_pdf(db: DBsession, invoice_id: int, user: CurrentUser):
-    await _get_invoice_for(db, invoice_id, user, Access.user)
+async def invoice_pdf(db: DBsession, invoice_id: int):
+    # Anyone who can read an invoice can print it (see get_invoice)
     try:
         doc = await documents.invoice_document(db, invoice_id)
+    except InvoiceNotFound:
+        raise HTTPException(status_code=404, detail="Invoice not found") from None
     except DocumentNotAvailable as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
     return pdf_response(await documents.render_pdf(doc), doc.filename)

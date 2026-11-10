@@ -43,6 +43,7 @@
   .info { display: flex; justify-content: space-between; align-items: flex-start; margin: 26px 0 28px; }
   .party { width: 85mm; }
   .party .name { font-size: 11pt; font-weight: 700; color: #111827; margin: 3px 0 1px; }
+  .party .lines { white-space: pre-line; }  /* keep an address's line breaks */
   .details { border-collapse: collapse; }
   .details td { padding: 1.5px 0; }
   .details td:first-child { color: #6B7280; padding-right: 22px; }
@@ -87,7 +88,7 @@
       <div class="label">{{ doc.partner_label }}</div>
       <div class="name" dir="{{ doc.partner.name | direction }}">{{ doc.partner.name }}</div>
       {% for detail in [doc.partner.address, doc.partner.email, doc.partner.phone] if detail %}
-        <div dir="{{ detail | direction }}">{{ detail }}</div>
+        <div class="lines" dir="{{ detail | direction }}">{{ detail }}</div>
       {% endfor %}
     </div>
     <table class="details">

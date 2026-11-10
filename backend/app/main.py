@@ -69,4 +69,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Cross-origin JavaScript can't read this header unless it's listed, and the
+    # frontend needs it for the PDF's filename
+    expose_headers=["Content-Disposition"],
 )
