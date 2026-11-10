@@ -60,9 +60,10 @@ export function OrderDetailsForm({ role, defaultValues, submitLabel, onSubmit }:
 
   return (
     <>
-      <form className="grid max-w-xl gap-4" onSubmit={handleSubmit(submit)} noValidate>
+      <form className="grid max-w-2xl gap-4" onSubmit={handleSubmit(submit)} noValidate>
         {formError && <ErrorMessage message={formError} />}
-        <div className="grid gap-4">
+        {/* Side by side when there is room: the details sit in a strip above the lines. */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             label={partnerLabel}
             htmlFor="order-partner"
