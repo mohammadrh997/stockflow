@@ -65,11 +65,20 @@ async def test_only_admins_can_change_it(client, boss, make_user):
     assert body["currency"] == "IQD"
 
 
+bad_values = (
+    {"name": None},
+    {"name": ""},
+    {"currency": None},
+    {"currency": "US"},
+    {"currency": "XYZ"},  # three letters, but not a currency we offer
+)
+
+
 async def test_invalid_values_are_rejected_and_null_clears_optional_fields(client, make_user):
     headers = await admin(make_user)
     await client.patch("/settings/company", json={"phone": "+964 770 000 0000"}, headers=headers)
 
-    for bad in ({"name": None}, {"name": ""}, {"currency": None}, {"currency": "US"}):
+    for bad in bad_values:
         response = await client.patch("/settings/company", json=bad, headers=headers)
         assert response.status_code == 422, bad
 
