@@ -19,8 +19,6 @@ type Values = { product_id: number | null; quantity: string; unit_price: string 
 
 const FIELDS = ['product_id', 'quantity', 'unit_price'] as const
 
-const PRICE_LABELS = { cost_price: 'Cost price', sale_price: 'Sale price' }
-
 type Props = {
   // The product price used when the unit price is left empty.
   defaultPrice: 'cost_price' | 'sale_price'
@@ -45,10 +43,9 @@ export function AddLineForm({ defaultPrice, hint, onAdd }: Props) {
   } = useForm<Values>({ defaultValues: { product_id: null, quantity: '', unit_price: '' } })
   const productId = useWatch({ control, name: 'product_id' })
   const product = useProduct(productId ?? 0, { enabled: productId !== null })
-  const priceLabel = PRICE_LABELS[defaultPrice]
-  const pricePlaceholder = product.data
-    ? `${priceLabel}: ${formatMoney(product.data[defaultPrice])}`
-    : priceLabel
+  // Just the product's price: it's what the line gets when the field is left empty. A longer
+  // text didn't fit the narrow field and hid the number.
+  const pricePlaceholder = product.data ? formatMoney(product.data[defaultPrice]) : undefined
 
   async function submit(values: Values) {
     setFormError(null)

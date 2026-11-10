@@ -246,14 +246,12 @@ describe('purchase order page', () => {
     const user = userEvent.setup()
 
     const picker = await screen.findByRole('combobox', { name: 'Product' })
-    expect(screen.getByLabelText('Unit price')).toHaveAttribute('placeholder', 'Cost price')
+    expect(screen.getByLabelText('Unit price')).not.toHaveAttribute('placeholder')
     await user.click(picker)
     await user.click(await screen.findByRole('option', { name: /Desk/ }))
     await waitFor(() =>
-      expect(screen.getByLabelText('Unit price')).toHaveAttribute(
-        'placeholder',
-        'Cost price: 30.00',
-      ),
+      // The product's cost price, which the line gets if the field stays empty.
+      expect(screen.getByLabelText('Unit price')).toHaveAttribute('placeholder', '30.00'),
     )
     await user.type(screen.getByLabelText('Quantity'), '2')
     await user.click(screen.getByRole('button', { name: 'Add line' }))
