@@ -20,7 +20,7 @@ export function CompanyPage() {
       ) : company.error ? (
         <ErrorMessage error={company.error} onRetry={() => company.refetch()} />
       ) : (
-        <Panel className="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
+        <Panel className="grid max-w-4xl gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
           <CompanyLogo company={company.data} />
           <CompanyForm company={company.data} />
         </Panel>

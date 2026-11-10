@@ -4,7 +4,6 @@ import { useCompany } from './queries'
 export function CurrencyCode() {
   const company = useCompany()
   if (!company.data) return null
-  return (
-    <span className="ml-1 text-xs font-normal text-muted-foreground">{company.data.currency}</span>
-  )
+  // A real space rather than a margin, so copying or hearing it gives "40.00 USD".
+  return <span className="text-xs font-normal text-muted-foreground"> {company.data.currency}</span>
 }
