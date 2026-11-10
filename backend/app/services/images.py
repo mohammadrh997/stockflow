@@ -26,5 +26,12 @@ def to_webp(data: bytes) -> bytes:
             out = io.BytesIO()
             image.save(out, "WEBP", quality=82)  # a fresh file: no EXIF, GPS or extra data
             return out.getvalue()
-    except (UnidentifiedImageError, Image.DecompressionBombError, OSError, SyntaxError):
+    except (
+        UnidentifiedImageError,
+        Image.DecompressionBombError,
+        OSError,
+        SyntaxError,
+        ValueError,
+        EOFError,
+    ):
         raise InvalidImage("the file isn't a readable image") from None

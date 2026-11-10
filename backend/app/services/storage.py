@@ -69,7 +69,13 @@ class MemoryStorage:
 def configured_storage() -> Storage | None:
     s = settings
     secret = s.storage_secret_key.get_secret_value() if s.storage_secret_key else ""
-    if not (s.storage_endpoint and s.storage_bucket and s.storage_key_id and secret):
+    if not (
+        s.storage_endpoint
+        and s.storage_bucket
+        and s.storage_key_id
+        and secret
+        and s.storage_public_url
+    ):
         return None
     return S3Storage(
         s.storage_endpoint, s.storage_region, s.storage_bucket, s.storage_key_id, secret

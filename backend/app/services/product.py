@@ -98,6 +98,7 @@ async def _delete_quietly(storage: Storage, key: str) -> None:
 
 async def set_image(db: AsyncSession, storage: Storage, product_id: int, data: bytes) -> Product:
     await fetch_product(db, product_id)  # 404 before doing any work
+    await db.rollback()  # end that read, so no connection is held during the slow part
     webp = await asyncio.to_thread(images.to_webp, data)  # CPU work, off the event loop
     key = f"products/{uuid.uuid4().hex}.webp"  # new name every time, so caches never go stale
     await storage.put(key, webp, "image/webp")
