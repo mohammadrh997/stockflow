@@ -83,7 +83,8 @@ function OrdersButton({ query, icon, label, done, path }: OrdersProps) {
         <Face
           icon={icon}
           value={query.isError ? '?' : (count ?? <Skeleton className="inline-block h-4 w-6" />)}
-          label={label}
+          // "1 sales order", "2 sales orders"
+          label={data?.orders.length === 1 ? label.replace(/s$/, '') : label}
           detail={data && `${formatQuantity(data.committed)} ${done}`}
         />
       </PopoverTrigger>

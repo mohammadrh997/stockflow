@@ -386,6 +386,7 @@ describe('product smart buttons', () => {
     expect(sales).toHaveTextContent('5 sold')
     expect(skips).toEqual(['0', '100'])
     expect(screen.queryByRole('button', { name: /purchase orders/ })).not.toBeInTheDocument()
+    expect(sales).toHaveTextContent(/^2 sales orders/)
 
     await user.click(sales)
     const list = await screen.findByRole('list', { name: 'sales orders' })
