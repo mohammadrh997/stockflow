@@ -7,6 +7,7 @@ from app.dependencies import (
     CurrentUser,
     DBsession,
     Module,
+    OptionalStorageDep,
     has_access,
     pagination_params,
     require_any_access,
@@ -181,10 +182,9 @@ async def register_payment(
 
 
 @router.get("/{invoice_id}/pdf", response_class=Response, responses=PDF_RESPONSE)
-async def invoice_pdf(db: DBsession, invoice_id: int):
-    # Anyone who can read an invoice can print it (see get_invoice)
+async def invoice_pdf(db: DBsession, invoice_id: int, storage: OptionalStorageDep):
     try:
-        doc = await documents.invoice_document(db, invoice_id)
+        doc = await documents.invoice_document(db, invoice_id, storage)
     except InvoiceNotFound:
         raise HTTPException(status_code=404, detail="Invoice not found") from None
     except DocumentNotAvailable as exc:

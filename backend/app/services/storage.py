@@ -1,6 +1,7 @@
 """Where uploaded files live: an S3-compatible bucket in production, memory in tests."""
 
 import asyncio
+import logging
 from functools import cache
 from typing import TYPE_CHECKING, Protocol
 
@@ -13,9 +14,12 @@ if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
 
 
+logger = logging.getLogger(__name__)
+
+
 class Storage(Protocol):
     async def put(self, key: str, data: bytes, content_type: str) -> None: ...
-
+    async def get(self, key: str) -> bytes: ...
     async def delete(self, key: str) -> None: ...
 
 
@@ -48,6 +52,12 @@ class S3Storage:
             CacheControl="public, max-age=31536000, immutable",
         )
 
+    async def get(self, key: str) -> bytes:
+        def read() -> bytes:
+            return self._client.get_object(Bucket=self._bucket, Key=key)["Body"].read()
+
+        return await asyncio.to_thread(read)
+
     async def delete(self, key: str) -> None:
         await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
 
@@ -57,6 +67,9 @@ class MemoryStorage:
 
     def __init__(self) -> None:
         self.files: dict[str, bytes] = {}
+
+    async def get(self, key: str) -> bytes:
+        return self.files[key]
 
     async def put(self, key: str, data: bytes, content_type: str) -> None:
         self.files[key] = data
@@ -86,3 +99,12 @@ def public_url(key: str | None) -> str | None:
     if key is None or not settings.storage_public_url:
         return None
     return f"{settings.storage_public_url.rstrip('/')}/{key}"
+
+
+async def delete_quietly(storage: Storage, key: str) -> None:
+    # Called once the database no longer points at the file. If deleting it fails, it's
+    # only an unused file in the bucket, so log it rather than fail a request that worked.
+    try:
+        await storage.delete(key)
+    except Exception:
+        logger.warning("Could not delete unused file %s", key, exc_info=True)

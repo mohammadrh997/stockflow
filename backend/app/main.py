@@ -12,6 +12,7 @@ from app.core.database import AsyncSessionLocal, engine
 from app.core.limiter import limiter
 from app.routers import (
     auth,
+    company,
     health,
     invoices,
     partner,
@@ -47,6 +48,7 @@ app.state.limiter = limiter
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(company.router)
 app.include_router(users.router)
 app.include_router(invoices.router)
 app.include_router(partner.router)

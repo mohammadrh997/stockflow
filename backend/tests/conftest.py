@@ -27,7 +27,7 @@ from sqlalchemy.pool import NullPool  # noqa: E402
 from alembic import command  # noqa: E402
 from app.core.database import Base  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
-from app.dependencies import get_db, get_storage  # noqa: E402
+from app.dependencies import get_db, get_optional_storage  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.user import (
     Access,  # noqa: E402
@@ -127,5 +127,5 @@ async def boss(make_user) -> dict[str, str]:
 def storage(client: AsyncClient) -> MemoryStorage:
     """Image uploads go to a dict instead of a bucket. Requested by tests that upload."""
     memory = MemoryStorage()
-    app.dependency_overrides[get_storage] = lambda: memory
+    app.dependency_overrides[get_optional_storage] = lambda: memory
     return memory

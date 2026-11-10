@@ -6,6 +6,8 @@ the HTML into a PDF.
 """
 
 import asyncio
+import base64
+import logging
 import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -20,21 +22,34 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
 from app.models.invoice import Invoice, InvoiceLine, InvoiceState, InvoiceType
 from app.models.partner import Partner
 from app.models.purchase import PurchaseOrder, PurchaseOrderLine, PurchaseState
 from app.models.sale import SalesOrder, SalesOrderLine, SalesState
 from app.schemas.common import line_subtotal
+from app.services.company import get_company
 from app.services.invoice import InvoiceNotFound
 from app.services.purchase import PurchaseOrderNotFound
 from app.services.sale import SalesOrderNotFound
+from app.services.storage import Storage
 
 APP_DIR = Path(__file__).resolve().parent.parent
-ASSETS = APP_DIR / "assets"  # fonts and logo; the template's relative URLs point here
+ASSETS = APP_DIR / "assets"  # fonts; the template's relative URLs point here
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentNotAvailable(Exception): ...  # 409: the record's state can't be printed
+
+
+@dataclass
+class CompanyInfo:
+    name: str
+    address: str | None
+    phone: str | None
+    email: str | None
+    currency: str
+    logo: str | None  # a data: URL, so rendering never touches the network
 
 
 @dataclass
@@ -57,6 +72,7 @@ class Document:
     lines: list[DocumentLine]
     total: Decimal
     filename: str
+    company: CompanyInfo
     watermark: str | None = None  # "DRAFT" across every page
 
 
@@ -94,10 +110,7 @@ def render(doc: Document) -> bytes:
     # Docker and CI install. Without it only the PDF endpoints fail, not the whole app.
     from weasyprint import HTML
 
-    html = _templates.get_template("document.html").render(
-        doc=doc,
-        company={"name": settings.company_name, "address": settings.company_address},
-    )
+    html = _templates.get_template("document.html").render(doc=doc, company=doc.company)
     pdf = HTML(string=html, base_url=str(ASSETS), url_fetcher=_assets_only_fetcher()).write_pdf()
     assert pdf is not None  # write_pdf() only returns None when given a target file
     return pdf
@@ -115,6 +128,8 @@ def _assets_only_fetcher():
     class AssetsOnly(URLFetcher):
         def fetch(self, url, headers=None):
             parsed = urlparse(url)
+            if parsed.scheme == "data":  # the logo, embedded by us; nothing is fetched
+                return super().fetch(url, headers)
             if parsed.scheme != "file":
                 raise ValueError(f"only bundled assets can be loaded, not {url}")
             path = Path(url2pathname(parsed.path)).resolve()
@@ -131,6 +146,35 @@ async def render_pdf(doc: Document) -> bytes:
 
 
 # ---- builders ----
+
+_logo_cache: dict[str, str] = {}  # logo key -> data: URL; a new logo gets a new key
+
+
+async def _logo_data_url(key: str | None, storage: Storage | None) -> str | None:
+    if key is None or storage is None:
+        return None
+    if key not in _logo_cache:
+        try:
+            data = await storage.get(key)
+        except Exception:
+            # A missing logo shouldn't stop anyone printing an invoice
+            logger.warning("Could not load the company logo %s", key, exc_info=True)
+            return None
+        _logo_cache.clear()  # only the current logo is ever needed
+        _logo_cache[key] = "data:image/webp;base64," + base64.b64encode(data).decode()
+    return _logo_cache[key]
+
+
+async def _company_info(db: AsyncSession, storage: Storage | None) -> CompanyInfo:
+    company = await get_company(db)
+    return CompanyInfo(
+        name=company.name,
+        address=company.address,
+        phone=company.phone,
+        email=company.email,
+        currency=company.currency,
+        logo=await _logo_data_url(company.logo_key, storage),
+    )
 
 
 def _lines(lines: Sequence[SalesOrderLine | PurchaseOrderLine | InvoiceLine]) -> list[DocumentLine]:
@@ -151,7 +195,7 @@ def _total(lines: list[DocumentLine]) -> Decimal:
     return sum((line.subtotal for line in lines), Decimal("0"))
 
 
-async def invoice_document(db: AsyncSession, invoice_id: int) -> Document:
+async def invoice_document(db: AsyncSession, invoice_id: int, storage: Storage | None) -> Document:
     invoice = await db.scalar(
         select(Invoice)
         .where(Invoice.id == invoice_id)
@@ -184,6 +228,7 @@ async def invoice_document(db: AsyncSession, invoice_id: int) -> Document:
             lines=lines,
             total=_total(lines),
             filename=f"draft-{'bill' if is_bill else 'invoice'}-{invoice.id}.pdf",
+            company=await _company_info(db, storage),
             watermark="DRAFT",
         )
 
@@ -204,10 +249,13 @@ async def invoice_document(db: AsyncSession, invoice_id: int) -> Document:
         lines=lines,
         total=invoice.amount_total,
         filename=f"{invoice.number}.pdf",
+        company=await _company_info(db, storage),
     )
 
 
-async def sales_order_document(db: AsyncSession, order_id: int) -> Document:
+async def sales_order_document(
+    db: AsyncSession, order_id: int, storage: Storage | None
+) -> Document:
     order = await db.scalar(
         select(SalesOrder)
         .where(SalesOrder.id == order_id)
@@ -232,10 +280,13 @@ async def sales_order_document(db: AsyncSession, order_id: int) -> Document:
         lines=lines,
         total=_total(lines),
         filename=f"{order.reference}.pdf",
+        company=await _company_info(db, storage),
     )
 
 
-async def purchase_order_document(db: AsyncSession, order_id: int) -> Document:
+async def purchase_order_document(
+    db: AsyncSession, order_id: int, storage: Storage | None
+) -> Document:
     order = await db.scalar(
         select(PurchaseOrder)
         .where(PurchaseOrder.id == order_id)
@@ -261,4 +312,5 @@ async def purchase_order_document(db: AsyncSession, order_id: int) -> Document:
         lines=lines,
         total=_total(lines),
         filename=f"{order.reference}.pdf",
+        company=await _company_info(db, storage),
     )
