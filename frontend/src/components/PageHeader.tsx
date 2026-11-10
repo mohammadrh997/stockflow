@@ -13,9 +13,11 @@ type Props = {
   // The pages above this one, e.g. the list it belongs to. The page itself is added at the end.
   trail?: Crumb[]
   actions?: ReactNode
+  // Small actions about the record itself (Archive), shown right next to its name.
+  nameActions?: ReactNode
 }
 
-export function PageHeader({ title, pageTitle, trail, actions }: Props) {
+export function PageHeader({ title, pageTitle, trail, actions, nameActions }: Props) {
   const name = pageTitle ?? (typeof title === 'string' ? title : undefined)
   usePageTitle(name)
 
@@ -45,7 +47,10 @@ export function PageHeader({ title, pageTitle, trail, actions }: Props) {
         </nav>
       )}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="flex items-center gap-3 text-2xl font-semibold">{title}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="flex items-center gap-3 text-2xl font-semibold">{title}</h1>
+          {nameActions}
+        </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
     </div>

@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     # Printed at the top of PDFs; the address may span several lines
     company_name: str = "ClearCypher"
     company_address: str | None = "Karrada, Baghdad, Iraq\n+964 770 000 0000"
+    # Product images go to an S3-compatible bucket (Backblaze B2 in the demo).
+    storage_endpoint: str | None = None  # e.g. https://s3.us-east-005.backblazeb2.com
+    storage_region: str | None = None  # e.g. us-east-005
+    storage_bucket: str | None = None
+    storage_key_id: str | None = None
+    storage_secret_key: SecretStr | None = None
+    storage_public_url: str | None = None  # where browsers load images from
 
 
 settings = Settings()

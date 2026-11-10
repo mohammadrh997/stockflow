@@ -9,12 +9,14 @@ The admin password and the demo user's password are asked for at the prompt
 
 import argparse
 import getpass
+import io
 import os
 import sys
 from datetime import date
 from typing import Any
 
 import httpx
+from PIL import Image, ImageDraw, ImageFont
 
 
 class SeedError(Exception):
@@ -40,6 +42,9 @@ class Api:
     def patch(self, path: str, body: dict[str, Any]) -> Any:
         return self._check(self.client.patch(path, json=body)).json()
 
+    def upload(self, path: str, filename: str, data: bytes) -> httpx.Response:
+        return self.client.put(path, files={"file": (filename, data, "image/png")})
+
     @staticmethod
     def _check(response: httpx.Response) -> httpx.Response:
         if response.is_error:
@@ -63,6 +68,21 @@ PRODUCTS = [
     ("PAPER-A4", "A4 Paper, box of 5 reams", "22.50", "14.00"),
     ("CABLE-HDMI", "HDMI Cable 2 m", "9.50", "3.20"),
 ]
+
+# Left without an image on purpose, so the demo shows that state too
+WITHOUT_IMAGE = {"PAPER-A4", "CABLE-HDMI"}
+COLORS = ["#1F3A5F", "#E8590C", "#2F7D6D", "#6B4FA0", "#B23A48", "#3A6EA5", "#7A6A2F", "#4A5568"]
+
+
+def placeholder_image(label: str, color: str) -> bytes:
+    """A coloured square with a short label: drawn here, so there are no image files to license."""
+    image = Image.new("RGB", (600, 600), color)
+    font = ImageFont.load_default(size=130)
+    ImageDraw.Draw(image).text((300, 300), label, fill="white", font=font, anchor="mm")
+    out = io.BytesIO()
+    image.save(out, "PNG")
+    return out.getvalue()
+
 
 SUPPLIERS = [
     ("Tigris Office Supply", "orders@tigris-office.example.com", "+964 770 000 0101"),
@@ -96,6 +116,17 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
             "/products",
             {"sku": sku, "name": name, "sale_price": sale_price, "cost_price": cost_price},
         )["id"]
+
+    print("Product images")
+    for i, (sku, *_) in enumerate(PRODUCTS):
+        if sku in WITHOUT_IMAGE:
+            continue
+        data = placeholder_image(sku.split("-")[0], COLORS[i % len(COLORS)])  # CHAIR, DESK, ...
+        response = api.upload(f"/products/{products[sku]}/image", f"{sku}.png", data)
+        if response.status_code == 503:
+            print("  skipped: the API has no image storage configured")
+            break
+        api._check(response)
     suppliers = [
         api.post("/partners", {"name": n, "email": e, "phone": p, "is_supplier": True})["id"]
         for n, e, p in SUPPLIERS

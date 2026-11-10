@@ -16,7 +16,7 @@ export function TransferLinesTable({ transfer }: { transfer: Transfer }) {
       header: 'Product',
       cell: (line) => (
         <span className="font-medium">
-          <ProductName id={line.product_id} />
+          <ProductName id={line.product_id} thumb />
         </span>
       ),
     },

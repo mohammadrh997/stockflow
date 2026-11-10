@@ -784,6 +784,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/products/{product_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload Product Image */
+        put: operations["upload_product_image_products__product_id__image_put"];
+        post?: never;
+        /** Delete Product Image */
+        delete: operations["delete_product_image_products__product_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/warehouses": {
         parameters: {
             query?: never;
@@ -937,6 +955,11 @@ export interface components {
              * Format: password
              */
             client_secret?: string | null;
+        };
+        /** Body_upload_product_image_products__product_id__image_put */
+        Body_upload_product_image_products__product_id__image_put: {
+            /** File */
+            file: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1219,8 +1242,6 @@ export interface components {
             sale_price: string;
             /** Cost Price */
             cost_price: string;
-            /** Image Key */
-            image_key: string | null;
             /** Is Active */
             is_active: boolean;
             /**
@@ -1229,6 +1250,8 @@ export interface components {
              */
             created_at: string;
             created_by: components["schemas"]["UserSummary"];
+            /** Image Url */
+            readonly image_url: string | null;
         };
         /** ProductUpdate */
         ProductUpdate: {
@@ -3575,6 +3598,72 @@ export interface operations {
         };
     };
     unarchive_products_products__product_id__unarchive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_product_image_products__product_id__image_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_product_image_products__product_id__image_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_product_image_products__product_id__image_delete: {
         parameters: {
             query?: never;
             header?: never;

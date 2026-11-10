@@ -1,17 +1,26 @@
 import { Link } from 'react-router'
 
+import { ProductThumb } from '@/components/ProductThumb'
 import { usePartner } from '@/features/partners/queries'
 import { useProduct } from '@/features/products/queries'
 import { useLocations, useWarehouses } from '@/features/warehouses/queries'
 
 // Records reference each other by id; these resolve a name through the shared query cache.
 
-export function ProductName({ id }: { id: number }) {
+// With `thumb`, the product's picture sits before its name (on order and invoice lines).
+export function ProductName({ id, thumb = false }: { id: number; thumb?: boolean }) {
   const product = useProduct(id)
-  return (
+  const link = (
     <Link to={`/products/${id}`} className="hover:underline">
       {product.data?.name ?? `Product #${id}`}
     </Link>
+  )
+  if (!thumb) return link
+  return (
+    <span className="flex items-center gap-2">
+      <ProductThumb url={product.data?.image_url} />
+      {link}
+    </span>
   )
 }
 

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.core.security import decode_token
 from app.models.user import Access, User
+from app.services.storage import Storage, configured_storage
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
@@ -89,3 +90,13 @@ def pagination_params(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1, l
 
 def has_access(user: User, module: Module, level: Access) -> bool:
     return user.is_admin or _access_level(user, module) >= level
+
+
+def get_storage() -> Storage:
+    storage = configured_storage()
+    if storage is None:
+        raise HTTPException(status_code=503, detail="Image storage isn't configured")
+    return storage
+
+
+StorageDep = Annotated[Storage, Depends(get_storage)]

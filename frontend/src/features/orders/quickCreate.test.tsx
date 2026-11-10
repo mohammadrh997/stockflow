@@ -29,7 +29,7 @@ const stool = {
   sku: 'ST-1',
   sale_price: '20.00',
   cost_price: '12.00',
-  image_key: null,
+  image_url: null,
   is_active: true,
   created_at: '2026-01-01T00:00:00Z',
   created_by: { id: 1, name: 'Admin' },

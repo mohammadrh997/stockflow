@@ -56,7 +56,7 @@ function mockReferenceData() {
         sku: 'DESK',
         sale_price: '50.00',
         cost_price: '30.00',
-        image_key: null,
+        image_url: null,
         is_active: true,
         created_at: '2026-01-01T00:00:00Z',
         created_by: { id: 1, name: 'Admin' },
@@ -229,7 +229,7 @@ describe('purchase order page', () => {
             sku: 'DESK',
             sale_price: '50.00',
             cost_price: '30.00',
-            image_key: null,
+            image_url: null,
             is_active: true,
             created_at: '2026-01-01T00:00:00Z',
             created_by: { id: 1, name: 'Admin' },
@@ -246,14 +246,12 @@ describe('purchase order page', () => {
     const user = userEvent.setup()
 
     const picker = await screen.findByRole('combobox', { name: 'Product' })
-    expect(screen.getByLabelText('Unit price')).toHaveAttribute('placeholder', 'Cost price')
+    expect(screen.getByLabelText('Unit price')).not.toHaveAttribute('placeholder')
     await user.click(picker)
     await user.click(await screen.findByRole('option', { name: /Desk/ }))
     await waitFor(() =>
-      expect(screen.getByLabelText('Unit price')).toHaveAttribute(
-        'placeholder',
-        'Cost price: 30.00',
-      ),
+      // The product's cost price, which the line gets if the field stays empty.
+      expect(screen.getByLabelText('Unit price')).toHaveAttribute('placeholder', '30.00'),
     )
     await user.type(screen.getByLabelText('Quantity'), '2')
     await user.click(screen.getByRole('button', { name: 'Add line' }))
@@ -330,7 +328,10 @@ describe('purchase order page', () => {
       screen.getByLabelText('Goods have already arrived. Cancel the backorder instead.'),
     ).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Receipts \(2\)/ }))
+    // One receipt done, its backorder still waiting.
+    const receipts = screen.getByRole('button', { name: '2 receipts, 1 waiting' })
+    expect(receipts).toHaveTextContent('1 waiting')
+    await user.click(receipts)
     const history = await screen.findByRole('list', { name: 'Receipts' })
     const items = within(history).getAllByRole('link')
     expect(items.map((item) => item.getAttribute('href'))).toEqual([
@@ -371,7 +372,7 @@ describe('purchase order page', () => {
     signInAs(makeUser({ purchase_access: 'user', inventory_access: 'user' }))
     renderApp('/purchase-orders/7')
 
-    expect(await screen.findByRole('link', { name: /Receipt WH\/IN\/00007/ })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: '1 receipt, 1 waiting' })).toHaveAttribute(
       'href',
       '/transfers/21',
     )

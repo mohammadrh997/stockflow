@@ -3,7 +3,7 @@ import { Outlet, type RouteObject } from 'react-router'
 
 import { AuthProvider } from '@/auth/AuthProvider'
 import { LoginPage } from '@/auth/LoginPage'
-import { can, canEditPartners } from '@/auth/permissions'
+import { can, canEditPartners, canViewInvoices } from '@/auth/permissions'
 import { RequireAccess } from '@/auth/RequireAccess'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -27,6 +27,10 @@ const NewProductPage = lazyPage(
   'NewProductPage',
 )
 const ProductPage = lazyPage(() => import('@/features/products/ProductPage'), 'ProductPage')
+const ProductMovesPage = lazyPage(
+  () => import('@/features/products/ProductMovesPage'),
+  'ProductMovesPage',
+)
 const ProductsPage = lazyPage(() => import('@/features/products/ProductsPage'), 'ProductsPage')
 const NewPurchaseOrderPage = lazyPage(
   () => import('@/features/purchase/NewPurchaseOrderPage'),
@@ -101,6 +105,15 @@ export const routes: RouteObject[] = [
                 ),
               },
               { path: 'products/:productId', element: <ProductPage /> },
+              {
+                // Moves come from transfers, which need inventory access to read.
+                path: 'products/:productId/moves',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'inventory')}>
+                    <ProductMovesPage />
+                  </RequireAccess>
+                ),
+              },
               { path: 'partners', element: <PartnersPage /> },
               {
                 path: 'partners/new',
@@ -141,7 +154,7 @@ export const routes: RouteObject[] = [
               {
                 path: 'invoices',
                 element: (
-                  <RequireAccess allowed={(user) => can(user, 'sales') || can(user, 'purchase')}>
+                  <RequireAccess allowed={canViewInvoices}>
                     <Outlet />
                   </RequireAccess>
                 ),

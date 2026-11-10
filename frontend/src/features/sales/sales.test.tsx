@@ -32,7 +32,7 @@ function product(id: number, name: string) {
     sku: name.toUpperCase(),
     sale_price: '50.00',
     cost_price: '30.00',
-    image_key: null,
+    image_url: null,
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
     created_by: { id: 1, name: 'Admin' },
@@ -240,7 +240,7 @@ describe('invoicing a sales order', () => {
     )
     expect(screen.getByRole('button', { name: 'Create invoice' })).toBeEnabled()
 
-    await user.click(screen.getByRole('button', { name: 'Invoices (2)' }))
+    await user.click(screen.getByRole('button', { name: '2 invoices, 0.00 posted' }))
     const list = await screen.findByRole('list', { name: 'Invoices' })
     const links = within(list).getAllByRole('link')
     expect(links.map((link) => link.getAttribute('href'))).toEqual(['/invoices/1', '/invoices/2'])
@@ -264,7 +264,13 @@ describe('invoicing a sales order', () => {
       await screen.findByLabelText('Everything delivered is already invoiced.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create invoice' })).toBeDisabled()
-    expect(screen.getByRole('link', { name: 'Invoice Draft #1, draft' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '1 invoice, None posted yet' })).toHaveTextContent(
+      'None posted yet',
+    )
+    expect(screen.getByRole('link', { name: '1 invoice, None posted yet' })).toHaveAttribute(
+      'href',
+      '/invoices/1',
+    )
   })
 
   it('drafts an invoice and opens it', async () => {
@@ -316,5 +322,48 @@ describe('invoicing a sales order', () => {
 
     expect(await screen.findByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Create invoice' })).not.toBeInTheDocument()
+  })
+})
+
+describe('order PDF', () => {
+  it('downloads from the More menu', async () => {
+    mockApi(() => makeOrder({ state: 'confirmed' }))
+    let requested = false
+    server.use(
+      http.get(`${API}/sales-orders/8/pdf`, () => {
+        requested = true
+        return new HttpResponse(new Blob(['%PDF-1.7']), {
+          headers: { 'Content-Disposition': 'attachment; filename="SO00008.pdf"' },
+        })
+      }),
+    )
+    URL.createObjectURL = vi.fn(() => 'blob:pdf')
+    URL.revokeObjectURL = vi.fn()
+    const saved: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push(this.download)
+    })
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/sales-orders/8')
+    const user = userEvent.setup()
+
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'More actions' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Download PDF' }))
+
+    await waitFor(() => expect(saved).toEqual(['SO00008.pdf']))
+    expect(requested).toBe(true)
+    click.mockRestore()
+  })
+
+  it('is not offered on a cancelled order', async () => {
+    mockApi(() => makeOrder({ state: 'cancelled' }))
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/sales-orders/8')
+
+    expect(await screen.findByRole('heading', { name: /SO00008/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument()
   })
 })

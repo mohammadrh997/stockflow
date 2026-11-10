@@ -1,13 +1,15 @@
-import { ChevronDown, ReceiptText } from 'lucide-react'
+import { FileText, ReceiptText } from 'lucide-react'
 import { Link } from 'react-router'
 
 import type { Crumb } from '@/components/PageHeader'
+import { SMART_BUTTON, SmartButtonFace } from '@/components/SmartButton'
 import { StateBadge } from '@/components/StateBadge'
-import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PaymentBadge } from '@/features/invoices/InvoiceBits'
 import { invoiceTitle } from '@/features/invoices/invoiceInfo'
 import type { Invoice } from '@/features/invoices/queries'
+import { formatMoney } from '@/lib/format'
+import { fromThousandths, toThousandths } from '@/lib/quantity'
 
 type Props = {
   kind: 'invoice' | 'bill'
@@ -17,45 +19,44 @@ type Props = {
 }
 
 const LABELS = {
-  invoice: { one: 'Invoice', many: 'Invoices' },
-  bill: { one: 'Bill', many: 'Bills' },
+  invoice: { one: 'invoice', many: 'invoices', icon: ReceiptText },
+  bill: { one: 'bill', many: 'bills', icon: FileText },
 }
 
-// Like the receipts and deliveries: one invoice opens directly, several open a short history.
+// A smart button for an order's invoices or bills, like its receipts and deliveries: none
+// says so, one opens directly, several open a short history.
 export function OrderInvoicesButton({ kind, invoices, trail }: Props) {
-  const { one, many } = LABELS[kind]
+  const { one, many, icon } = LABELS[kind]
+  const posted = invoices.filter((invoice) => invoice.state === 'posted')
+  const postedTotal = fromThousandths(
+    posted.reduce((sum, invoice) => sum + toThousandths(invoice.amount_total ?? '0'), 0n),
+  )
+  const face = (
+    <SmartButtonFace
+      icon={icon}
+      value={invoices.length}
+      label={invoices.length === 1 ? one : many}
+      detail={posted.length > 0 ? `${formatMoney(postedTotal)} posted` : 'None posted yet'}
+    />
+  )
 
-  if (invoices.length === 0) return null
+  if (invoices.length === 0) {
+    return <div className={`${SMART_BUTTON} hover:bg-card`}>{face}</div>
+  }
 
   if (invoices.length === 1) {
-    const [invoice] = invoices
     return (
-      <Button asChild variant="outline">
-        <Link
-          to={`/invoices/${invoice.id}`}
-          state={{ trail }}
-          aria-label={`${one} ${invoiceTitle(invoice)}, ${invoice.state}`}
-        >
-          <ReceiptText />
-          {one}
-          <span className="text-muted-foreground">{invoiceTitle(invoice)}</span>
-          <StateBadge state={invoice.state} />
-        </Link>
-      </Button>
+      <Link to={`/invoices/${invoices[0].id}`} state={{ trail }} className={SMART_BUTTON}>
+        {face}
+      </Link>
     )
   }
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline">
-          <ReceiptText />
-          {many} ({invoices.length})
-          <ChevronDown className="opacity-60" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-2">
-        <ul aria-label={many} className="grid gap-1">
+      <PopoverTrigger className={SMART_BUTTON}>{face}</PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-2">
+        <ul aria-label={many.charAt(0).toUpperCase() + many.slice(1)} className="grid gap-1">
           {invoices.map((invoice) => (
             <li key={invoice.id}>
               <Link

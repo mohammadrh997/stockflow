@@ -2,10 +2,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, computed_field
 
 from app.schemas.common import Price
 from app.schemas.user import UserSummary
+from app.services.storage import public_url
 
 Sku = Annotated[
     str, AfterValidator(lambda s: s.strip().upper()), Field(min_length=1, max_length=64)
@@ -34,7 +35,12 @@ class ProductRead(BaseModel):
     sku: str
     sale_price: Decimal
     cost_price: Decimal
-    image_key: str | None
+    image_key: str | None = Field(default=None, exclude=True)  # internal; clients get the URL
     is_active: bool
     created_at: datetime
     created_by: UserSummary
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def image_url(self) -> str | None:
+        return public_url(self.image_key)

@@ -7,11 +7,13 @@ type Props = {
   pageSize: number
   rowCount: number | undefined
   onPageChange: (page: number) => void
+  // For a list already loaded in full, which knows whether more pages follow.
+  hasNext?: boolean
 }
 
 // The API returns no total, so a full page is the only hint that more rows exist.
-export function Pagination({ page, pageSize, rowCount, onPageChange }: Props) {
-  const hasNext = rowCount === pageSize
+export function Pagination({ page, pageSize, rowCount, onPageChange, hasNext: known }: Props) {
+  const hasNext = known ?? rowCount === pageSize
   if (page === 0 && !hasNext) return null
 
   return (

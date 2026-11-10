@@ -11,6 +11,7 @@ import { Money } from '@/components/Money'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
 import { PageHeader, type Crumb } from '@/components/PageHeader'
+import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
@@ -63,111 +64,109 @@ export function InvoicePage() {
   const editable = data.state === 'draft' && canOnInvoices(user, data.invoice_type)
 
   return (
-    <div className="grid gap-8">
-      <PageHeader
-        pageTitle={invoiceTitle(data)}
-        trail={fromOrder ?? [{ to: `/invoices?type=${data.invoice_type}`, label: 'Invoices' }]}
-        title={
-          <>
-            {invoiceTitle(data)}
-            <StateBadge state={data.state} />
-            <PaymentBadge invoice={data} />
-            <OverdueBadge invoice={data} today={today()} />
-          </>
-        }
-        actions={
-          <>
-            {/* The server prints only for the invoice's own module, and never a cancelled one. */}
-            {data.state !== 'cancelled' && canOnInvoices(user, data.invoice_type) && (
-              <DownloadPdfButton
-                source={{ kind: 'invoice', id: data.id }}
-                fallbackName={invoiceTitle(data)}
-              />
-            )}
-            <InvoiceActions invoice={data} />
-          </>
-        }
-      />
-
-      <ProgressTrack steps={['draft', 'posted']} state={data.state} />
-
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-        <div className="grid min-w-0 gap-8">
-          <section className="grid gap-3">
-            <h2 className="text-lg font-semibold">Lines</h2>
-            <InvoiceLinesTable invoice={data} editable={editable} />
-          </section>
-
-          <section className="grid gap-3">
-            <h2 className="text-lg font-semibold">Payments</h2>
-            <DataTable
-              columns={paymentColumns}
-              rows={data.payments}
-              rowKey={(payment) => payment.id}
-              isPending={false}
-              error={null}
-              emptyMessage={
-                data.state === 'posted'
-                  ? 'No payments yet.'
-                  : 'Payments can be recorded once the invoice is posted.'
-              }
+    <RecordLayout
+      header={
+        <PageHeader
+          pageTitle={invoiceTitle(data)}
+          trail={fromOrder ?? [{ to: `/invoices?type=${data.invoice_type}`, label: 'Invoices' }]}
+          title={
+            <>
+              {invoiceTitle(data)}
+              <StateBadge state={data.state} />
+              <PaymentBadge invoice={data} />
+              <OverdueBadge invoice={data} today={today()} />
+            </>
+          }
+        />
+      }
+      status={
+        <>
+          <ProgressTrack steps={['draft', 'posted']} state={data.state} />
+        </>
+      }
+      actions={
+        <>
+          {/* The server prints only for the invoice's own module, and never a cancelled one. */}
+          {data.state !== 'cancelled' && canOnInvoices(user, data.invoice_type) && (
+            <DownloadPdfButton
+              source={{ kind: 'invoice', id: data.id }}
+              fallbackName={invoiceTitle(data)}
             />
-          </section>
-        </div>
+          )}
+          <InvoiceActions invoice={data} />
+        </>
+      }
+      details={
+        <Panel>
+          <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+            <Detail label="Type">{INVOICE_TYPE_LABELS[data.invoice_type].one}</Detail>
+            <Detail label={customer ? 'Customer' : 'Supplier'}>
+              <PartnerName id={data.partner_id} />
+            </Detail>
+            <Detail label="Order">
+              <InvoiceOrderLink invoice={data} />
+            </Detail>
+            <Detail label="Invoice date">
+              {data.invoice_date ? formatDate(data.invoice_date) : 'Set when posted'}
+            </Detail>
+            <Detail label="Due date">
+              {data.due_date ? formatDate(data.due_date) : 'Set when posted'}
+            </Detail>
+            {data.posted_at && (
+              <DoneByRows label="Posted" at={data.posted_at} by={data.posted_by} />
+            )}
+            <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+          </dl>
+        </Panel>
+      }
+    >
+      <section className="grid min-w-0 gap-3">
+        <h2 className="text-lg font-semibold">Lines</h2>
+        <InvoiceLinesTable invoice={data} editable={editable} />
+        {/* Under the lines and to the right, as on a printed invoice. */}
+        <dl className="grid w-full grid-cols-[1fr_auto] gap-y-2 justify-self-end text-sm sm:w-80 [&_dd]:pl-8">
+          {data.state === 'posted' ? (
+            <>
+              <dt className="text-muted-foreground">Total</dt>
+              <dd className="text-right font-medium">
+                <Money value={data.amount_total ?? '0'} />
+              </dd>
+              <dt className="text-muted-foreground">Paid</dt>
+              <dd className="text-right">
+                <Money value={data.amount_paid} />
+              </dd>
+              <dt className="border-t pt-2 font-medium">Amount due</dt>
+              <dd className="border-t pt-2 text-right text-lg font-semibold">
+                <Money value={data.amount_due} />
+              </dd>
+            </>
+          ) : (
+            // A draft owes nothing yet, and a cancelled invoice no longer counts.
+            <>
+              <dt className="font-medium">Total</dt>
+              <dd className="text-right text-lg font-semibold">
+                <Money value={data.amount_total ?? '0'} />
+              </dd>
+            </>
+          )}
+        </dl>
+      </section>
 
-        <aside className="grid gap-6">
-          <Panel>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-              <Detail label="Type">{INVOICE_TYPE_LABELS[data.invoice_type].one}</Detail>
-              <Detail label={customer ? 'Customer' : 'Supplier'}>
-                <PartnerName id={data.partner_id} />
-              </Detail>
-              <Detail label="Order">
-                <InvoiceOrderLink invoice={data} />
-              </Detail>
-              <Detail label="Invoice date">
-                {data.invoice_date ? formatDate(data.invoice_date) : 'Set when posted'}
-              </Detail>
-              <Detail label="Due date">
-                {data.due_date ? formatDate(data.due_date) : 'Set when posted'}
-              </Detail>
-              {data.posted_at && (
-                <DoneByRows label="Posted" at={data.posted_at} by={data.posted_by} />
-              )}
-              <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
-            </dl>
-          </Panel>
-
-          <Panel>
-            <dl className="grid grid-cols-[1fr_auto] gap-y-2 text-sm">
-              {data.state === 'posted' ? (
-                <>
-                  <dt className="text-muted-foreground">Total</dt>
-                  <dd className="text-right font-medium">
-                    <Money value={data.amount_total ?? '0'} />
-                  </dd>
-                  <dt className="text-muted-foreground">Paid</dt>
-                  <dd className="text-right">
-                    <Money value={data.amount_paid} />
-                  </dd>
-                  <dt className="border-t pt-2 font-medium">Amount due</dt>
-                  <dd className="border-t pt-2 text-right text-lg font-semibold">
-                    <Money value={data.amount_due} />
-                  </dd>
-                </>
-              ) : (
-                // A draft owes nothing yet, and a cancelled invoice no longer counts.
-                <>
-                  <dt className="font-medium">Total</dt>
-                  <dd className="text-right text-lg font-semibold">
-                    <Money value={data.amount_total ?? '0'} />
-                  </dd>
-                </>
-              )}
-            </dl>
-          </Panel>
-        </aside>
-      </div>
-    </div>
+      <section className="grid min-w-0 gap-3">
+        <h2 className="text-lg font-semibold">Payments</h2>
+        <DataTable
+          columns={paymentColumns}
+          rows={data.payments}
+          rowKey={(payment) => payment.id}
+          isPending={false}
+          error={null}
+          emptyMessage={
+            data.state === 'posted'
+              ? 'No payments yet.'
+              : 'Payments can be recorded once the invoice is posted.'
+          }
+        />
+      </section>
+    </RecordLayout>
   )
 }

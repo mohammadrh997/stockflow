@@ -11,10 +11,12 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { Panel } from '@/components/Panel'
 import { PageHeader } from '@/components/PageHeader'
+import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
 import { PartnerForm } from './PartnerForm'
 import { PartnerInvoices } from './PartnerInvoices'
+import { PartnerSmartButtons } from './PartnerSmartButtons'
 import { partnerFormValues, toPartnerPayload } from './partnerValues'
 import { usePartner, useSetPartnerArchived, useUpdatePartner } from './queries'
 
@@ -37,53 +39,68 @@ export function PartnerPage() {
   const values = partnerFormValues(data)
 
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        pageTitle={data.name}
-        trail={[{ to: '/partners', label: 'Partners' }]}
-        title={
-          <>
-            {data.name}
-            {!data.is_active && <ArchivedBadge />}
-          </>
-        }
-        actions={
-          canEdit && (
-            <ConfirmDialog
-              trigger={<Button variant="outline">{archiving ? 'Archive' : 'Unarchive'}</Button>}
-              title={archiving ? `Archive ${data.name}?` : `Unarchive ${data.name}?`}
-              description={
-                archiving
-                  ? 'Archived partners are hidden from lists and cannot be used on new orders.'
-                  : 'The partner will appear in lists and can be used on orders again.'
-              }
-              confirmLabel={archiving ? 'Archive' : 'Unarchive'}
-              destructive={archiving}
-              onConfirm={async () => {
-                await setArchived.mutateAsync(archiving)
-                toast.success(archiving ? `Archived ${data.name}` : `Unarchived ${data.name}`)
-              }}
-            />
-          )
-        }
-      />
-      <Panel>
-        <PartnerForm
-          // Remount with what the server saved (it lower-cases the email, for example).
-          key={JSON.stringify(values)}
-          readOnly={!canEdit}
-          submitLabel="Save changes"
-          defaultValues={values}
-          onSubmit={async (formValues) => {
-            await updatePartner.mutateAsync(toPartnerPayload(formValues))
-            toast.success('Partner saved')
-          }}
+    <RecordLayout
+      header={
+        <PageHeader
+          pageTitle={data.name}
+          trail={[{ to: '/partners', label: 'Partners' }]}
+          title={
+            <>
+              {data.name}
+              {!data.is_active && <ArchivedBadge />}
+            </>
+          }
+          // Archiving changes the record itself, so it sits right next to its name.
+          nameActions={
+            canEdit && (
+              <ConfirmDialog
+                trigger={
+                  <Button variant="outline" size="sm">
+                    {archiving ? 'Archive' : 'Unarchive'}
+                  </Button>
+                }
+                title={archiving ? `Archive ${data.name}?` : `Unarchive ${data.name}?`}
+                description={
+                  archiving
+                    ? 'Archived partners are hidden from lists and cannot be used on new orders.'
+                    : 'The partner will appear in lists and can be used on orders again.'
+                }
+                confirmLabel={archiving ? 'Archive' : 'Unarchive'}
+                destructive={archiving}
+                onConfirm={async () => {
+                  await setArchived.mutateAsync(archiving)
+                  toast.success(archiving ? `Archived ${data.name}` : `Unarchived ${data.name}`)
+                }}
+              />
+            )
+          }
         />
-        <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
-          <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
-        </dl>
-      </Panel>
+      }
+      actions={
+        <>
+          <PartnerSmartButtons partner={data} />
+        </>
+      }
+      details={
+        <Panel>
+          <PartnerForm
+            // Remount with what the server saved (it lower-cases the email, for example).
+            key={JSON.stringify(values)}
+            readOnly={!canEdit}
+            submitLabel="Save changes"
+            defaultValues={values}
+            onSubmit={async (formValues) => {
+              await updatePartner.mutateAsync(toPartnerPayload(formValues))
+              toast.success('Partner saved')
+            }}
+          />
+          <dl className="mt-6 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm border-t pt-4">
+            <DoneByRows label="Created" at={data.created_at} by={data.created_by} />
+          </dl>
+        </Panel>
+      }
+    >
       <PartnerInvoices partner={data} />
-    </div>
+    </RecordLayout>
   )
 }
