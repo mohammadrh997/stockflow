@@ -198,3 +198,94 @@ describe('product page', () => {
     expect(await screen.findByRole('heading', { name: 'No access' })).toBeInTheDocument()
   })
 })
+
+describe('product image', () => {
+  const url = 'https://images.test/products/abc.webp'
+
+  function png(name = 'desk.png', bytes = 10) {
+    return new File([new Uint8Array(bytes)], name, { type: 'image/png' })
+  }
+
+  it('uploads a picture and shows it', async () => {
+    let uploaded: string | undefined
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+      http.put(`${API}/products/1/image`, async ({ request }) => {
+        uploaded = request.headers.get('content-type') ?? ''
+        return HttpResponse.json(makeProduct({ image_url: url }))
+      }),
+    )
+    signInAs(manager)
+    renderApp('/products/1')
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('No image yet.')).toBeInTheDocument()
+    await user.upload(screen.getByLabelText('Image file'), png())
+
+    await waitFor(() => expect(uploaded).toMatch(/^multipart\/form-data; boundary=/))
+    expect(await screen.findByRole('button', { name: 'Replace image' })).toBeInTheDocument()
+    expect(document.querySelector(`img[src="${url}"]`)).not.toBeNull()
+  })
+
+  it('refuses a wrong file before sending it, and explains server refusals', async () => {
+    let requests = 0
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+      http.put(`${API}/products/1/image`, () => {
+        requests += 1
+        return HttpResponse.json({ detail: "Image storage isn't configured" }, { status: 503 })
+      }),
+    )
+    signInAs(manager)
+    renderApp('/products/1')
+    const user = userEvent.setup({ applyAccept: false })
+    const input = await screen.findByLabelText('Image file')
+
+    await user.upload(input, new File(['GIF89a'], 'cat.gif', { type: 'image/gif' }))
+    expect(await screen.findByText('Choose a JPEG, PNG or WebP image.')).toBeInTheDocument()
+    await user.upload(input, png('big.png', 5 * 1024 * 1024 + 1))
+    expect(await screen.findByText('The image must be 5 MB or smaller.')).toBeInTheDocument()
+    expect(requests).toBe(0)
+
+    await user.upload(input, png())
+    expect(
+      await screen.findByText("Image uploads aren't set up on this server yet."),
+    ).toBeInTheDocument()
+    expect(requests).toBe(1)
+  })
+
+  it('removes the picture after confirming', async () => {
+    let removed = false
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct({ image_url: url }))),
+      http.delete(`${API}/products/1/image`, () => {
+        removed = true
+        return HttpResponse.json(makeProduct())
+      }),
+    )
+    signInAs(manager)
+    renderApp('/products/1')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Remove image' }))
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remove image' }),
+    )
+
+    await waitFor(() => expect(removed).toBe(true))
+    expect(await screen.findByText('No image yet.')).toBeInTheDocument()
+  })
+
+  it('only shows the picture to people who cannot manage products', async () => {
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct({ image_url: url }))),
+    )
+    signInAs(viewer)
+    renderApp('/products/1')
+
+    expect(await screen.findByRole('heading', { name: 'Image' })).toBeInTheDocument()
+    expect(document.querySelector(`img[src="${url}"]`)).not.toBeNull()
+    expect(screen.queryByLabelText('Image file')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /image/i })).not.toBeInTheDocument()
+  })
+})

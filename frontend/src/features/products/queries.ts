@@ -71,3 +71,30 @@ export function useSetProductArchived(id: number) {
     onSuccess: store,
   })
 }
+
+// Uploading replaces any earlier image; the server resizes it and gives it a new address.
+export function useProductImage(id: number) {
+  const store = useStoreProduct()
+  const params = { path: { product_id: id } }
+  const upload = useMutation({
+    mutationFn: (file: File) =>
+      unwrap(
+        api.PUT('/products/{product_id}/image', {
+          params,
+          // The generated type says string; the server takes the file as multipart form data.
+          body: { file: file as unknown as string },
+          bodySerializer: (body) => {
+            const form = new FormData()
+            form.append('file', body.file as unknown as File)
+            return form
+          },
+        }),
+      ),
+    onSuccess: store,
+  })
+  const remove = useMutation({
+    mutationFn: () => unwrap(api.DELETE('/products/{product_id}/image', { params })),
+    onSuccess: store,
+  })
+  return { upload, remove }
+}
