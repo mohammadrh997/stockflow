@@ -56,7 +56,7 @@ describe('company settings', () => {
     })
   })
 
-  it('sends a changed currency in capitals and checks its shape first', async () => {
+  it('offers the currencies as a list and sends a new choice', async () => {
     mockCompany(makeCompany())
     let body: unknown
     server.use(
@@ -69,24 +69,20 @@ describe('company settings', () => {
     renderApp('/settings/company')
     const user = userEvent.setup()
 
-    const currency = await screen.findByLabelText('Currency')
-    await user.clear(currency)
-    await user.type(currency, 'iq')
-    await user.click(screen.getByRole('button', { name: 'Save changes' }))
-    expect(await screen.findByText('Use a three-letter code such as USD.')).toBeInTheDocument()
-    expect(body).toBeUndefined()
-
-    await user.type(currency, 'd')
+    const currency = await screen.findByRole('combobox', { name: 'Currency' })
+    expect(currency).toHaveTextContent('USD · US dollar')
+    await user.click(currency)
+    await user.click(await screen.findByRole('option', { name: 'IQD · Iraqi dinar' }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(body).toMatchObject({ currency: 'IQD' }))
   })
 
-  it('keeps a locked currency read-only and says why', async () => {
+  it('locks the currency once an invoice is posted and says why', async () => {
     mockCompany(makeCompany({ currency_locked: true }))
     signInAs(admin)
     renderApp('/settings/company')
 
-    expect(await screen.findByLabelText('Currency')).toHaveAttribute('readonly')
+    expect(await screen.findByRole('combobox', { name: 'Currency' })).toBeDisabled()
     expect(
       screen.getByText("Invoices have already been posted in USD, so it can't change."),
     ).toBeInTheDocument()
@@ -106,9 +102,8 @@ describe('company settings', () => {
     renderApp('/settings/company')
     const user = userEvent.setup()
 
-    const currency = await screen.findByLabelText('Currency')
-    await user.clear(currency)
-    await user.type(currency, 'EUR')
+    await user.click(await screen.findByRole('combobox', { name: 'Currency' }))
+    await user.click(await screen.findByRole('option', { name: 'EUR · Euro' }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
     expect(await screen.findByText(/so the currency can't change/)).toBeInTheDocument()

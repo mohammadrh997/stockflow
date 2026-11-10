@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { applyFieldErrors } from '@/api/errors'
@@ -7,10 +7,30 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useUpdateCompany, type Company, type CompanyUpdate } from './queries'
+import { useUpdateCompany, type Company, type CompanyUpdate, type Currency } from './queries'
 
-type Values = { name: string; address: string; phone: string; email: string; currency: string }
+type Values = { name: string; address: string; phone: string; email: string; currency: Currency }
+
+// The server's list. Typed against it, so a currency added there fails the build until named here.
+const CURRENCIES: Record<Currency, string> = {
+  USD: 'US dollar',
+  IQD: 'Iraqi dinar',
+  EUR: 'Euro',
+  GBP: 'British pound',
+  SAR: 'Saudi riyal',
+  AED: 'UAE dirham',
+  KWD: 'Kuwaiti dinar',
+  JOD: 'Jordanian dinar',
+  TRY: 'Turkish lira',
+}
 
 const FIELDS = ['name', 'address', 'phone', 'email', 'currency'] as const
 
@@ -29,6 +49,7 @@ export function CompanyForm({ company }: { company: Company }) {
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     setError,
     reset,
@@ -45,8 +66,7 @@ export function CompanyForm({ company }: { company: Company }) {
       email: values.email.trim() || null,
     }
     // Only sent when it changes, so a locked currency never gets in the way of other edits.
-    const currency = values.currency.trim().toUpperCase()
-    if (currency !== company.currency) body.currency = currency
+    if (values.currency !== company.currency) body.currency = values.currency
     try {
       reset(formValues(await updateCompany.mutateAsync(body)))
       toast.success('Company saved')
@@ -106,19 +126,30 @@ export function CompanyForm({ company }: { company: Company }) {
           hint={
             company.currency_locked
               ? `Invoices have already been posted in ${company.currency}, so it can't change.`
-              : 'A three-letter code such as USD or IQD. It locks once the first invoice is posted.'
+              : 'It locks once the first invoice is posted.'
           }
         >
-          <Input
-            id="company-currency"
-            className="w-24 uppercase"
-            maxLength={3}
-            readOnly={company.currency_locked}
-            aria-invalid={errors.currency ? true : undefined}
-            {...register('currency', {
-              validate: (value) =>
-                /^[A-Za-z]{3}$/.test(value.trim()) || 'Use a three-letter code such as USD.',
-            })}
+          <Controller
+            name="currency"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={company.currency_locked}
+              >
+                <SelectTrigger id="company-currency" className="w-full sm:w-64">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CURRENCIES).map(([code, name]) => (
+                    <SelectItem key={code} value={code}>
+                      {code} · {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           />
         </FormField>
       </fieldset>

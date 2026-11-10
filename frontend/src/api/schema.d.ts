@@ -1012,8 +1012,7 @@ export interface components {
             phone: string | null;
             /** Email */
             email: string | null;
-            /** Currency */
-            currency: string;
+            currency: components["schemas"]["Currency"];
             /** Logo Url */
             logo_url: string | null;
             /** Currency Locked */
@@ -1029,9 +1028,14 @@ export interface components {
             phone?: string | null;
             /** Email */
             email?: string | null;
-            /** Currency */
-            currency?: string | null;
+            currency?: components["schemas"]["Currency"] | null;
         };
+        /**
+         * Currency
+         * @description The currencies a company can work in (ISO 4217 codes). Add one here to offer it.
+         * @enum {string}
+         */
+        Currency: "USD" | "IQD" | "EUR" | "GBP" | "SAR" | "AED" | "KWD" | "JOD" | "TRY";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */

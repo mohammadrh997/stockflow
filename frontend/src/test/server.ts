@@ -1,10 +1,12 @@
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 
+import type { Schemas } from '@/api/client'
+
 export const API = 'http://api.test'
 
 // Read on many pages for the currency; tests that care about it override this.
-export const defaultCompany = {
+export const defaultCompany: Schemas['CompanyRead'] = {
   name: 'Acme',
   address: null,
   phone: null,

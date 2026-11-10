@@ -6,6 +6,7 @@ import { fileUpload } from '@/lib/imageUpload'
 
 export type Company = Schemas['CompanyRead']
 export type CompanyUpdate = Schemas['CompanyUpdate']
+export type Currency = Schemas['Currency']
 
 const companyKey = ['company']
 
