@@ -9,6 +9,7 @@ import { DisabledReason } from '@/components/DisabledReason'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { PageHeader } from '@/components/PageHeader'
+import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
 import { StateBadge } from '@/components/StateBadge'
@@ -65,145 +66,133 @@ export function PurchaseOrderPage() {
   ]
 
   return (
-    <div className="grid gap-8">
-      <PageHeader
-        pageTitle={data.reference}
-        trail={[{ to: '/purchase-orders', label: 'Purchase orders' }]}
-        title={
-          <>
-            {data.reference}
-            <StateBadge state={data.state} />
-          </>
-        }
-      />
-
-      {/* The right-hand column is kept free for an activity log later. */}
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="grid min-w-0 content-start gap-8">
-          <div className="grid gap-3">
-            {/* Right above the details: the status on the left, then on the right what the
-                order led to and what can be done with it. */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <ProgressTrack steps={['draft', 'confirmed', 'received']} state={data.state} />
-                {seesTransfers && (
-                  <OrderMovementNote
-                    kind="receipt"
-                    state={data.state}
-                    lines={data.lines}
-                    transfers={transfers}
-                  />
-                )}
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {seesTransfers && (
-                  <OrderTransfersButton
-                    kind="receipt"
-                    transfers={transfers.transfers}
-                    trail={trail}
-                  />
-                )}
-                {seesInvoices && (
-                  <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
-                )}
-                {seesInvoices && (
-                  <CreateInvoiceButton
-                    kind="bill"
-                    order={data}
-                    disabledReason={nothingToInvoiceReason(
-                      'receipt',
-                      data.lines,
-                      seesTransfers ? transfers : null,
-                      invoices.invoiced,
-                    )}
-                    trail={trail}
-                  />
-                )}
-                {canManage && isDraft && (
-                  <DisabledReason
-                    reason={data.lines.length === 0 ? 'Add at least one line first.' : null}
-                  >
-                    <ConfirmDialog
-                      trigger={<Button disabled={data.lines.length === 0}>Confirm order</Button>}
-                      title={`Confirm ${data.reference}?`}
-                      description="The order can no longer be edited, and a receipt is created for the warehouse to validate."
-                      confirmLabel="Confirm order"
-                      onConfirm={async () => {
-                        await confirm.mutateAsync()
-                        toast.success(`Confirmed ${data.reference}`)
-                      }}
-                    />
-                  </DisabledReason>
-                )}
-                {canCancel && (
-                  <DisabledReason
-                    reason={
-                      transfers.hasMoved
-                        ? 'Goods have already arrived. Cancel the backorder instead.'
-                        : null
-                    }
-                  >
-                    <ConfirmDialog
-                      trigger={
-                        <Button variant="outline" disabled={transfers.hasMoved}>
-                          Cancel order
-                        </Button>
-                      }
-                      title={`Cancel ${data.reference}?`}
-                      description={
-                        isDraft
-                          ? 'The draft is kept for reference but can no longer be used.'
-                          : 'Its receipt is cancelled too. This cannot be undone.'
-                      }
-                      confirmLabel="Cancel order"
-                      destructive
-                      onConfirm={async () => {
-                        await cancel.mutateAsync()
-                        toast.success(`Cancelled ${data.reference}`)
-                      }}
-                    />
-                  </DisabledReason>
-                )}
-                {/* Last, after the main actions; the server can't print a cancelled order. */}
-                {data.state !== 'cancelled' && (
-                  <OrderMoreMenu
-                    source={{ kind: 'purchase-order', id: data.id }}
-                    reference={data.reference}
-                  />
-                )}
-              </div>
-            </div>
-            <OrderDetailsPanel
-              role="supplier"
-              order={data}
-              editable={canEdit}
-              onSave={(details) => updateOrder.mutateAsync(details)}
-            />
-          </div>
-
-          <section className="grid min-w-0 gap-3">
-            <h2 className="text-lg font-semibold">Lines</h2>
-            <OrderLinesTable
+    <RecordLayout
+      header={
+        <PageHeader
+          pageTitle={data.reference}
+          trail={[{ to: '/purchase-orders', label: 'Purchase orders' }]}
+          title={
+            <>
+              {data.reference}
+              <StateBadge state={data.state} />
+            </>
+          }
+        />
+      }
+      status={
+        <>
+          <ProgressTrack steps={['draft', 'confirmed', 'received']} state={data.state} />
+          {seesTransfers && (
+            <OrderMovementNote
+              kind="receipt"
+              state={data.state}
               lines={data.lines}
-              total={data.total}
-              editable={canEdit}
-              progress={[
-                ...(seesTransfers ? [{ header: 'Received', done: transfers.moved }] : []),
-                ...(seesInvoices ? [{ header: 'Invoiced', done: invoices.invoiced }] : []),
-              ]}
-              onUpdate={(lineId, changes) => lines.update.mutateAsync({ lineId, changes })}
-              onDelete={(lineId) => lines.remove.mutateAsync(lineId)}
+              transfers={transfers}
             />
-            {canEdit && (
-              <AddLineForm
-                defaultPrice="cost_price"
-                onAdd={(line) => lines.add.mutateAsync(line)}
+          )}
+        </>
+      }
+      actions={
+        <>
+          {seesTransfers && (
+            <OrderTransfersButton kind="receipt" transfers={transfers.transfers} trail={trail} />
+          )}
+          {seesInvoices && (
+            <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
+          )}
+          {seesInvoices && (
+            <CreateInvoiceButton
+              kind="bill"
+              order={data}
+              disabledReason={nothingToInvoiceReason(
+                'receipt',
+                data.lines,
+                seesTransfers ? transfers : null,
+                invoices.invoiced,
+              )}
+              trail={trail}
+            />
+          )}
+          {canManage && isDraft && (
+            <DisabledReason
+              reason={data.lines.length === 0 ? 'Add at least one line first.' : null}
+            >
+              <ConfirmDialog
+                trigger={<Button disabled={data.lines.length === 0}>Confirm order</Button>}
+                title={`Confirm ${data.reference}?`}
+                description="The order can no longer be edited, and a receipt is created for the warehouse to validate."
+                confirmLabel="Confirm order"
+                onConfirm={async () => {
+                  await confirm.mutateAsync()
+                  toast.success(`Confirmed ${data.reference}`)
+                }}
               />
-            )}
-          </section>
-        </div>
-        <div className="hidden xl:block" />
-      </div>
-    </div>
+            </DisabledReason>
+          )}
+          {canCancel && (
+            <DisabledReason
+              reason={
+                transfers.hasMoved
+                  ? 'Goods have already arrived. Cancel the backorder instead.'
+                  : null
+              }
+            >
+              <ConfirmDialog
+                trigger={
+                  <Button variant="outline" disabled={transfers.hasMoved}>
+                    Cancel order
+                  </Button>
+                }
+                title={`Cancel ${data.reference}?`}
+                description={
+                  isDraft
+                    ? 'The draft is kept for reference but can no longer be used.'
+                    : 'Its receipt is cancelled too. This cannot be undone.'
+                }
+                confirmLabel="Cancel order"
+                destructive
+                onConfirm={async () => {
+                  await cancel.mutateAsync()
+                  toast.success(`Cancelled ${data.reference}`)
+                }}
+              />
+            </DisabledReason>
+          )}
+          {/* Last, after the main actions; the server can't print a cancelled order. */}
+          {data.state !== 'cancelled' && (
+            <OrderMoreMenu
+              source={{ kind: 'purchase-order', id: data.id }}
+              reference={data.reference}
+            />
+          )}
+        </>
+      }
+      details={
+        <OrderDetailsPanel
+          role="supplier"
+          order={data}
+          editable={canEdit}
+          onSave={(details) => updateOrder.mutateAsync(details)}
+        />
+      }
+    >
+      <section className="grid min-w-0 gap-3">
+        <h2 className="text-lg font-semibold">Lines</h2>
+        <OrderLinesTable
+          lines={data.lines}
+          total={data.total}
+          editable={canEdit}
+          progress={[
+            ...(seesTransfers ? [{ header: 'Received', done: transfers.moved }] : []),
+            ...(seesInvoices ? [{ header: 'Invoiced', done: invoices.invoiced }] : []),
+          ]}
+          onUpdate={(lineId, changes) => lines.update.mutateAsync({ lineId, changes })}
+          onDelete={(lineId) => lines.remove.mutateAsync(lineId)}
+        />
+        {canEdit && (
+          <AddLineForm defaultPrice="cost_price" onAdd={(line) => lines.add.mutateAsync(line)} />
+        )}
+      </section>
+    </RecordLayout>
   )
 }
