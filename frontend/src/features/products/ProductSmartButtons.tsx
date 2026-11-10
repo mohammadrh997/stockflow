@@ -1,4 +1,4 @@
-import { Boxes, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, Boxes, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
@@ -9,8 +9,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton'
 import { useStock } from '@/features/stock/queries'
 import { formatQuantity } from '@/lib/format'
-import { sumQuantities } from '@/lib/quantity'
+import { sumQuantities, toThousandths } from '@/lib/quantity'
 import { cn } from '@/lib/utils'
+import { useProductMoves } from './useProductMoves'
 import {
   useProductPurchaseOrders,
   useProductSalesOrders,
@@ -59,6 +60,40 @@ function StockButton({ productId }: { productId: number }) {
         }
         label="on hand"
         detail={stock.isPending ? undefined : `${formatQuantity(available)} available`}
+      />
+    </Link>
+  )
+}
+
+// What came in and went out, with stock counts kept apart; opens the full moves history.
+function MovesButton({ productId }: { productId: number }) {
+  const moves = useProductMoves(productId)
+  const totals = moves.data?.totals
+  const plus = moves.data?.partial ? '+' : ''
+  const counted =
+    totals && (toThousandths(totals.countedUp) > 0n || toThousandths(totals.countedDown) > 0n)
+      ? `Counts +${formatQuantity(totals.countedUp)} / −${formatQuantity(totals.countedDown)}`
+      : 'Moves history'
+
+  return (
+    <Link to={`/products/${productId}/moves`} className={BUTTON}>
+      <Face
+        icon={ArrowLeftRight}
+        value={
+          moves.error ? (
+            '?'
+          ) : totals ? (
+            <>
+              {formatQuantity(totals.in)}
+              {plus} <span className="font-normal">in ·</span> {formatQuantity(totals.out)}
+              {plus} <span className="font-normal">out</span>
+            </>
+          ) : (
+            <Skeleton className="inline-block h-4 w-16" />
+          )
+        }
+        label=""
+        detail={totals ? counted : undefined}
       />
     </Link>
   )
@@ -130,12 +165,15 @@ export function ProductSmartButtons({ productId }: { productId: number }) {
   const { user } = useAuth()
   const sales = can(user, 'sales')
   const purchase = can(user, 'purchase')
+  const inventory = can(user, 'inventory')
   const salesOrders = useProductSalesOrders(productId, sales)
   const purchaseOrders = useProductPurchaseOrders(productId, purchase)
 
   return (
     <div className={cn('flex flex-wrap gap-2')}>
       <StockButton productId={productId} />
+      {/* Moves come from transfers, which need inventory access to read. */}
+      {inventory && <MovesButton productId={productId} />}
       {sales && (
         <OrdersButton
           query={salesOrders}

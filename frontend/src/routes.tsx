@@ -27,6 +27,10 @@ const NewProductPage = lazyPage(
   'NewProductPage',
 )
 const ProductPage = lazyPage(() => import('@/features/products/ProductPage'), 'ProductPage')
+const ProductMovesPage = lazyPage(
+  () => import('@/features/products/ProductMovesPage'),
+  'ProductMovesPage',
+)
 const ProductsPage = lazyPage(() => import('@/features/products/ProductsPage'), 'ProductsPage')
 const NewPurchaseOrderPage = lazyPage(
   () => import('@/features/purchase/NewPurchaseOrderPage'),
@@ -101,6 +105,15 @@ export const routes: RouteObject[] = [
                 ),
               },
               { path: 'products/:productId', element: <ProductPage /> },
+              {
+                // Moves come from transfers, which need inventory access to read.
+                path: 'products/:productId/moves',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'inventory')}>
+                    <ProductMovesPage />
+                  </RequireAccess>
+                ),
+              },
               { path: 'partners', element: <PartnersPage /> },
               {
                 path: 'partners/new',

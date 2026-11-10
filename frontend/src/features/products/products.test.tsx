@@ -397,3 +397,128 @@ describe('product smart buttons', () => {
     ).toEqual(['/sales-orders/101', '/sales-orders/99'])
   })
 })
+
+describe('product moves', () => {
+  const locations = [
+    { id: 1, name: 'WH/Stock', location_type: 'internal', warehouse_id: 1, is_active: true },
+    { id: 2, name: 'Suppliers', location_type: 'supplier', warehouse_id: null, is_active: true },
+    { id: 3, name: 'Customers', location_type: 'customer', warehouse_id: null, is_active: true },
+    { id: 4, name: 'Inventory loss', location_type: 'loss', warehouse_id: null, is_active: true },
+    { id: 5, name: 'WH/Shelf', location_type: 'internal', warehouse_id: 1, is_active: true },
+  ]
+
+  function transfer(
+    id: number,
+    reference: string,
+    day: number,
+    moves: [number, number, number, string][],
+  ) {
+    return {
+      id,
+      reference,
+      transfer_type: 'receipt',
+      state: 'done',
+      warehouse_id: 1,
+      purchase_order_id: null,
+      sales_order_id: null,
+      backorder_of_id: null,
+      created_at: `2026-01-0${day}T10:00:00Z`,
+      validated_at: `2026-01-0${day}T10:00:00Z`,
+      validated_by: { id: 2, name: 'Sara' },
+      lines: [],
+      moves: moves.map(([productId, from, to, quantity], index) => ({
+        id: id * 10 + index,
+        product_id: productId,
+        quantity,
+        from_location_id: from,
+        to_location_id: to,
+        purchase_line_id: null,
+        sales_line_id: null,
+        note: null,
+        created_by_id: 2,
+        created_at: `2026-01-0${day}T10:00:00Z`,
+      })),
+    }
+  }
+
+  function mockMoves() {
+    const states: (string | null)[] = []
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+      http.get(`${API}/stock`, () => HttpResponse.json([])),
+      http.get(`${API}/locations`, () => HttpResponse.json(locations)),
+      http.get(`${API}/transfers`, ({ request }) => {
+        states.push(new URL(request.url).searchParams.get('state'))
+        return HttpResponse.json([
+          transfer(1, 'WH/IN/00001', 1, [
+            [1, 2, 1, '10.000'],
+            [2, 2, 1, '99.000'],
+          ]),
+          transfer(2, 'WH/OUT/00001', 2, [[1, 1, 3, '4.000']]),
+          transfer(3, 'WH/ADJ/00001', 3, [
+            [1, 4, 1, '5.000'],
+            [1, 1, 4, '1.000'],
+          ]),
+          transfer(4, 'WH/INT/00001', 4, [[1, 1, 5, '3.000']]),
+        ])
+      }),
+    )
+    return states
+  }
+
+  it('counts what came in and went out, keeping stock counts apart', async () => {
+    const states = mockMoves()
+    signInAs(makeUser({ inventory_access: 'user' }))
+    renderApp('/products/1')
+
+    const button = await screen.findByRole('link', { name: /10 in · 4 out/ })
+    expect(button).toHaveTextContent('Counts +5 / −1')
+    expect(button).toHaveAttribute('href', '/products/1/moves')
+    expect(states).toEqual(['done'])
+  })
+
+  it('is only offered to inventory users', async () => {
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+      http.get(`${API}/stock`, () => HttpResponse.json([])),
+      http.get(`${API}/sales-orders`, () => HttpResponse.json([])),
+    )
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/products/1')
+
+    expect(await screen.findByRole('link', { name: /on hand/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: / in · / })).not.toBeInTheDocument()
+  })
+
+  it('lists the history newest first and filters it by kind', async () => {
+    mockMoves()
+    signInAs(makeUser({ inventory_access: 'user' }))
+    renderApp('/products/1/moves')
+    const user = userEvent.setup()
+
+    const references = async () =>
+      (await screen.findAllByRole('link', { name: /^WH\// })).map((link) => link.textContent)
+    expect(await screen.findByRole('heading', { name: 'Moves history' })).toBeInTheDocument()
+    await waitFor(async () =>
+      expect(await references()).toEqual([
+        'WH/INT/00001',
+        'WH/ADJ/00001',
+        'WH/ADJ/00001',
+        'WH/OUT/00001',
+        'WH/IN/00001',
+      ]),
+    )
+
+    await user.click(screen.getByRole('tab', { name: 'Out' }))
+    const row = (await screen.findByRole('link', { name: 'WH/OUT/00001' })).closest('tr')!
+    expect(row).toHaveTextContent('−4')
+    expect(row).toHaveTextContent('Customers')
+    expect(row).toHaveTextContent('Sara')
+    expect(screen.queryByRole('link', { name: 'WH/IN/00001' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'In' }))
+    expect(
+      (await screen.findByRole('link', { name: 'WH/IN/00001' })).closest('tr'),
+    ).toHaveTextContent('+10')
+  })
+})
