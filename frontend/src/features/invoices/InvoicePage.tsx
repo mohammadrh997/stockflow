@@ -105,7 +105,7 @@ export function InvoicePage() {
         <h2 className="text-lg font-semibold">Lines</h2>
         <InvoiceLinesTable invoice={data} editable={editable} />
         {/* Under the lines and to the right, as on a printed invoice. */}
-        <dl className="grid w-full grid-cols-[1fr_auto] gap-x-8 gap-y-2 justify-self-end text-sm sm:w-80">
+        <dl className="grid w-full grid-cols-[1fr_auto] gap-y-2 justify-self-end text-sm sm:w-80 [&_dd]:pl-8">
           {data.state === 'posted' ? (
             <>
               <dt className="text-muted-foreground">Total</dt>
