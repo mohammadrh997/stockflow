@@ -3,7 +3,7 @@ import { Outlet, type RouteObject } from 'react-router'
 
 import { AuthProvider } from '@/auth/AuthProvider'
 import { LoginPage } from '@/auth/LoginPage'
-import { can, canEditPartners } from '@/auth/permissions'
+import { can, canEditPartners, canViewInvoices } from '@/auth/permissions'
 import { RequireAccess } from '@/auth/RequireAccess'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -154,7 +154,7 @@ export const routes: RouteObject[] = [
               {
                 path: 'invoices',
                 element: (
-                  <RequireAccess allowed={(user) => can(user, 'sales') || can(user, 'purchase')}>
+                  <RequireAccess allowed={canViewInvoices}>
                     <Outlet />
                   </RequireAccess>
                 ),

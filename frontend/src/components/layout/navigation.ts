@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import { can, type User } from '@/auth/permissions'
+import { can, canViewInvoices, type User } from '@/auth/permissions'
 
 export type NavItem = {
   to: string
@@ -43,7 +43,7 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/invoices',
     label: 'Invoices',
     icon: ReceiptText,
-    visible: (user) => can(user, 'sales') || can(user, 'purchase'),
+    visible: canViewInvoices,
   },
   {
     to: '/transfers',
