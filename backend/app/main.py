@@ -16,6 +16,7 @@ from app.routers import (
     company,
     health,
     invoices,
+    moves,
     partner,
     product,
     purchase,
@@ -58,6 +59,7 @@ app.include_router(sale.router)
 app.include_router(purchase.router)
 app.include_router(stock.router)
 app.include_router(transfers.router)
+app.include_router(moves.router)
 app.include_router(product.router)
 app.include_router(warehouse.warehouse_router)
 app.include_router(warehouse.location_router)
@@ -73,7 +75,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
-    # Cross-origin JavaScript can't read this header unless it's listed, and the
-    # frontend needs it for the PDF's filename
+    # Cross-origin JavaScript can't read these headers unless they're listed: the PDF's
+    # filename, and the total behind a paginated list
     expose_headers=["Content-Disposition", "X-Total-Count"],
 )
