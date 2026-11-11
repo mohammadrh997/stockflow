@@ -88,6 +88,7 @@ export function PartnerPage() {
             key={JSON.stringify(values)}
             readOnly={!canEdit}
             submitLabel="Save changes"
+            trackChanges
             defaultValues={values}
             onSubmit={async (formValues) => {
               await updatePartner.mutateAsync(toPartnerPayload(formValues))

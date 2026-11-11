@@ -6,7 +6,7 @@ import { can } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
-import { Button } from '@/components/ui/button'
+import { SaveBar } from '@/components/SaveBar'
 import { Input } from '@/components/ui/input'
 import { CategoryPicker } from '@/features/categories/CategoryPicker'
 import { PRICE_PATTERN } from '@/lib/format'
@@ -40,6 +40,8 @@ type Props = {
   submitLabel: string
   // Which price comes first, e.g. the cost price when creating from a purchase order.
   emphasise?: 'sale_price' | 'cost_price'
+  // Editing a saved record: Save waits for a change (see SaveBar).
+  trackChanges?: boolean
   onSubmit: (values: ProductFormValues) => Promise<unknown>
 }
 
@@ -48,6 +50,7 @@ export function ProductForm({
   readOnly,
   submitLabel,
   emphasise,
+  trackChanges = false,
   onSubmit,
 }: Props) {
   const { user } = useAuth()
@@ -57,7 +60,8 @@ export function ProductForm({
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProductFormValues>({ defaultValues })
 
   const salePrice = (
@@ -95,6 +99,7 @@ export function ProductForm({
     setFormError(null)
     try {
       await onSubmit(values)
+      reset(values) // what was saved is the new starting point
     } catch (error) {
       setFormError(applyFieldErrors(error, FIELDS, setError).join(' ') || null)
     }
@@ -153,11 +158,13 @@ export function ProductForm({
         </div>
       </fieldset>
       {!readOnly && (
-        <div>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving…' : submitLabel}
-          </Button>
-        </div>
+        <SaveBar
+          label={submitLabel}
+          isSubmitting={isSubmitting}
+          isDirty={isDirty}
+          onDiscard={() => reset()}
+          trackChanges={trackChanges}
+        />
       )}
     </form>
   )

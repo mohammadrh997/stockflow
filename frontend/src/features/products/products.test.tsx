@@ -96,6 +96,57 @@ describe('products list', () => {
   })
 })
 
+describe('saving changes', () => {
+  it('wakes Save up only once something changed, and settles again after saving', async () => {
+    let body: unknown
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+      http.patch(`${API}/products/1`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(makeProduct({ name: 'Standing desk' }))
+      }),
+    )
+    signInAs(manager)
+    renderApp('/products/1')
+    const user = userEvent.setup()
+
+    const save = await screen.findByRole('button', { name: 'Save changes' })
+    expect(save).toBeDisabled()
+    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
+
+    // Changing a field and changing it back counts as no change.
+    const name = screen.getByLabelText('Name')
+    await user.type(name, 'x')
+    expect(save).toBeEnabled()
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    await user.type(name, '{Backspace}')
+    expect(save).toBeDisabled()
+
+    // Discard puts the saved values back.
+    await user.clear(name)
+    await user.type(name, 'Something else')
+    await user.click(screen.getByRole('button', { name: 'Discard' }))
+    expect(name).toHaveValue('Desk')
+    expect(save).toBeDisabled()
+
+    await user.clear(name)
+    await user.type(name, 'Standing desk')
+    await user.click(save)
+    await waitFor(() => expect(body).toMatchObject({ name: 'Standing desk' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled())
+    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Standing desk')
+  })
+
+  it('keeps Create ready on a new product, with nothing to discard', async () => {
+    signInAs(manager)
+    renderApp('/products/new')
+
+    expect(await screen.findByRole('button', { name: 'Create product' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
+  })
+})
+
 describe('product page', () => {
   it('is read-only for people who cannot manage products', async () => {
     server.use(http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())))

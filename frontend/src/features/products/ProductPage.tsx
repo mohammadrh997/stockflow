@@ -97,6 +97,7 @@ export function ProductPage() {
                 ].join('|')}
                 readOnly={!canManage}
                 submitLabel="Save changes"
+                trackChanges
                 defaultValues={{
                   name: data.name,
                   sku: data.sku,

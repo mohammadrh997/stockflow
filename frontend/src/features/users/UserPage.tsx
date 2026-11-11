@@ -78,6 +78,7 @@ export function UserPage() {
           key={JSON.stringify(data)}
           isSelf={isSelf}
           submitLabel="Save changes"
+          trackChanges
           defaultValues={{
             email: data.email,
             name: data.name,

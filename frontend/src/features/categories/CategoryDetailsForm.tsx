@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { applyFieldErrors } from '@/api/errors'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
-import { Button } from '@/components/ui/button'
+import { SaveBar } from '@/components/SaveBar'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -37,7 +37,8 @@ export function CategoryDetailsForm({ category, categories, readOnly }: Props) {
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<Values>({
     defaultValues: {
       name: category.name,
@@ -55,6 +56,7 @@ export function CategoryDetailsForm({ category, categories, readOnly }: Props) {
         name: values.name.trim(),
         ...(parent_id !== category.parent_id && { parent_id }),
       })
+      reset(values) // what was saved is the new starting point
       toast.success('Category saved')
     } catch (error) {
       setFormError(applyFieldErrors(error, ['name'], setError).join(' ') || null)
@@ -102,11 +104,12 @@ export function CategoryDetailsForm({ category, categories, readOnly }: Props) {
         </FormField>
       </fieldset>
       {!readOnly && (
-        <div>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving…' : 'Save changes'}
-          </Button>
-        </div>
+        <SaveBar
+          label="Save changes"
+          isSubmitting={isSubmitting}
+          isDirty={isDirty}
+          onDiscard={() => reset()}
+        />
       )}
     </form>
   )
