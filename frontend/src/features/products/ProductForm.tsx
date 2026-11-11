@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { applyFieldErrors } from '@/api/errors'
+import { can } from '@/auth/permissions'
+import { useAuth } from '@/auth/useAuth'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
 import { Button } from '@/components/ui/button'
@@ -48,6 +50,7 @@ export function ProductForm({
   emphasise,
   onSubmit,
 }: Props) {
+  const { user } = useAuth()
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
@@ -137,6 +140,8 @@ export function ProductForm({
                 value={field.value}
                 onChange={field.onChange}
                 placeholder="No category"
+                // Only inventory managers can add categories (and edit products at all).
+                allowCreate={can(user, 'inventory', 'manager')}
                 className="sm:w-full"
                 disabled={readOnly || isSubmitting}
               />

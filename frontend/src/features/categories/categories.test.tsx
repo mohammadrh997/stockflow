@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
 import { API, server } from '@/test/server'
-import { heightOf, parentChoices } from './categoryTree'
+import { heightOf, parentChoices, planNewCategory } from './categoryTree'
 import type { Category } from './queries'
 
 function cat(id: number, path: string, parent_id: number | null, is_active = true): Category {
@@ -47,6 +47,36 @@ describe('category tree', () => {
     // ...and a two-level branch can't go under level 4.
     const branch = [...deep, cat(20, 'X', null), cat(21, 'X / Y', 20)]
     expect(parentChoices(branch, branch[5]).map((c) => c.id)).toEqual([10, 11, 12])
+  })
+})
+
+describe('new category from typed text', () => {
+  const withArchived = [...tree, cat(6, 'Old stuff', null, false)]
+
+  it('creates the last part under the category the rest names', () => {
+    expect(planNewCategory(tree, 'furniture/ Gaming chairs')).toEqual({
+      name: 'Gaming chairs',
+      parent: tree[0],
+    })
+    expect(planNewCategory(tree, ' Toys ')).toEqual({ name: 'Toys', parent: null })
+  })
+
+  it('offers nothing for what exists or is half typed', () => {
+    expect(planNewCategory(tree, 'furniture / chairs')).toBeNull()
+    expect(planNewCategory(tree, 'Furniture /')).toBeNull()
+    expect(planNewCategory(tree, '')).toBeNull()
+  })
+
+  it('says why it cannot create the rest', () => {
+    expect(planNewCategory(tree, 'Garden / Hoses')).toEqual({
+      problem: 'There is no category “Garden” to put it under.',
+    })
+    expect(planNewCategory(withArchived, 'old stuff')).toEqual({
+      problem: '“Old stuff” is archived. Restore it on the Categories page.',
+    })
+    expect(planNewCategory(deep, 'A / B / C / D / E / F')).toEqual({
+      problem: 'Categories can only nest 5 levels deep.',
+    })
   })
 })
 
@@ -214,7 +244,7 @@ describe('categories on products', () => {
     const picker = await screen.findByRole('combobox', { name: 'Category' })
     await waitFor(() => expect(picker).toHaveTextContent('Furniture / Chairs / Office'))
     await user.click(picker)
-    await user.type(await screen.findByPlaceholderText('Search categories…'), 'tabl')
+    await user.type(await screen.findByPlaceholderText('Search, or type a new name…'), 'tabl')
     await user.click(await screen.findByRole('option', { name: 'Furniture / Tables' }))
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => expect(body).toMatchObject({ category_id: 4 }))
@@ -269,5 +299,105 @@ describe('category filter', () => {
     expect(query?.get('category_id')).toBe('2')
     expect(query?.get('include_subcategories')).toBe('true')
     expect(screen.getByLabelText('Include subcategories')).toBeChecked()
+  })
+})
+
+describe('creating a category from a product', () => {
+  const product = {
+    id: 7,
+    name: 'Desk chair',
+    sku: 'CHAIR-1',
+    sale_price: '50.00',
+    cost_price: '30.00',
+    category_id: null,
+    image_url: null,
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    created_by: { id: 1, name: 'Admin' },
+  }
+
+  function mockProduct() {
+    let categories = tree
+    let created: unknown
+    let saved: unknown
+    server.use(
+      http.get(`${API}/categories`, () => HttpResponse.json(categories)),
+      http.get(`${API}/products/7`, () => HttpResponse.json(product)),
+      http.post(`${API}/categories`, async ({ request }) => {
+        created = await request.json()
+        const gaming = cat(9, 'Furniture / Gaming chairs', 1)
+        categories = [...tree, gaming]
+        return HttpResponse.json(gaming, { status: 201 })
+      }),
+      http.patch(`${API}/products/7`, async ({ request }) => {
+        saved = await request.json()
+        return HttpResponse.json({ ...product, category_id: 9 })
+      }),
+    )
+    return { created: () => created, saved: () => saved }
+  }
+
+  it('creates it under the typed parent and selects it', async () => {
+    const requests = mockProduct()
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/products/7')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('combobox', { name: 'Category' }))
+    await user.type(
+      await screen.findByPlaceholderText('Search, or type a new name…'),
+      'Furniture/Gaming chairs',
+    )
+    await user.click(
+      await screen.findByRole('option', { name: 'Create “Gaming chairs” under Furniture' }),
+    )
+
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent(
+        'Furniture / Gaming chairs',
+      ),
+    )
+    expect(requests.created()).toEqual({ name: 'Gaming chairs', parent_id: 1 })
+    // The product itself is only saved with the form.
+    expect(requests.saved()).toBeUndefined()
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(requests.saved()).toMatchObject({ category_id: 9 }))
+  })
+
+  it('shows why the server refused', async () => {
+    mockProduct()
+    server.use(
+      http.post(`${API}/categories`, () =>
+        HttpResponse.json(
+          { detail: "there is already a category named 'Toys' here" },
+          { status: 409 },
+        ),
+      ),
+    )
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/products/7')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('combobox', { name: 'Category' }))
+    await user.type(await screen.findByPlaceholderText('Search, or type a new name…'), 'Toys')
+    await user.click(await screen.findByRole('option', { name: 'Create “Toys”' }))
+
+    expect(await screen.findByText(/already a category named 'Toys'/)).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent('No category')
+  })
+
+  it('never offers to create from a filter', async () => {
+    server.use(
+      http.get(`${API}/categories`, () => HttpResponse.json(tree)),
+      http.get(`${API}/products`, () => HttpResponse.json([])),
+    )
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/products')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('combobox', { name: 'Category' }))
+    await user.type(await screen.findByPlaceholderText('Search categories…'), 'Toys')
+    expect(await screen.findByText('No categories found.')).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Create/ })).not.toBeInTheDocument()
   })
 })

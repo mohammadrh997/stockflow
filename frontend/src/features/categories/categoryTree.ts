@@ -31,3 +31,44 @@ export function parentChoices(categories: Category[], moving?: Category): Catego
       category.is_active && !excluded.has(category.id) && category.depth + height <= MAX_DEPTH,
   )
 }
+
+// "Furniture/Gaming chairs" and "Furniture / Gaming chairs" read the same.
+export function normalizePath(typed: string): string {
+  return typed
+    .split('/')
+    .map((part) => part.trim())
+    .join(' / ')
+}
+
+export type NewCategoryPlan =
+  | { name: string; parent: Category | null }
+  // Why the typed text can't become a category, said instead of offering it.
+  | { problem: string }
+
+// What typing a path in the picker would create: the last part, under the category the
+// rest names (or at the top level). Null when there's nothing to offer.
+export function planNewCategory(categories: Category[], typed: string): NewCategoryPlan | null {
+  const parts = typed.split('/').map((part) => part.trim())
+  if (parts.some((part) => part === '')) return null
+  const path = parts.join(' / ').toLowerCase()
+  const existing = categories.find((category) => category.path.toLowerCase() === path)
+  if (existing?.is_active) return null // already in the list
+  if (existing) {
+    return { problem: `“${existing.path}” is archived. Restore it on the Categories page.` }
+  }
+
+  const name = parts.at(-1)!
+  if (name.length > 100) return { problem: 'A category name can be at most 100 characters.' }
+  if (parts.length === 1) return { name, parent: null }
+  const parentPath = parts.slice(0, -1).join(' / ').toLowerCase()
+  const parent = categories.find(
+    (category) => category.is_active && category.path.toLowerCase() === parentPath,
+  )
+  if (!parent) {
+    return { problem: `There is no category “${parts.slice(0, -1).join(' / ')}” to put it under.` }
+  }
+  if (parent.depth >= MAX_DEPTH) {
+    return { problem: `Categories can only nest ${MAX_DEPTH} levels deep.` }
+  }
+  return { name, parent }
+}
