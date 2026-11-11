@@ -92,7 +92,6 @@ class StockMove(Base):
         CheckConstraint("num_nonnulls(purchase_line_id, sales_line_id) <= 1", name="single_origin"),
         Index("ix_stock_moves_product_to", "product_id", "to_location_id"),
         Index("ix_stock_moves_product_from", "product_id", "from_location_id"),
-        Index("ix_stock_moves_product_from", "product_id", "from_location_id"),
         # one product's history, newest first (read backwards)
         Index("ix_stock_moves_product_id_id", "product_id", "id"),
     )
