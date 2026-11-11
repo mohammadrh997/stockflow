@@ -18,7 +18,7 @@ import { PartnerName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
 import { CurrencyCode } from '@/features/company/CurrencyCode'
-import { useCurrency } from '@/features/company/queries'
+import { moneyHeading, useCurrency } from '@/features/company/queries'
 import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
@@ -35,7 +35,7 @@ function paymentColumns(currency: string | undefined): Column<Payment>[] {
     { header: 'Recorded by', cell: (payment) => payment.created_by.name },
     {
       // In the heading, like the PDF, rather than on every row.
-      header: currency ? `Amount (${currency})` : 'Amount',
+      header: moneyHeading('Amount', currency),
       className: 'text-right',
       cell: (payment) => <Money value={payment.amount} />,
     },

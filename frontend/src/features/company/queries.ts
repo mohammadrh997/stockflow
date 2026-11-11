@@ -24,6 +24,11 @@ export function useCurrency(): Currency | undefined {
   return useCompany().data?.currency
 }
 
+// A money column's heading with the currency, as on the PDFs: "Total (USD)".
+export function moneyHeading(label: string, currency: string | undefined): string {
+  return currency ? `${label} (${currency})` : label
+}
+
 function useStoreCompany() {
   const queryClient = useQueryClient()
   return (company: Company) => queryClient.setQueryData(companyKey, company)

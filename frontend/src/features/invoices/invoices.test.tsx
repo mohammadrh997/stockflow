@@ -115,6 +115,10 @@ describe('invoice list', () => {
     const row = (await screen.findByRole('link', { name: 'INV00001' })).closest('tr')!
     expect(query?.get('invoice_type')).toBe('customer_invoice')
     expect(screen.getByRole('heading', { name: 'Customer invoices' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('columnheader', { name: 'Amount due (USD)' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Total (USD)' })).toBeInTheDocument()
     const [section] = screen.getAllByRole('navigation', { name: 'Section' })
     expect(within(section).getByRole('link', { name: 'Invoices' })).toHaveAttribute(
       'aria-current',

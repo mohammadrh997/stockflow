@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatDate, today } from '@/lib/dates'
+import { moneyHeading, useCurrency } from '@/features/company/queries'
 import { useListParams } from '@/lib/useListParams'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
@@ -51,6 +52,7 @@ export function InvoicesPage() {
     limit: list.limit,
   })
   const now = today()
+  const currency = useCurrency()
   const customer = type === 'customer_invoice'
 
   const columns: Column<Invoice>[] = [
@@ -86,12 +88,12 @@ export function InvoicesPage() {
       ),
     },
     {
-      header: 'Total',
+      header: moneyHeading('Total', currency),
       className: 'text-right',
       cell: (invoice) => (invoice.amount_total ? <Money value={invoice.amount_total} /> : '—'),
     },
     {
-      header: 'Amount due',
+      header: moneyHeading('Amount due', currency),
       className: 'text-right',
       cell: (invoice) => (invoice.state === 'posted' ? <Money value={invoice.amount_due} /> : '—'),
     },
