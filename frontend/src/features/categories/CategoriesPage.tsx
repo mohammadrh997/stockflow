@@ -1,5 +1,6 @@
 import { MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 
 import { errorMessage } from '@/api/errors'
@@ -124,7 +125,10 @@ export function CategoriesPage() {
                   )}
                   title={category.path}
                 >
-                  {category.name}
+                  {/* Opens the products filed directly under it. */}
+                  <Link to={`/products?category=${category.id}`} className="hover:underline">
+                    {category.name}
+                  </Link>
                 </span>
                 {!category.is_active && <ArchivedBadge />}
                 {canManage && (

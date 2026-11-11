@@ -11,6 +11,8 @@ export type ProductUpdate = Schemas['ProductUpdate']
 export type ProductListParams = {
   name?: string
   include_archived?: boolean
+  category_id?: number
+  include_subcategories?: boolean
   skip: number
   limit: number
 }

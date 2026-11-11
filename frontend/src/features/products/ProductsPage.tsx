@@ -12,6 +12,8 @@ import { ProductThumb } from '@/components/ProductThumb'
 import { Pagination } from '@/components/Pagination'
 import { Button } from '@/components/ui/button'
 import { useListParams } from '@/lib/useListParams'
+import { CategoryFilter } from '@/features/categories/CategoryFilter'
+import { categoryFilterParams } from '@/features/categories/categoryParams'
 import { CategoryName } from '@/features/categories/CategoryPicker'
 import { useProducts, type Product } from './queries'
 
@@ -50,6 +52,7 @@ export function ProductsPage() {
   const products = useProducts({
     name: name || undefined,
     include_archived: showArchived,
+    ...categoryFilterParams(list),
     skip: list.skip,
     limit: list.limit,
   })
@@ -75,6 +78,7 @@ export function ProductsPage() {
           onChange={(value) => list.set('name', value)}
           placeholder="Search by name"
         />
+        <CategoryFilter list={list} />
         <ShowArchivedToggle
           checked={showArchived}
           onChange={(checked) => list.set('archived', checked ? 'true' : '')}
@@ -90,13 +94,16 @@ export function ProductsPage() {
         onRetry={() => products.refetch()}
         emptyAction={
           !name &&
+          !list.get('category') &&
           can(user, 'inventory', 'manager') && (
             <Button asChild variant="outline">
               <Link to="/products/new">Create the first product</Link>
             </Button>
           )
         }
-        emptyMessage={name ? 'No products match your search.' : 'No products yet.'}
+        emptyMessage={
+          name || list.get('category') ? 'No products match these filters.' : 'No products yet.'
+        }
       />
       <Pagination
         page={list.page}

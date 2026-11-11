@@ -8,6 +8,8 @@ export type StockRow = Schemas['StockRow']
 export type StockParams = {
   warehouse_id?: number
   product_id?: number
+  category_id?: number
+  include_subcategories?: boolean
 }
 
 export function useStock(params: StockParams, options: { enabled?: boolean } = {}) {

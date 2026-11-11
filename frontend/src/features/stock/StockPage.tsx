@@ -9,6 +9,8 @@ import { WarehousePicker } from '@/components/WarehousePicker'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { useListParams } from '@/lib/useListParams'
 import { cn } from '@/lib/utils'
+import { CategoryFilter } from '@/features/categories/CategoryFilter'
+import { categoryFilterParams } from '@/features/categories/categoryParams'
 import { useStock, type StockRow } from './queries'
 
 function idParam(value: string): number | undefined {
@@ -19,7 +21,11 @@ export function StockPage() {
   const list = useListParams()
   const warehouseId = idParam(list.get('warehouse'))
   const productId = idParam(list.get('product'))
-  const stock = useStock({ warehouse_id: warehouseId, product_id: productId })
+  const stock = useStock({
+    warehouse_id: warehouseId,
+    product_id: productId,
+    ...categoryFilterParams(list),
+  })
   const warehouses = useWarehouses()
   const warehouseName = new Map(warehouses.data?.map((w) => [w.id, w.name]))
 
@@ -70,6 +76,7 @@ export function StockPage() {
           placeholder="All products"
           clearable
         />
+        <CategoryFilter list={list} />
       </ListToolbar>
       <DataTable
         columns={columns}
@@ -80,7 +87,9 @@ export function StockPage() {
         error={stock.error}
         onRetry={() => stock.refetch()}
         emptyMessage={
-          warehouseId || productId ? 'No stock matches these filters.' : 'No stock recorded yet.'
+          warehouseId || productId || list.get('category')
+            ? 'No stock matches these filters.'
+            : 'No stock recorded yet.'
         }
       />
     </div>

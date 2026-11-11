@@ -21,10 +21,20 @@ type Props = {
   placeholder: string
   disabled?: boolean
   className?: string
+  // For a picker without a visible label, such as a list filter.
+  'aria-label'?: string
 }
 
 // Searchable by the whole path, so "chair" finds "Furniture / Chairs / Office" too.
-export function CategoryPicker({ id, value, onChange, placeholder, disabled, className }: Props) {
+export function CategoryPicker({
+  id,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  className,
+  'aria-label': ariaLabel,
+}: Props) {
   const [open, setOpen] = useState(false)
   // Archived ones too, so a product still in an archived category shows its name;
   // only active ones are offered.
@@ -45,6 +55,7 @@ export function CategoryPicker({ id, value, onChange, placeholder, disabled, cla
             id={id}
             variant="outline"
             role="combobox"
+            aria-label={ariaLabel}
             aria-expanded={open}
             disabled={disabled}
             className="min-w-0 flex-1 justify-between font-normal"

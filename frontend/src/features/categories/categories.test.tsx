@@ -223,3 +223,51 @@ describe('categories on products', () => {
     expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent('No category')
   })
 })
+
+describe('category filter', () => {
+  it('filters products by a category, taking in subcategories only when ticked', async () => {
+    const requests: URLSearchParams[] = []
+    server.use(
+      http.get(`${API}/categories`, () => HttpResponse.json(tree)),
+      http.get(`${API}/products`, ({ request }) => {
+        requests.push(new URL(request.url).searchParams)
+        return HttpResponse.json([])
+      }),
+    )
+    signInAs(makeUser())
+    const { router } = renderApp('/products')
+    const user = userEvent.setup()
+
+    expect(screen.queryByLabelText('Include subcategories')).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('combobox', { name: 'Category' }))
+    await user.click(await screen.findByRole('option', { name: 'Furniture' }))
+
+    await waitFor(() => expect(requests.at(-1)?.get('category_id')).toBe('1'))
+    expect(requests.at(-1)?.get('include_subcategories')).toBe('false')
+    const subcategories = screen.getByLabelText('Include subcategories')
+    expect(subcategories).not.toBeChecked()
+
+    await user.click(subcategories)
+    await waitFor(() => expect(requests.at(-1)?.get('include_subcategories')).toBe('true'))
+    expect(router.state.location.search).toContain('subcategories=1')
+  })
+
+  it('filters the stock report the same way, from the address', async () => {
+    let query: URLSearchParams | undefined
+    server.use(
+      http.get(`${API}/categories`, () => HttpResponse.json(tree)),
+      http.get(`${API}/warehouses`, () => HttpResponse.json([])),
+      http.get(`${API}/stock`, ({ request }) => {
+        query = new URL(request.url).searchParams
+        return HttpResponse.json([])
+      }),
+    )
+    signInAs(makeUser())
+    renderApp('/stock?category=2&subcategories=1')
+
+    expect(await screen.findByText('No stock matches these filters.')).toBeInTheDocument()
+    expect(query?.get('category_id')).toBe('2')
+    expect(query?.get('include_subcategories')).toBe('true')
+    expect(screen.getByLabelText('Include subcategories')).toBeChecked()
+  })
+})
