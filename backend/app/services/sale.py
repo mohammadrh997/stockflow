@@ -1,8 +1,7 @@
 from collections import defaultdict
-from collections.abc import Sequence
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,7 +20,9 @@ from app.services.common import (
     OrderHasNoLines,
     OrderNotCancellable,
     OrderNotEditable,
+    Page,
     get_active_product,
+    paginate,
     resolve_warehouse,
 )
 from app.services.references import RefSequence, next_number
@@ -100,23 +101,25 @@ async def lock_sales_order(db: AsyncSession, order_id: int) -> SalesOrder:
 
 async def list_sales_orders(
     db: AsyncSession,
+    skip: int,
+    limit: int,
     state: SalesState | None = None,
     partner_id: int | None = None,
-    skip: int | None = None,
-    limit: int | None = None,
-) -> Sequence[SalesOrder]:
+    product_id: int | None = None,
+) -> Page[SalesOrder]:
     stmt = select(SalesOrder).order_by(SalesOrder.id)
     if state:
         stmt = stmt.where(SalesOrder.state == state)
     if partner_id:
         stmt = stmt.where(SalesOrder.partner_id == partner_id)
-    if skip:
-        stmt = stmt.offset(skip)
-    if limit:
-        stmt = stmt.limit(limit)
-    stmt = stmt.options(selectinload(SalesOrder.lines))
-    orders = (await db.scalars(stmt)).all()
-    return orders
+    if product_id is not None:
+        # Orders with at least one line for this product
+        stmt = stmt.where(
+            exists().where(
+                SalesOrderLine.order_id == SalesOrder.id, SalesOrderLine.product_id == product_id
+            )
+        )
+    return await paginate(db, stmt.options(selectinload(SalesOrder.lines)), skip, limit)
 
 
 async def update_sales_order(db: AsyncSession, order_id: int, data: SalesOrderUpdate) -> SalesOrder:

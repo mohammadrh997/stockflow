@@ -1,4 +1,7 @@
-from sqlalchemy import select
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.product import Product
@@ -38,3 +41,16 @@ async def get_active_product(db: AsyncSession, product_id: int) -> Product:
     if product is None or not product.is_active:
         raise InvalidReference(f"product {product_id} not found or archived")
     return product
+
+
+@dataclass
+class Page[T]:
+    items: Sequence[T]
+    total: int  # every match, not just this page
+
+
+async def paginate[T](db: AsyncSession, stmt: Select[T], skip: int, limit: int) -> Page[T]:
+    # Counted with the same filters, minus the ordering, which a count doesn't need
+    total = await db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
+    items = (await db.scalars(stmt.offset(skip).limit(limit))).all()
+    return Page(items, total or 0)

@@ -12,6 +12,7 @@ from app.dependencies import (
 )
 from app.models.purchase import PurchaseState
 from app.models.user import Access, User
+from app.routers.pagination import with_total
 from app.routers.pdf import PDF_RESPONSE, pdf_response
 from app.schemas.purchase import (
     PurchaseOrderCreate,
@@ -53,14 +54,21 @@ async def create_order(db: DBsession, payload: PurchaseOrderCreate, user: Curren
 @router.get("", response_model=list[PurchaseOrderRead])
 async def list_orders(
     db: DBsession,
+    response: Response,
     pagination: PaginationDep,
     state: PurchaseState | None = None,
     partner_id: int | None = None,
+    product_id: int | None = None,
 ):
-    skip, limit = pagination["skip"], pagination["limit"]
-    return await purchase_service.list_purchase_orders(
-        db, state=state, partner_id=partner_id, skip=skip, limit=limit
+    page = await purchase_service.list_purchase_orders(
+        db,
+        pagination["skip"],
+        pagination["limit"],
+        state=state,
+        partner_id=partner_id,
+        product_id=product_id,
     )
+    return with_total(response, page)
 
 
 @router.get("/{order_id}", response_model=PurchaseOrderRead)

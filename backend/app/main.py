@@ -75,5 +75,5 @@ app.add_middleware(
     allow_headers=["*"],
     # Cross-origin JavaScript can't read this header unless it's listed, and the
     # frontend needs it for the PDF's filename
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Total-Count"],
 )

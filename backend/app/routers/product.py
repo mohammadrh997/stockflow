@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 
 from app.dependencies import (
@@ -13,11 +13,12 @@ from app.dependencies import (
 )
 from app.models.product import Product
 from app.models.user import Access, User
+from app.routers.pagination import with_total
 from app.routers.uploads import read_image_upload
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
 from app.services import category as category_service
 from app.services import product as product_service
-from app.services.common import InvalidReference
+from app.services.common import InvalidReference, paginate
 from app.services.images import InvalidImage
 from app.services.product import CategoryArchived, ProductNotFound, SKUAlreadyExists
 
@@ -34,13 +35,13 @@ PaginationDep = Annotated[dict, Depends(pagination_params)]
 @router.get("", response_model=list[ProductRead])
 async def get_products(
     db: DBsession,
+    response: Response,
     pagination: PaginationDep,
     name: None | str = None,
     include_archived: bool = False,
     category_id: int | None = None,
     include_subcategories: bool = False,
 ):
-    skip, limit = pagination["skip"], pagination["limit"]
     stmt = select(Product).order_by(Product.id)
     if not include_archived:
         stmt = stmt.where(Product.is_active)
@@ -53,9 +54,8 @@ async def get_products(
             else [category_id]
         )
         stmt = stmt.where(Product.category_id.in_(categories))
-    stmt = stmt.offset(skip).limit(limit)
-    products = (await db.scalars(stmt)).all()
-    return products
+    page = await paginate(db, stmt, pagination["skip"], pagination["limit"])
+    return with_total(response, page)
 
 
 @router.get("/{product_id}", response_model=ProductRead)

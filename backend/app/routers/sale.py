@@ -12,6 +12,7 @@ from app.dependencies import (
 )
 from app.models.sale import SalesState
 from app.models.user import Access, User
+from app.routers.pagination import with_total
 from app.routers.pdf import PDF_RESPONSE, pdf_response
 from app.schemas.sale import (
     SalesOrderCreate,
@@ -53,14 +54,21 @@ async def create_order(db: DBsession, payload: SalesOrderCreate, user: CurrentUs
 @router.get("", response_model=list[SalesOrderRead])
 async def list_orders(
     db: DBsession,
+    response: Response,
     pagination: PaginationDep,
     state: SalesState | None = None,
     partner_id: int | None = None,
+    product_id: int | None = None,
 ):
-    skip, limit = pagination["skip"], pagination["limit"]
-    return await sale_service.list_sales_orders(
-        db, state=state, partner_id=partner_id, skip=skip, limit=limit
+    page = await sale_service.list_sales_orders(
+        db,
+        pagination["skip"],
+        pagination["limit"],
+        state=state,
+        partner_id=partner_id,
+        product_id=product_id,
     )
+    return with_total(response, page)
 
 
 @router.get("/{order_id}", response_model=SalesOrderRead)

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 
 from app.dependencies import (
@@ -12,8 +12,10 @@ from app.dependencies import (
 )
 from app.models.partner import Partner
 from app.models.user import Access, User
+from app.routers.pagination import with_total
 from app.schemas.partner import PartnerCreate, PartnerRead, PartnerUpdate
 from app.services import partner as partner_service
+from app.services.common import paginate
 from app.services.partner import PartnerNotFound
 
 router = APIRouter(
@@ -31,14 +33,15 @@ PaginationDep = Annotated[dict, Depends(pagination_params)]
 @router.get("", response_model=list[PartnerRead])
 async def list_partners(
     db: DBsession,
+    response: Response,
     pagination: PaginationDep,
     is_customer: bool | None = None,
     is_supplier: bool | None = None,
     name: str | None = None,
     include_archived: bool = False,
 ):
-    skip, limit = pagination["skip"], pagination["limit"]
-    stmt = select(Partner).order_by(Partner.name)
+    # id breaks ties between equal names, so a partner can't show on two pages
+    stmt = select(Partner).order_by(Partner.name, Partner.id)
     if is_customer is not None:
         stmt = stmt.where(Partner.is_customer == is_customer)
     if is_supplier is not None:
@@ -47,9 +50,8 @@ async def list_partners(
         stmt = stmt.where(Partner.is_active)
     if name:
         stmt = stmt.where(Partner.name.ilike(f"%{name}%"))
-    stmt = stmt.offset(skip).limit(limit)
-    partners = (await db.scalars(stmt)).all()
-    return partners
+    page = await paginate(db, stmt, pagination["skip"], pagination["limit"])
+    return with_total(response, page)
 
 
 @router.get("/{partner_id}", response_model=PartnerRead)
