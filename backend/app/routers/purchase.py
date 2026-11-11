@@ -58,6 +58,7 @@ async def list_orders(
     pagination: PaginationDep,
     state: PurchaseState | None = None,
     partner_id: int | None = None,
+    exclude_cancelled: bool = False,
     product_id: int | None = None,
 ):
     page = await purchase_service.list_purchase_orders(
@@ -66,6 +67,7 @@ async def list_orders(
         pagination["limit"],
         state=state,
         partner_id=partner_id,
+        exclude_cancelled=exclude_cancelled,
         product_id=product_id,
     )
     return with_total(response, page)

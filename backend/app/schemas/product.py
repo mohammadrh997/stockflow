@@ -26,7 +26,7 @@ class ProductUpdate(BaseModel):
     sku: Sku | None = None
     sale_price: Price | None = None
     cost_price: Price | None = None
-    category_id: int | None = None # sending null removes the category
+    category_id: int | None = None  # sending null removes the category
 
 
 class ProductRead(BaseModel):

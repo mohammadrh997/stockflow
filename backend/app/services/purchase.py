@@ -98,11 +98,14 @@ async def list_purchase_orders(
     limit: int,
     state: PurchaseState | None = None,
     partner_id: int | None = None,
+    exclude_cancelled: bool = False,
     product_id: int | None = None,
 ) -> Page[PurchaseOrder]:
     stmt = select(PurchaseOrder).order_by(PurchaseOrder.id)
     if state:
         stmt = stmt.where(PurchaseOrder.state == state)
+    if exclude_cancelled:
+        stmt = stmt.where(PurchaseOrder.state != PurchaseState.cancelled)
     if partner_id:
         stmt = stmt.where(PurchaseOrder.partner_id == partner_id)
     if product_id is not None:

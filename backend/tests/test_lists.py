@@ -63,3 +63,37 @@ async def test_order_lists_filter_by_product(client, boss):
     orders = response.json()
     assert len(orders) == 1
     assert {line["product_id"] for line in orders[0]["lines"]} == {chair["id"]}
+
+
+async def test_order_lists_can_leave_out_cancelled_orders(client, boss):
+    product = await create_product(client, boss)
+    kept, _ = await create_so(client, boss, [(product["id"], 1)])
+    cancelled, _ = await create_so(client, boss, [(product["id"], 1)])
+    await client.post(f"/sales-orders/{cancelled['id']}/cancel", headers=boss)
+
+    url = f"/sales-orders?product_id={product['id']}"
+    response = await client.get(url, headers=boss)
+    assert response.headers["x-total-count"] == "2"  # by default, every order
+
+    response = await client.get(f"{url}&exclude_cancelled=true", headers=boss)
+    assert [o["id"] for o in response.json()] == [kept["id"]]
+    assert response.headers["x-total-count"] == "1"
+
+    # the same for purchase orders
+    received = await receive_stock(client, boss, product["id"], 1)
+    supplier = await create_partner(client, boss, name="Acme", is_supplier=True)
+    draft = (
+        await client.post(
+            "/purchase-orders",
+            json={
+                "partner_id": supplier["id"],
+                "lines": [{"product_id": product["id"], "quantity": "1"}],
+            },
+            headers=boss,
+        )
+    ).json()
+    await client.post(f"/purchase-orders/{draft['id']}/cancel", headers=boss)
+
+    url = f"/purchase-orders?product_id={product['id']}&exclude_cancelled=true"
+    response = await client.get(url, headers=boss)
+    assert [o["id"] for o in response.json()] == [received["purchase_order_id"]]
