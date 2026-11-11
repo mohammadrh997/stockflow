@@ -12,6 +12,7 @@ import { ProductThumb } from '@/components/ProductThumb'
 import { Pagination } from '@/components/Pagination'
 import { Button } from '@/components/ui/button'
 import { useListParams } from '@/lib/useListParams'
+import { CategoryName } from '@/features/categories/CategoryPicker'
 import { useProducts, type Product } from './queries'
 
 const columns: Column<Product>[] = [
@@ -27,6 +28,7 @@ const columns: Column<Product>[] = [
     ),
   },
   { header: 'SKU', cell: (product) => product.sku },
+  { header: 'Category', cell: (product) => <CategoryName id={product.category_id} /> },
   {
     header: 'Sale price',
     className: 'text-right',

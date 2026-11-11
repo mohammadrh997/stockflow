@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 
 import { applyFieldErrors } from '@/api/errors'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CategoryPicker } from '@/features/categories/CategoryPicker'
 import { PRICE_PATTERN } from '@/lib/format'
 
 export type ProductFormValues = {
@@ -13,11 +14,18 @@ export type ProductFormValues = {
   sku: string
   sale_price: string
   cost_price: string
+  category_id: number | null
 }
 
-const FIELDS = ['name', 'sku', 'sale_price', 'cost_price'] as const
+const FIELDS = ['name', 'sku', 'sale_price', 'cost_price', 'category_id'] as const
 
-const EMPTY: ProductFormValues = { name: '', sku: '', sale_price: '', cost_price: '0.00' }
+const EMPTY: ProductFormValues = {
+  name: '',
+  sku: '',
+  sale_price: '',
+  cost_price: '0.00',
+  category_id: null,
+}
 
 const priceRules = {
   required: 'Enter a price.',
@@ -43,6 +51,7 @@ export function ProductForm({
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
@@ -116,6 +125,22 @@ export function ProductForm({
               required: 'Enter a SKU.',
               maxLength: { value: 64, message: 'Use at most 64 characters.' },
             })}
+          />
+        </FormField>
+        <FormField label="Category" htmlFor="category" error={errors.category_id?.message}>
+          <Controller
+            name="category_id"
+            control={control}
+            render={({ field }) => (
+              <CategoryPicker
+                id="category"
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="No category"
+                className="sm:w-full"
+                disabled={readOnly || isSubmitting}
+              />
+            )}
           />
         </FormField>
         <div className="grid gap-4 sm:grid-cols-2">

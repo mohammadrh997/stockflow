@@ -157,6 +157,7 @@ describe('product page', () => {
       sku: 'chair-1',
       sale_price: '12.50',
       cost_price: '0.00',
+      category_id: null,
     })
   })
 

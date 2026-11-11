@@ -170,3 +170,56 @@ describe('categories page', () => {
     expect(requests).toContain('true')
   })
 })
+
+describe('categories on products', () => {
+  const product = {
+    id: 7,
+    name: 'Desk chair',
+    sku: 'CHAIR-1',
+    sale_price: '50.00',
+    cost_price: '30.00',
+    category_id: 3,
+    image_url: null,
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    created_by: { id: 1, name: 'Admin' },
+  }
+
+  it('shows the category path of each product in the list', async () => {
+    server.use(
+      http.get(`${API}/categories`, () => HttpResponse.json(tree)),
+      http.get(`${API}/products`, () => HttpResponse.json([product])),
+    )
+    signInAs(makeUser())
+    renderApp('/products')
+
+    const row = (await screen.findByRole('link', { name: 'Desk chair' })).closest('tr')!
+    expect(await within(row).findByText('Furniture / Chairs / Office')).toBeInTheDocument()
+  })
+
+  it('picks a category by searching its path, and can clear it again', async () => {
+    let body: unknown
+    server.use(
+      http.get(`${API}/categories`, () => HttpResponse.json(tree)),
+      http.get(`${API}/products/7`, () => HttpResponse.json(product)),
+      http.patch(`${API}/products/7`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ ...product, category_id: 4 })
+      }),
+    )
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/products/7')
+    const user = userEvent.setup()
+
+    const picker = await screen.findByRole('combobox', { name: 'Category' })
+    await waitFor(() => expect(picker).toHaveTextContent('Furniture / Chairs / Office'))
+    await user.click(picker)
+    await user.type(await screen.findByPlaceholderText('Search categories…'), 'tabl')
+    await user.click(await screen.findByRole('option', { name: 'Furniture / Tables' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(body).toMatchObject({ category_id: 4 }))
+
+    await user.click(await screen.findByRole('button', { name: 'Clear category' }))
+    expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent('No category')
+  })
+})

@@ -36,6 +36,7 @@ export function QuickCreateProductDialog({ name, emphasise, onClose, onCreated }
               sku: '',
               sale_price: '',
               cost_price: emphasise === 'cost_price' ? '' : '0.00',
+              category_id: null,
             }}
             emphasise={emphasise}
             submitLabel="Create product"
