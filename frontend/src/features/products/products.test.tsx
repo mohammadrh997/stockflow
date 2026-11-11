@@ -7,6 +7,8 @@ import { PAGE_SIZE } from '@/lib/useListParams'
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
 import { API, server } from '@/test/server'
 import type { Product } from './queries'
+import type { ProductMove } from './useProductMoves'
+import type { ProductSummary } from './useProductOrders'
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -15,6 +17,7 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     sku: 'DESK-1',
     sale_price: '50.00',
     cost_price: '30.00',
+    category_id: null,
     image_url: null,
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
@@ -93,6 +96,57 @@ describe('products list', () => {
   })
 })
 
+describe('saving changes', () => {
+  it('wakes Save up only once something changed, and settles again after saving', async () => {
+    let body: unknown
+    server.use(
+      http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
+      http.patch(`${API}/products/1`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(makeProduct({ name: 'Standing desk' }))
+      }),
+    )
+    signInAs(manager)
+    renderApp('/products/1')
+    const user = userEvent.setup()
+
+    const save = await screen.findByRole('button', { name: 'Save changes' })
+    expect(save).toBeDisabled()
+    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
+
+    // Changing a field and changing it back counts as no change.
+    const name = screen.getByLabelText('Name')
+    await user.type(name, 'x')
+    expect(save).toBeEnabled()
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    await user.type(name, '{Backspace}')
+    expect(save).toBeDisabled()
+
+    // Discard puts the saved values back.
+    await user.clear(name)
+    await user.type(name, 'Something else')
+    await user.click(screen.getByRole('button', { name: 'Discard' }))
+    expect(name).toHaveValue('Desk')
+    expect(save).toBeDisabled()
+
+    await user.clear(name)
+    await user.type(name, 'Standing desk')
+    await user.click(save)
+    await waitFor(() => expect(body).toMatchObject({ name: 'Standing desk' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled())
+    expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Standing desk')
+  })
+
+  it('keeps Create ready on a new product, with nothing to discard', async () => {
+    signInAs(manager)
+    renderApp('/products/new')
+
+    expect(await screen.findByRole('button', { name: 'Create product' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
+  })
+})
+
 describe('product page', () => {
   it('is read-only for people who cannot manage products', async () => {
     server.use(http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())))
@@ -154,6 +208,7 @@ describe('product page', () => {
       sku: 'chair-1',
       sale_price: '12.50',
       cost_price: '0.00',
+      category_id: null,
     })
   })
 
@@ -308,6 +363,14 @@ describe('product image', () => {
   })
 })
 
+function mockSummary(summary: Partial<ProductSummary> = {}) {
+  server.use(
+    http.get(`${API}/products/1/summary`, () =>
+      HttpResponse.json({ stock: null, sales: null, purchases: null, ...summary }),
+    ),
+  )
+}
+
 describe('product smart buttons', () => {
   function order(id: number, state: string, lines: [number, string][]) {
     return {
@@ -329,8 +392,16 @@ describe('product smart buttons', () => {
     }
   }
 
-  it('shows stock and every sales order holding the product, across pages', async () => {
-    const skips: string[] = []
+  it('shows stock, and counts the orders holding the product without cancelled ones', async () => {
+    // 103 orders hold the desk, oldest first: #102 was cancelled and #103 is a draft.
+    const all = Array.from({ length: 103 }, (_, i) =>
+      order(i + 1, i === 101 ? 'cancelled' : i === 102 ? 'draft' : 'confirmed', [
+        [1, '1.000'],
+        [2, '5.000'],
+      ]),
+    )
+    const queries: string[] = []
+    mockSummary({ sales: { committed_quantity: '101.000' } })
     server.use(
       http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
       http.get(`${API}/stock`, ({ request }) => {
@@ -357,20 +428,18 @@ describe('product smart buttons', () => {
         ])
       }),
       http.get(`${API}/sales-orders`, ({ request }) => {
-        const skip = new URL(request.url).searchParams.get('skip') ?? ''
-        skips.push(skip)
-        if (skip === '0') {
-          // A full page: 98 orders for other products, then two with the desk.
-          return HttpResponse.json([
-            ...Array.from({ length: 98 }, (_, i) => order(i + 1, 'confirmed', [[2, '1.000']])),
-            order(99, 'confirmed', [
-              [1, '4.000'],
-              [1, '1.000'],
-            ]),
-            order(100, 'cancelled', [[1, '9.000']]),
-          ])
-        }
-        return HttpResponse.json([order(101, 'draft', [[1, '2.000']])])
+        const params = new URL(request.url).searchParams
+        queries.push(params.toString())
+        expect(params.get('product_id')).toBe('1')
+        // As the server does: cancelled orders are left out when asked.
+        const matching = all.filter(
+          (o) => params.get('exclude_cancelled') !== 'true' || o.state !== 'cancelled',
+        )
+        const skip = Number(params.get('skip') ?? 0)
+        const limit = Number(params.get('limit'))
+        return HttpResponse.json(matching.slice(skip, skip + limit), {
+          headers: { 'X-Total-Count': String(matching.length) },
+        })
       }),
     )
     signInAs(makeUser({ sales_access: 'user' }))
@@ -378,110 +447,108 @@ describe('product smart buttons', () => {
     const user = userEvent.setup()
 
     const stock = await screen.findByRole('link', { name: '12 on hand, 9 available' })
-    expect(stock).toHaveTextContent('9 available')
     expect(stock).toHaveAttribute('href', '/stock?product=1')
 
-    // The cancelled order is left out; the draft is listed but not counted as sold.
-    const sales = await screen.findByRole('button', { name: 'sales orders: 2' })
-    expect(sales).toHaveTextContent('5 sold')
-    expect(skips).toEqual(['0', '100'])
+    const sales = await screen.findByRole('button', { name: 'sales orders: 102' })
+    await waitFor(() => expect(sales).toHaveTextContent('101 sold'))
+    // Opening the page only asks how many: one row, the total from the header.
+    expect(queries).toEqual(['product_id=1&exclude_cancelled=true&limit=1'])
     expect(screen.queryByRole('button', { name: /purchase orders/ })).not.toBeInTheDocument()
-    expect(sales).toHaveTextContent(/^2 sales orders/)
 
+    // The orders themselves load when the list opens: 102 hold it, so the newest 100
+    // start after the first 2.
     await user.click(sales)
     const list = await screen.findByRole('list', { name: 'sales orders' })
-    expect(
-      within(list)
-        .getAllByRole('link')
-        .map((link) => link.getAttribute('href')),
-    ).toEqual(['/sales-orders/101', '/sales-orders/99'])
+    const links = within(list).getAllByRole('link')
+    expect(links.slice(0, 2).map((link) => link.getAttribute('href'))).toEqual([
+      '/sales-orders/103',
+      '/sales-orders/101',
+    ])
+    // A full page now: nothing is dropped after it arrives.
+    expect(links).toHaveLength(100)
+    expect(screen.getByText('Showing the newest orders only.')).toBeInTheDocument()
+    expect(queries).toEqual([
+      'product_id=1&exclude_cancelled=true&limit=1',
+      'product_id=1&exclude_cancelled=true&skip=2&limit=100',
+    ])
   })
 })
 
 describe('product moves', () => {
-  const locations = [
-    { id: 1, name: 'WH/Stock', location_type: 'internal', warehouse_id: 1, is_active: true },
-    { id: 2, name: 'Suppliers', location_type: 'supplier', warehouse_id: null, is_active: true },
-    { id: 3, name: 'Customers', location_type: 'customer', warehouse_id: null, is_active: true },
-    { id: 4, name: 'Inventory loss', location_type: 'loss', warehouse_id: null, is_active: true },
-    { id: 5, name: 'WH/Shelf', location_type: 'internal', warehouse_id: 1, is_active: true },
-  ]
+  let next = 1
 
-  function transfer(
-    id: number,
+  function move(
+    kind: ProductMove['kind'],
+    direction: ProductMove['direction'],
     reference: string,
-    day: number,
-    moves: [number, number, number, string][],
-  ) {
+    from: string,
+    to: string,
+    quantity: string,
+  ): ProductMove {
+    const id = next++
     return {
       id,
-      reference,
-      transfer_type: 'receipt',
-      state: 'done',
-      warehouse_id: 1,
-      purchase_order_id: null,
-      sales_order_id: null,
-      backorder_of_id: null,
-      created_at: `2026-01-0${day}T10:00:00Z`,
-      validated_at: `2026-01-0${day}T10:00:00Z`,
-      validated_by: { id: 2, name: 'Sara' },
-      lines: [],
-      moves: moves.map(([productId, from, to, quantity], index) => ({
-        id: id * 10 + index,
-        product_id: productId,
-        quantity,
-        from_location_id: from,
-        to_location_id: to,
-        purchase_line_id: null,
-        sales_line_id: null,
-        note: null,
-        created_by_id: 2,
-        created_at: `2026-01-0${day}T10:00:00Z`,
-      })),
+      created_at: `2026-01-0${id}T10:00:00Z`,
+      product_id: 1,
+      quantity,
+      from_location: { id: 100 + id, name: from },
+      to_location: { id: 200 + id, name: to },
+      transfer: { id, reference },
+      created_by: { id: 2, name: 'Sara' },
+      note: null,
+      kind,
+      direction,
     }
   }
 
   function mockMoves() {
-    const states: (string | null)[] = []
+    next = 1
+    const newestFirst = [
+      move('in', 1, 'WH/IN/00001', 'Suppliers', 'WH/Stock', '10.000'),
+      move('out', -1, 'WH/OUT/00001', 'WH/Stock', 'Customers', '4.000'),
+      move('count', 1, 'WH/ADJ/00001', 'Inventory loss', 'WH/Stock', '5.000'),
+      move('count', -1, 'WH/ADJ/00001', 'WH/Stock', 'Inventory loss', '1.000'),
+      move('internal', 0, 'WH/INT/00001', 'WH/Stock', 'WH/Shelf', '3.000'),
+    ].reverse()
+    const cursors: (string | null)[] = []
+    mockSummary({
+      stock: { in: '10.000', out: '4.000', counted_up: '5.000', counted_down: '1.000' },
+    })
     server.use(
       http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
       http.get(`${API}/stock`, () => HttpResponse.json([])),
-      http.get(`${API}/locations`, () => HttpResponse.json(locations)),
-      http.get(`${API}/transfers`, ({ request }) => {
-        states.push(new URL(request.url).searchParams.get('state'))
-        return HttpResponse.json([
-          transfer(1, 'WH/IN/00001', 1, [
-            [1, 2, 1, '10.000'],
-            [2, 2, 1, '99.000'],
-          ]),
-          transfer(2, 'WH/OUT/00001', 2, [[1, 1, 3, '4.000']]),
-          transfer(3, 'WH/ADJ/00001', 3, [
-            [1, 4, 1, '5.000'],
-            [1, 1, 4, '1.000'],
-          ]),
-          transfer(4, 'WH/INT/00001', 4, [[1, 1, 5, '3.000']]),
-        ])
+      http.get(`${API}/moves`, ({ request }) => {
+        const params = new URL(request.url).searchParams
+        expect(params.get('product_id')).toBe('1')
+        cursors.push(params.get('before'))
+        // Two pages: the three newest, then the rest.
+        return HttpResponse.json(
+          params.get('before') === null
+            ? { items: newestFirst.slice(0, 3), next_cursor: newestFirst[2].id }
+            : { items: newestFirst.slice(3), next_cursor: null },
+        )
       }),
     )
-    return states
+    return cursors
   }
 
   it('counts what came in and went out, keeping stock counts apart', async () => {
-    const states = mockMoves()
+    mockMoves()
     signInAs(makeUser({ inventory_access: 'user' }))
     renderApp('/products/1')
 
     const button = await screen.findByRole('link', { name: '10 in · 4 out, Counts +5 / −1' })
-    expect(button).toHaveTextContent('Counts +5 / −1')
     expect(button).toHaveAttribute('href', '/products/1/moves')
-    expect(states).toEqual(['done'])
   })
 
   it('is only offered to inventory users', async () => {
+    mockSummary({ sales: { committed_quantity: '0.000' } })
     server.use(
       http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
       http.get(`${API}/stock`, () => HttpResponse.json([])),
-      http.get(`${API}/sales-orders`, () => HttpResponse.json([])),
+      http.get(`${API}/sales-orders`, () =>
+        HttpResponse.json([], { headers: { 'X-Total-Count': '0' } }),
+      ),
     )
     signInAs(makeUser({ sales_access: 'user' }))
     renderApp('/products/1')
@@ -490,8 +557,8 @@ describe('product moves', () => {
     expect(screen.queryByRole('link', { name: / in · / })).not.toBeInTheDocument()
   })
 
-  it('lists the history newest first and filters it by kind', async () => {
-    mockMoves()
+  it('lists the history newest first, loads older moves and filters by kind', async () => {
+    const cursors = mockMoves()
     signInAs(makeUser({ inventory_access: 'user' }))
     renderApp('/products/1/moves')
     const user = userEvent.setup()
@@ -500,21 +567,19 @@ describe('product moves', () => {
       (await screen.findAllByRole('link', { name: /^WH\// })).map((link) => link.textContent)
     expect(await screen.findByRole('heading', { name: 'Moves history' })).toBeInTheDocument()
     await waitFor(async () =>
-      expect(await references()).toEqual([
-        'WH/INT/00001',
-        'WH/ADJ/00001',
-        'WH/ADJ/00001',
-        'WH/OUT/00001',
-        'WH/IN/00001',
-      ]),
+      expect(await references()).toEqual(['WH/INT/00001', 'WH/ADJ/00001', 'WH/ADJ/00001']),
     )
 
     await user.click(screen.getByRole('tab', { name: 'Out' }))
+    expect(await screen.findByText(/None of this kind among the latest moves/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Load older moves' }))
     const row = (await screen.findByRole('link', { name: 'WH/OUT/00001' })).closest('tr')!
     expect(row).toHaveTextContent('−4')
     expect(row).toHaveTextContent('Customers')
     expect(row).toHaveTextContent('Sara')
-    expect(screen.queryByRole('link', { name: 'WH/IN/00001' })).not.toBeInTheDocument()
+    expect(cursors).toEqual([null, '3'])
+    expect(screen.queryByRole('button', { name: 'Load older moves' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: 'In' }))
     expect(

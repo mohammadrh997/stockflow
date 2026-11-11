@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -12,9 +11,7 @@ from app.models.sale import SalesOrder, SalesOrderLine
 from app.models.stock import StockMove
 from app.schemas.common import line_subtotal
 from app.schemas.invoice import InvoiceCreate, InvoiceLineUpdate, InvoicePost, PaymentCreate
-from app.services.common import (
-    LineNotFound,
-)
+from app.services.common import LineNotFound, Page, paginate
 from app.services.purchase import lock_purchase_order
 from app.services.references import RefSequence, next_number
 from app.services.sale import lock_sales_order
@@ -131,14 +128,14 @@ async def _lock_invoice(db: AsyncSession, invoice_id: int) -> Invoice:
 
 async def list_invoices(
     db: AsyncSession,
+    skip: int,
+    limit: int,
     state: InvoiceState | None = None,
     invoice_type: InvoiceType | None = None,
     partner_id: int | None = None,
     purchase_order_id: int | None = None,
     sales_order_id: int | None = None,
-    skip: int | None = None,
-    limit: int | None = None,
-) -> Sequence[Invoice]:
+) -> Page[Invoice]:
     stmt = select(Invoice).order_by(Invoice.id)
     if state:
         stmt = stmt.where(Invoice.state == state)
@@ -150,13 +147,8 @@ async def list_invoices(
         stmt = stmt.where(Invoice.purchase_order_id == purchase_order_id)
     if sales_order_id is not None:
         stmt = stmt.where(Invoice.sales_order_id == sales_order_id)
-    if skip:
-        stmt = stmt.offset(skip)
-    if limit:
-        stmt = stmt.limit(limit)
     stmt = stmt.options(selectinload(Invoice.lines), selectinload(Invoice.payments))
-    invoices = (await db.scalars(stmt)).all()
-    return invoices
+    return await paginate(db, stmt, skip, limit)
 
 
 async def create_invoice(db: AsyncSession, data: InvoiceCreate, user_id: int) -> Invoice:

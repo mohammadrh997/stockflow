@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { applyFieldErrors } from '@/api/errors'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
-import { Button } from '@/components/ui/button'
+import { SaveBar } from '@/components/SaveBar'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -53,7 +53,7 @@ export function CompanyForm({ company }: { company: Company }) {
     handleSubmit,
     setError,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<Values>({ defaultValues: formValues(company) })
 
   async function submit(values: Values) {
@@ -153,11 +153,12 @@ export function CompanyForm({ company }: { company: Company }) {
           />
         </FormField>
       </fieldset>
-      <div>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Save changes'}
-        </Button>
-      </div>
+      <SaveBar
+        label="Save changes"
+        isSubmitting={isSubmitting}
+        isDirty={isDirty}
+        onDiscard={() => reset()}
+      />
     </form>
   )
 }

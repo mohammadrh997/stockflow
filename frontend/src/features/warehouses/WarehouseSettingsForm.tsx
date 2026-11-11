@@ -5,8 +5,8 @@ import { toast } from 'sonner'
 import { applyFieldErrors } from '@/api/errors'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
+import { SaveBar } from '@/components/SaveBar'
 import { LocationPicker } from '@/components/LocationPicker'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useUpdateWarehouse, type Warehouse } from './queries'
 
@@ -20,7 +20,8 @@ export function WarehouseSettingsForm({ warehouse }: { warehouse: Warehouse }) {
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<Values>({
     defaultValues: { name: warehouse.name, default_location_id: warehouse.default_location_id },
   })
@@ -32,6 +33,7 @@ export function WarehouseSettingsForm({ warehouse }: { warehouse: Warehouse }) {
         name: values.name,
         default_location_id: values.default_location_id ?? undefined,
       })
+      reset(values) // what was saved is the new starting point
       toast.success('Warehouse saved')
     } catch (error) {
       const fields = ['name', 'default_location_id'] as const
@@ -72,11 +74,12 @@ export function WarehouseSettingsForm({ warehouse }: { warehouse: Warehouse }) {
           />
         </FormField>
       </fieldset>
-      <div>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Save changes'}
-        </Button>
-      </div>
+      <SaveBar
+        label="Save changes"
+        isSubmitting={isSubmitting}
+        isDirty={isDirty}
+        onDiscard={() => reset()}
+      />
     </form>
   )
 }

@@ -87,14 +87,23 @@ export function ProductPage() {
             <div className="min-w-0">
               <ProductForm
                 // Remount with what the server saved (it upper-cases the SKU, for example).
-                key={[data.id, data.name, data.sku, data.sale_price, data.cost_price].join('|')}
+                key={[
+                  data.id,
+                  data.name,
+                  data.sku,
+                  data.sale_price,
+                  data.cost_price,
+                  data.category_id,
+                ].join('|')}
                 readOnly={!canManage}
                 submitLabel="Save changes"
+                trackChanges
                 defaultValues={{
                   name: data.name,
                   sku: data.sku,
                   sale_price: data.sale_price,
                   cost_price: data.cost_price,
+                  category_id: data.category_id,
                 }}
                 onSubmit={async (values) => {
                   await updateProduct.mutateAsync(values)

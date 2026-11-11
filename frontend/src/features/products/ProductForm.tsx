@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 
 import { applyFieldErrors } from '@/api/errors'
+import { can } from '@/auth/permissions'
+import { useAuth } from '@/auth/useAuth'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
-import { Button } from '@/components/ui/button'
+import { SaveBar } from '@/components/SaveBar'
 import { Input } from '@/components/ui/input'
+import { CategoryPicker } from '@/features/categories/CategoryPicker'
 import { PRICE_PATTERN } from '@/lib/format'
 
 export type ProductFormValues = {
@@ -13,11 +16,18 @@ export type ProductFormValues = {
   sku: string
   sale_price: string
   cost_price: string
+  category_id: number | null
 }
 
-const FIELDS = ['name', 'sku', 'sale_price', 'cost_price'] as const
+const FIELDS = ['name', 'sku', 'sale_price', 'cost_price', 'category_id'] as const
 
-const EMPTY: ProductFormValues = { name: '', sku: '', sale_price: '', cost_price: '0.00' }
+const EMPTY: ProductFormValues = {
+  name: '',
+  sku: '',
+  sale_price: '',
+  cost_price: '0.00',
+  category_id: null,
+}
 
 const priceRules = {
   required: 'Enter a price.',
@@ -30,6 +40,8 @@ type Props = {
   submitLabel: string
   // Which price comes first, e.g. the cost price when creating from a purchase order.
   emphasise?: 'sale_price' | 'cost_price'
+  // Editing a saved record: Save waits for a change (see SaveBar).
+  trackChanges?: boolean
   onSubmit: (values: ProductFormValues) => Promise<unknown>
 }
 
@@ -38,14 +50,18 @@ export function ProductForm({
   readOnly,
   submitLabel,
   emphasise,
+  trackChanges = false,
   onSubmit,
 }: Props) {
+  const { user } = useAuth()
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProductFormValues>({ defaultValues })
 
   const salePrice = (
@@ -83,6 +99,7 @@ export function ProductForm({
     setFormError(null)
     try {
       await onSubmit(values)
+      reset(values) // what was saved is the new starting point
     } catch (error) {
       setFormError(applyFieldErrors(error, FIELDS, setError).join(' ') || null)
     }
@@ -118,16 +135,36 @@ export function ProductForm({
             })}
           />
         </FormField>
+        <FormField label="Category" htmlFor="category" error={errors.category_id?.message}>
+          <Controller
+            name="category_id"
+            control={control}
+            render={({ field }) => (
+              <CategoryPicker
+                id="category"
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="No category"
+                // Only inventory managers can add categories (and edit products at all).
+                allowCreate={can(user, 'inventory', 'manager')}
+                className="sm:w-full"
+                disabled={readOnly || isSubmitting}
+              />
+            )}
+          />
+        </FormField>
         <div className="grid gap-4 sm:grid-cols-2">
           {emphasise === 'cost_price' ? [costPrice, salePrice] : [salePrice, costPrice]}
         </div>
       </fieldset>
       {!readOnly && (
-        <div>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving…' : submitLabel}
-          </Button>
-        </div>
+        <SaveBar
+          label={submitLabel}
+          isSubmitting={isSubmitting}
+          isDirty={isDirty}
+          onDiscard={() => reset()}
+          trackChanges={trackChanges}
+        />
       )}
     </form>
   )

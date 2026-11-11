@@ -4,7 +4,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { applyFieldErrors } from '@/api/errors'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
-import { Button } from '@/components/ui/button'
+import { SaveBar } from '@/components/SaveBar'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,23 +26,33 @@ type Props = {
   defaultValues?: PartnerFormValues
   readOnly?: boolean
   submitLabel: string
+  // Editing a saved record: Save waits for a change (see SaveBar).
+  trackChanges?: boolean
   onSubmit: (values: PartnerFormValues) => Promise<unknown>
 }
 
-export function PartnerForm({ defaultValues = EMPTY, readOnly, submitLabel, onSubmit }: Props) {
+export function PartnerForm({
+  defaultValues = EMPTY,
+  readOnly,
+  submitLabel,
+  trackChanges = false,
+  onSubmit,
+}: Props) {
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<PartnerFormValues>({ defaultValues })
 
   async function submit(values: PartnerFormValues) {
     setFormError(null)
     try {
       await onSubmit(values)
+      reset(values) // what was saved is the new starting point
     } catch (error) {
       setFormError(applyFieldErrors(error, FIELDS, setError).join(' ') || null)
     }
@@ -113,11 +123,13 @@ export function PartnerForm({ defaultValues = EMPTY, readOnly, submitLabel, onSu
         </div>
       </fieldset>
       {!readOnly && (
-        <div>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving…' : submitLabel}
-          </Button>
-        </div>
+        <SaveBar
+          label={submitLabel}
+          isSubmitting={isSubmitting}
+          isDirty={isDirty}
+          onDiscard={() => reset()}
+          trackChanges={trackChanges}
+        />
       )}
     </form>
   )

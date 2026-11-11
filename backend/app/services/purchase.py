@@ -1,6 +1,4 @@
-from collections.abc import Sequence
-
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -19,7 +17,9 @@ from app.services.common import (
     OrderHasNoLines,
     OrderNotCancellable,
     OrderNotEditable,
+    Page,
     get_active_product,
+    paginate,
     resolve_warehouse,
 )
 from app.services.references import RefSequence, next_number
@@ -94,23 +94,29 @@ async def lock_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
 
 async def list_purchase_orders(
     db: AsyncSession,
+    skip: int,
+    limit: int,
     state: PurchaseState | None = None,
     partner_id: int | None = None,
-    skip: int | None = None,
-    limit: int | None = None,
-) -> Sequence[PurchaseOrder]:
+    exclude_cancelled: bool = False,
+    product_id: int | None = None,
+) -> Page[PurchaseOrder]:
     stmt = select(PurchaseOrder).order_by(PurchaseOrder.id)
     if state:
         stmt = stmt.where(PurchaseOrder.state == state)
+    if exclude_cancelled:
+        stmt = stmt.where(PurchaseOrder.state != PurchaseState.cancelled)
     if partner_id:
         stmt = stmt.where(PurchaseOrder.partner_id == partner_id)
-    if skip:
-        stmt = stmt.offset(skip)
-    if limit:
-        stmt = stmt.limit(limit)
-    stmt = stmt.options(selectinload(PurchaseOrder.lines))
-    orders = (await db.scalars(stmt)).all()
-    return orders
+    if product_id is not None:
+        # Orders with at least one line for this product
+        stmt = stmt.where(
+            exists().where(
+                PurchaseOrderLine.order_id == PurchaseOrder.id,
+                PurchaseOrderLine.product_id == product_id,
+            )
+        )
+    return await paginate(db, stmt.options(selectinload(PurchaseOrder.lines)), skip, limit)
 
 
 async def update_purchase_order(

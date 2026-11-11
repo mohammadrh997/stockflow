@@ -1,4 +1,5 @@
 import { ArrowLeftRight, Boxes, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { can } from '@/auth/permissions'
@@ -10,11 +11,12 @@ import { useStock } from '@/features/stock/queries'
 import { formatQuantity } from '@/lib/format'
 import { sumQuantities, toThousandths } from '@/lib/quantity'
 import { cn } from '@/lib/utils'
-import { useProductMoves } from './useProductMoves'
 import {
-  useProductPurchaseOrders,
-  useProductSalesOrders,
-  type ProductOrders,
+  useProductOrderCount,
+  useProductOrderList,
+  useProductSummary,
+  type OrderKind,
+  type ProductSummary,
 } from './useProductOrders'
 
 function StockButton({ productId }: { productId: number }) {
@@ -35,14 +37,14 @@ function StockButton({ productId }: { productId: number }) {
   )
 }
 
+type SummaryQuery = { data?: ProductSummary; isError: boolean }
+
 // What came in and went out, with stock counts kept apart; opens the full moves history.
-function MovesButton({ productId }: { productId: number }) {
-  const moves = useProductMoves(productId)
-  const totals = moves.data?.totals
-  const plus = moves.data?.partial ? '+' : ''
+function MovesButton({ productId, summary }: { productId: number; summary: SummaryQuery }) {
+  const totals = summary.data?.stock
   const counted =
-    totals && (toThousandths(totals.countedUp) > 0n || toThousandths(totals.countedDown) > 0n)
-      ? `Counts +${formatQuantity(totals.countedUp)} / −${formatQuantity(totals.countedDown)}`
+    totals && (toThousandths(totals.counted_up) > 0n || toThousandths(totals.counted_down) > 0n)
+      ? `Counts +${formatQuantity(totals.counted_up)} / −${formatQuantity(totals.counted_down)}`
       : 'Moves history'
 
   return (
@@ -50,13 +52,12 @@ function MovesButton({ productId }: { productId: number }) {
       <SmartButtonFace
         icon={ArrowLeftRight}
         value={
-          moves.error ? (
+          summary.isError ? (
             '?'
           ) : totals ? (
             <>
-              {formatQuantity(totals.in)}
-              {plus} <span className="font-normal">in ·</span> {formatQuantity(totals.out)}
-              {plus} <span className="font-normal">out</span>
+              {formatQuantity(totals.in)} <span className="font-normal">in ·</span>{' '}
+              {formatQuantity(totals.out)} <span className="font-normal">out</span>
             </>
           ) : (
             <SmartButtonLoading wide />
@@ -70,34 +71,49 @@ function MovesButton({ productId }: { productId: number }) {
 }
 
 type OrdersProps = {
-  query: { data?: ProductOrders; isPending: boolean; isError: boolean }
+  kind: OrderKind
+  productId: number
+  // What confirmed and finished orders hold, from the summary.
+  committed: string | undefined
+  summaryFailed: boolean
   icon: LucideIcon
   label: string
   done: string
-  path: string
 }
 
 // How many orders hold the product, opening a list of them.
-function OrdersButton({ query, icon, label, done, path }: OrdersProps) {
-  const { data } = query
-  const count = data ? `${data.orders.length}${data.partial ? '+' : ''}` : null
+function OrdersButton({
+  kind,
+  productId,
+  committed,
+  summaryFailed,
+  icon,
+  label,
+  done,
+}: OrdersProps) {
+  const [open, setOpen] = useState(false)
+  const total = useProductOrderCount(kind, productId)
+  const list = useProductOrderList(kind, productId, total.data, open)
+  const { data } = list
+  const count = total.data === undefined ? null : String(total.data)
+  const path = `/${kind}-orders`
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={SMART_BUTTON}
         aria-label={count === null ? label : `${label}: ${count}`}
       >
         <SmartButtonFace
           icon={icon}
-          value={query.isError ? '?' : (count ?? <SmartButtonLoading />)}
+          value={total.isError ? '?' : (count ?? <SmartButtonLoading />)}
           // "1 sales order", "2 sales orders"
-          label={data?.orders.length === 1 ? label.replace(/s$/, '') : label}
-          detail={data && `${formatQuantity(data.committed)} ${done}`}
+          label={total.data === 1 ? label.replace(/s$/, '') : label}
+          detail={summaryFailed ? undefined : committed && `${formatQuantity(committed)} ${done}`}
         />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-2">
-        {query.isError ? (
+        {total.isError || list.isError ? (
           <p className="p-2 text-sm text-destructive">Could not load the orders.</p>
         ) : !data ? (
           <p className="p-2 text-sm text-muted-foreground">Loading…</p>
@@ -123,10 +139,8 @@ function OrdersButton({ query, icon, label, done, path }: OrdersProps) {
             ))}
           </ul>
         )}
-        {data?.partial && (
-          <p className="p-2 text-xs text-muted-foreground">
-            Only the oldest 3,000 orders were checked.
-          </p>
+        {data && !data.complete && (
+          <p className="p-2 text-xs text-muted-foreground">Showing the newest orders only.</p>
         )}
       </PopoverContent>
     </Popover>
@@ -139,30 +153,33 @@ export function ProductSmartButtons({ productId }: { productId: number }) {
   const sales = can(user, 'sales')
   const purchase = can(user, 'purchase')
   const inventory = can(user, 'inventory')
-  const salesOrders = useProductSalesOrders(productId, sales)
-  const purchaseOrders = useProductPurchaseOrders(productId, purchase)
+  const summary = useProductSummary(productId)
 
   return (
     <div className={cn('flex flex-wrap gap-2')}>
       <StockButton productId={productId} />
       {/* Moves come from transfers, which need inventory access to read. */}
-      {inventory && <MovesButton productId={productId} />}
+      {inventory && <MovesButton productId={productId} summary={summary} />}
       {sales && (
         <OrdersButton
-          query={salesOrders}
+          kind="sales"
+          productId={productId}
+          committed={summary.data?.sales?.committed_quantity}
+          summaryFailed={summary.isError}
           icon={ShoppingCart}
           label="sales orders"
           done="sold"
-          path="/sales-orders"
         />
       )}
       {purchase && (
         <OrdersButton
-          query={purchaseOrders}
+          kind="purchase"
+          productId={productId}
+          committed={summary.data?.purchases?.committed_quantity}
+          summaryFailed={summary.isError}
           icon={Truck}
           label="purchase orders"
           done="bought"
-          path="/purchase-orders"
         />
       )}
     </div>

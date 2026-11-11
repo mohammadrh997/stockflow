@@ -1,6 +1,6 @@
 import { ChevronDown, LogOut, Menu, UserRound } from 'lucide-react'
 import { Suspense } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 
 import { useAuth } from '@/auth/useAuth'
 import { PageSpinner } from '@/components/PageSpinner'
@@ -17,12 +17,41 @@ import { cn } from '@/lib/utils'
 import { AppearanceMenu } from './AppearanceMenu'
 import { Logo } from './Logo'
 import { ThemeToggle } from './ThemeToggle'
-import { visibleNavItems } from './navigation'
+import { isInArea, sectionLinks, visibleNavItems, type SectionLink } from './navigation'
+
+// The pages of the area that is open (Invoices / Bills...), as links in the top bar.
+function SectionNav({ links, className }: { links: SectionLink[]; className?: string }) {
+  const { user } = useAuth()
+  const location = useLocation()
+  if (links.length === 0 || !user) return null
+  return (
+    <nav aria-label="Section" className={cn('flex items-center gap-1', className)}>
+      {links.map((link) => {
+        const active = link.isActive(location, user)
+        return (
+          <Link
+            key={link.to}
+            to={link.to}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'shrink-0 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
+              active && 'bg-muted font-medium text-foreground',
+            )}
+          >
+            {link.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
 
 export function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const navItems = visibleNavItems(user)
+  const { pathname } = useLocation()
+  const sections = sectionLinks(user, pathname)
 
   function handleLogout() {
     logout()
@@ -36,21 +65,24 @@ export function AppLayout() {
           <Logo />
         </Link>
         <nav aria-label="Main" className="grid gap-1 px-3">
-          {navItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                cn(
+          {navItems.map((item) => {
+            const { to, label, icon: Icon } = item
+            return (
+              <Link
+                key={to}
+                to={to}
+                aria-current={isInArea(item, pathname) ? 'page' : undefined}
+                className={cn(
                   'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent',
-                  isActive && 'bg-sidebar-accent font-medium text-sidebar-accent-foreground',
-                )
-              }
-            >
-              <Icon className="size-4" />
-              {label}
-            </NavLink>
-          ))}
+                  isInArea(item, pathname) &&
+                    'bg-sidebar-accent font-medium text-sidebar-accent-foreground',
+                )}
+              >
+                <Icon className="size-4" />
+                {label}
+              </Link>
+            )
+          })}
         </nav>
       </aside>
 
@@ -76,6 +108,7 @@ export function AppLayout() {
           <Link to="/" className="md:hidden">
             <Logo />
           </Link>
+          <SectionNav links={sections} className="hidden md:flex" />
 
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
@@ -108,6 +141,11 @@ export function AppLayout() {
             </DropdownMenu>
           </div>
         </header>
+        {/* On phones the header is full, so the section links get a row of their own. */}
+        <SectionNav
+          links={sections}
+          className="overflow-x-auto border-b bg-card px-4 py-1.5 md:hidden"
+        />
 
         <main className="flex-1 p-4 md:p-8">
           <Suspense fallback={<PageSpinner />}>

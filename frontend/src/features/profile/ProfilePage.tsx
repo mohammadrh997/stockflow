@@ -6,6 +6,7 @@ import { ApiError, applyFieldErrors } from '@/api/errors'
 import { useAuth } from '@/auth/useAuth'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
+import { SaveBar } from '@/components/SaveBar'
 import { PageHeader } from '@/components/PageHeader'
 import { Panel } from '@/components/Panel'
 import { Button } from '@/components/ui/button'
@@ -20,13 +21,15 @@ function NameForm({ name }: { name: string }) {
     register,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<{ name: string }>({ defaultValues: { name } })
 
   async function submit(values: { name: string }) {
     setFormError(null)
     try {
       await updateProfile.mutateAsync(values.name)
+      reset(values) // what was saved is the new starting point
       toast.success('Name saved')
     } catch (error) {
       setFormError(applyFieldErrors(error, ['name'], setError).join(' ') || null)
@@ -47,11 +50,12 @@ function NameForm({ name }: { name: string }) {
           })}
         />
       </FormField>
-      <div>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Save name'}
-        </Button>
-      </div>
+      <SaveBar
+        label="Save name"
+        isSubmitting={isSubmitting}
+        isDirty={isDirty}
+        onDiscard={() => reset()}
+      />
     </form>
   )
 }

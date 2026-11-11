@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { api, type Schemas } from '@/api/client'
 import { unwrap } from '@/api/errors'
+import { invalidateSummaries } from '@/api/summaries'
 
 export type Invoice = Schemas['InvoiceRead']
 export type InvoiceLine = Schemas['InvoiceLineRead']
@@ -46,7 +47,10 @@ function useStoreInvoice() {
   const queryClient = useQueryClient()
   return (invoice: Invoice) => {
     queryClient.setQueryData(['invoice', invoice.id], invoice)
-    return queryClient.invalidateQueries({ queryKey: ['invoices'] })
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['invoices'] }),
+      invalidateSummaries(queryClient),
+    ])
   }
 }
 

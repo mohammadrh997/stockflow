@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { moneyHeading, useCurrency } from '@/features/company/queries'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { formatDateTime } from '@/lib/format'
 import { useListParams } from '@/lib/useListParams'
@@ -38,6 +39,7 @@ export function PurchaseOrdersPage() {
   const warehouses = useWarehouses()
   const severalWarehouses = (warehouses.data?.length ?? 0) > 1
 
+  const currency = useCurrency()
   const columns: Column<PurchaseOrder>[] = [
     {
       header: 'Reference',
@@ -58,7 +60,11 @@ export function PurchaseOrdersPage() {
       : []),
     { header: 'State', cell: (order) => <StateBadge state={order.state} /> },
     { header: 'Created', cell: (order) => formatDateTime(order.created_at) },
-    { header: 'Total', className: 'text-right', cell: (order) => <Money value={order.total} /> },
+    {
+      header: moneyHeading('Total', currency),
+      className: 'text-right',
+      cell: (order) => <Money value={order.total} />,
+    },
   ]
 
   return (

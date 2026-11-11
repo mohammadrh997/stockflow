@@ -367,3 +367,18 @@ describe('order PDF', () => {
     expect(screen.queryByRole('button', { name: 'More actions' })).not.toBeInTheDocument()
   })
 })
+
+describe('sales order list', () => {
+  it('names the currency in the Total heading, as on the PDFs', async () => {
+    server.use(
+      http.get(`${API}/sales-orders`, () =>
+        HttpResponse.json([], { headers: { 'X-Total-Count': '0' } }),
+      ),
+      http.get(`${API}/warehouses`, () => HttpResponse.json([])),
+    )
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/sales-orders')
+
+    expect(await screen.findByRole('columnheader', { name: 'Total (USD)' })).toBeInTheDocument()
+  })
+})

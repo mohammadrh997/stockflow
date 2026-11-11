@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -107,3 +108,40 @@ class AdjustmentCreate(BaseModel):
         if len(product_ids) != len(set(product_ids)):
             raise ValueError("each product can only be counted once per adjustment")
         return self
+
+
+class MoveLocation(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    name: str
+
+
+class MoveTransfer(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    reference: str
+
+
+class MoveRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    created_at: datetime
+    product_id: int
+    quantity: Decimal
+    from_location: MoveLocation
+    to_location: MoveLocation
+    transfer: MoveTransfer | None
+    created_by: UserSummary  # whoever validated the transfer
+    note: str | None
+    # in: from a supplier. out: to a customer. count: a stock count (to or from the loss
+    # location). internal: between two of our locations, which changes no total.
+    kind: Literal["in", "out", "count", "internal"]
+    direction: Literal[1, -1, 0]  # +1 stock added, -1 removed, 0 internal
+
+
+class MovePage(BaseModel):
+    items: list[MoveRead]
+    next_cursor: int | None  # pass as ?before= for the next page; None on the last page

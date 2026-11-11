@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { api, type Schemas } from '@/api/client'
 import { unwrap } from '@/api/errors'
+import { invalidateSummaries } from '@/api/summaries'
 import type { LineChanges, NewLine } from '@/features/orders/types'
 
 export type SalesOrder = Schemas['SalesOrderRead']
@@ -36,7 +37,10 @@ function useStoreOrder() {
   const queryClient = useQueryClient()
   return (order: SalesOrder) => {
     queryClient.setQueryData(['sales-order', order.id], order)
-    return queryClient.invalidateQueries({ queryKey: ['sales-orders'] })
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['sales-orders'] }),
+      invalidateSummaries(queryClient),
+    ])
   }
 }
 

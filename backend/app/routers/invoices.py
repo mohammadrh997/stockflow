@@ -14,6 +14,7 @@ from app.dependencies import (
 )
 from app.models.invoice import Invoice, InvoiceState, InvoiceType
 from app.models.user import Access, User
+from app.routers.pagination import with_total
 from app.routers.pdf import PDF_RESPONSE, pdf_response
 from app.schemas.invoice import (
     InvoiceCreate,
@@ -86,6 +87,7 @@ async def create_invoice(db: DBsession, payload: InvoiceCreate, user: CurrentUse
 @router.get("", response_model=list[InvoiceRead])
 async def list_invoices(
     db: DBsession,
+    response: Response,
     pagination: PaginationDep,
     state: InvoiceState | None = None,
     invoice_type: InvoiceType | None = None,
@@ -93,17 +95,17 @@ async def list_invoices(
     purchase_order_id: int | None = None,
     sales_order_id: int | None = None,
 ):
-    skip, limit = pagination["skip"], pagination["limit"]
-    return await invoice_service.list_invoices(
+    page = await invoice_service.list_invoices(
         db,
+        pagination["skip"],
+        pagination["limit"],
         state=state,
         invoice_type=invoice_type,
         partner_id=partner_id,
         purchase_order_id=purchase_order_id,
         sales_order_id=sales_order_id,
-        skip=skip,
-        limit=limit,
     )
+    return with_total(response, page)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceRead)

@@ -5,7 +5,7 @@ import { applyFieldErrors } from '@/api/errors'
 import { DisabledReason } from '@/components/DisabledReason'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { FormField } from '@/components/FormField'
-import { Button } from '@/components/ui/button'
+import { SaveBar } from '@/components/SaveBar'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -61,6 +61,8 @@ type Props = {
   // Admins can't remove their own admin flag.
   isSelf?: boolean
   submitLabel: string
+  // Editing a saved record: Save waits for a change (see SaveBar).
+  trackChanges?: boolean
   onSubmit: (values: UserFormValues) => Promise<unknown>
 }
 
@@ -69,6 +71,7 @@ export function UserForm({
   withPassword,
   isSelf,
   submitLabel,
+  trackChanges = false,
   onSubmit,
 }: Props) {
   const [formError, setFormError] = useState<string | null>(null)
@@ -77,7 +80,8 @@ export function UserForm({
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<UserFormValues>({ defaultValues })
   const isAdmin = useWatch({ control, name: 'is_admin' })
 
@@ -85,6 +89,7 @@ export function UserForm({
     setFormError(null)
     try {
       await onSubmit(values)
+      reset(values) // what was saved is the new starting point
     } catch (error) {
       setFormError(applyFieldErrors(error, FIELDS, setError).join(' ') || null)
     }
@@ -187,11 +192,13 @@ export function UserForm({
           </p>
         )}
       </fieldset>
-      <div>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : submitLabel}
-        </Button>
-      </div>
+      <SaveBar
+        label={submitLabel}
+        isSubmitting={isSubmitting}
+        isDirty={isDirty}
+        onDiscard={() => reset()}
+        trackChanges={trackChanges}
+      />
     </form>
   )
 }

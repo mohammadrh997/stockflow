@@ -85,6 +85,16 @@ The business using StockFlow (its name, address, phone, email, logo and currency
 - **The logo goes through the image pipeline,** at 400 px with transparency kept. PDFs embed it as a `data:` URL that the server reads from storage itself and keeps in memory, so rendering still never touches the network. If it can't be read, the PDF prints without it.
 - **The PDF endpoints get storage as an optional dependency.** Uploads need the bucket and answer 503 without it; printing only uses it for the logo, so it works either way.
 
+## Product categories
+
+Categories nest, so "Furniture" can hold "Chairs", which can hold "Office chairs". A product has at most one. Filtering products or the stock report by a category can include everything under it, which takes a recursive query (`WITH RECURSIVE`) that walks down the tree in the database.
+
+- **Five levels at most,** checked when a category is created or moved: the depth of its new parent plus the height of the branch being moved.
+- **No loops.** A category can't move under itself or under one of its own subcategories. A loop wouldn't just look wrong: a query walking down the tree would follow it forever, and the categories in it would vanish from every listing, which start from the top.
+- **That check can race.** Moving A under B and B under A at the same moment, each check passes, because neither move has happened yet. Every change to the tree's shape therefore takes one PostgreSQL advisory lock first, so they happen one at a time. **Proven by breaking:** without the lock, both concurrent moves succeeded and left A and B each other's parent; with it, one succeeds and the other gets a 409. Reading the tree never waits.
+- **Names are unique among siblings, ignoring case,** through a unique index on `(parent_id, lower(name))`. `NULLS NOT DISTINCT` makes top-level categories (no parent) count as siblings too; without it, PostgreSQL treats every NULL as different, and two top-level "Furniture" would both be allowed.
+- **Archiving is refused while a category has active products or active subcategories,** and a subcategory can't come back while its parent is archived. Giving a product a category takes a shared lock on the category's row, and archiving takes an exclusive one, so a product can't be moved into a category in the same moment it's archived.
+
 ## Product images
 
 - **Uploads are checked by decoding them,** not by trusting the filename or content type. Only real JPEG, PNG and WebP files are accepted, and the pixel count is checked from the header before decoding, so a small file can't unpack into gigabytes.

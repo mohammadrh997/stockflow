@@ -93,7 +93,13 @@ describe('creating a product from an order', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.getByRole('combobox', { name: 'Product' })).toHaveTextContent('Stool')
-    expect(body).toEqual({ name: 'Stool', sku: 'st-1', sale_price: '20', cost_price: '12' })
+    expect(body).toEqual({
+      name: 'Stool',
+      sku: 'st-1',
+      sale_price: '20',
+      cost_price: '12',
+      category_id: null,
+    })
   })
 
   it('tells people who cannot create products who to ask', async () => {

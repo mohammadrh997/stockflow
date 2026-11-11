@@ -1,12 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.dependencies import CurrentUser, DBsession, Module, pagination_params, require_access
 from app.models.stock import Transfer, TransferState, TransferType
 from app.models.user import Access, User
+from app.routers.pagination import with_total
 from app.schemas.stock import (
     AdjustmentCreate,
     InternalTransferCreate,
@@ -14,6 +15,7 @@ from app.schemas.stock import (
     TransferValidate,
 )
 from app.services import transfers as transfer_service
+from app.services.common import paginate
 from app.services.transfers import (
     InsufficientStock,
     InvalidReference,
@@ -38,6 +40,7 @@ router = APIRouter(
 @router.get("", response_model=list[TransferRead])
 async def list_transfer(
     db: DBsession,
+    response: Response,
     pagination: PaginationDep,
     transfer_type: TransferType | None = None,
     state: TransferState | None = None,
@@ -45,7 +48,6 @@ async def list_transfer(
     purchase_order_id: int | None = None,
     sales_order_id: int | None = None,
 ):
-    skip, limit = pagination["skip"], pagination["limit"]
     stmt = select(Transfer).order_by(Transfer.id)
     if transfer_type:
         stmt = stmt.where(Transfer.transfer_type == transfer_type)
@@ -57,13 +59,9 @@ async def list_transfer(
         stmt = stmt.where(Transfer.purchase_order_id == purchase_order_id)
     if sales_order_id is not None:
         stmt = stmt.where(Transfer.sales_order_id == sales_order_id)
-    if skip:
-        stmt = stmt.offset(skip)
-    if limit:
-        stmt = stmt.limit(limit)
     stmt = stmt.options(selectinload(Transfer.moves), selectinload(Transfer.lines))
-    transfers = (await db.scalars(stmt)).all()
-    return transfers
+    page = await paginate(db, stmt, pagination["skip"], pagination["limit"])
+    return with_total(response, page)
 
 
 @router.get("/{transfer_id}", response_model=TransferRead)

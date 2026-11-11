@@ -1,23 +1,30 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 
 from app.dependencies import (
+    CurrentUser,
     DBsession,
     Module,
     StorageDep,
     get_current_user,
+    has_access,
     pagination_params,
     require_access,
 )
 from app.models.product import Product
 from app.models.user import Access, User
+from app.routers.pagination import with_total
 from app.routers.uploads import read_image_upload
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
+from app.schemas.summary import ProductSummary
+from app.services import category as category_service
 from app.services import product as product_service
+from app.services import summaries
+from app.services.common import InvalidReference, paginate
 from app.services.images import InvalidImage
-from app.services.product import ProductNotFound, SKUAlreadyExists
+from app.services.product import CategoryArchived, ProductNotFound, SKUAlreadyExists
 
 router = APIRouter(
     prefix="/products",
@@ -32,19 +39,45 @@ PaginationDep = Annotated[dict, Depends(pagination_params)]
 @router.get("", response_model=list[ProductRead])
 async def get_products(
     db: DBsession,
+    response: Response,
     pagination: PaginationDep,
     name: None | str = None,
     include_archived: bool = False,
+    category_id: int | None = None,
+    include_subcategories: bool = False,
 ):
-    skip, limit = pagination["skip"], pagination["limit"]
     stmt = select(Product).order_by(Product.id)
     if not include_archived:
         stmt = stmt.where(Product.is_active)
     if name:
         stmt = stmt.where(Product.name.ilike(f"%{name}%"))
-    stmt = stmt.offset(skip).limit(limit)
-    products = (await db.scalars(stmt)).all()
-    return products
+    if category_id is not None:
+        categories = (
+            await category_service.subtree_ids(db, category_id)
+            if include_subcategories
+            else [category_id]
+        )
+        stmt = stmt.where(Product.category_id.in_(categories))
+    page = await paginate(db, stmt, pagination["skip"], pagination["limit"])
+    return with_total(response, page)
+
+
+@router.get("/{product_id}/summary", response_model=ProductSummary)
+async def get_product_summary(db: DBsession, product_id: int, user: CurrentUser):
+    try:
+        await product_service.fetch_product(db, product_id)
+    except ProductNotFound:
+        raise HTTPException(status_code=404, detail="Product Was Not Found") from None
+
+    # Each part only for users who can see that module; the others get null
+    stock = has_access(user, Module.inventory, Access.user)
+    sales = has_access(user, Module.sales, Access.user)
+    purchase = has_access(user, Module.purchase, Access.user)
+    return ProductSummary(
+        stock=await summaries.stock_totals(db, product_id) if stock else None,
+        sales=await summaries.committed_sales(db, product_id) if sales else None,
+        purchases=await summaries.committed_purchases(db, product_id) if purchase else None,
+    )
 
 
 @router.get("/{product_id}", response_model=ProductRead)
@@ -61,6 +94,8 @@ async def add_products(db: DBsession, payload: ProductCreate, user: InventoryMan
         return await product_service.create_product(db, payload, user.id)
     except SKUAlreadyExists:
         raise HTTPException(status_code=409, detail="SKU already Exist") from None
+    except InvalidReference as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
 @router.patch("/{product_id}", response_model=ProductRead)
@@ -73,6 +108,8 @@ async def update_products(
         raise HTTPException(status_code=409, detail="SKU already Exist") from None
     except ProductNotFound:
         raise HTTPException(status_code=404, detail="Product Was Not Found") from None
+    except InvalidReference as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
 @router.post("/{product_id}/archive", response_model=ProductRead)
@@ -89,6 +126,10 @@ async def unarchive_products(db: DBsession, product_id: int, user: InventoryMana
         return await product_service.set_active(db, product_id, active=True)
     except ProductNotFound:
         raise HTTPException(status_code=404, detail="Product Was Not Found") from None
+    except CategoryArchived:
+        raise HTTPException(
+            status_code=409, detail="Its category is archived; restore it or pick another first"
+        ) from None
 
 
 @router.put("/{product_id}/image", response_model=ProductRead)

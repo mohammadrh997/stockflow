@@ -18,6 +18,7 @@ class ProductCreate(BaseModel):
     sku: Sku
     sale_price: Price
     cost_price: Price = Decimal("0")
+    category_id: int | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -25,6 +26,7 @@ class ProductUpdate(BaseModel):
     sku: Sku | None = None
     sale_price: Price | None = None
     cost_price: Price | None = None
+    category_id: int | None = None  # sending null removes the category
 
 
 class ProductRead(BaseModel):
@@ -36,6 +38,7 @@ class ProductRead(BaseModel):
     sale_price: Decimal
     cost_price: Decimal
     image_key: str | None = Field(default=None, exclude=True)  # internal; clients get the URL
+    category_id: int | None
     is_active: bool
     created_at: datetime
     created_by: UserSummary

@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, Numeric, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
 from app.core.database import Base
 from app.models.checks import enum_check
@@ -92,6 +92,8 @@ class StockMove(Base):
         CheckConstraint("num_nonnulls(purchase_line_id, sales_line_id) <= 1", name="single_origin"),
         Index("ix_stock_moves_product_to", "product_id", "to_location_id"),
         Index("ix_stock_moves_product_from", "product_id", "from_location_id"),
+        # one product's history, newest first (read backwards)
+        Index("ix_stock_moves_product_id_id", "product_id", "id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -110,3 +112,8 @@ class StockMove(Base):
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_by: Mapped["User"] = relationship()
     note: Mapped[str | None]
+
+    # Not columns: worked out from the two locations, only when a query asks for them
+    # (see services/moves.py)
+    kind: Mapped[str | None] = query_expression()
+    direction: Mapped[int | None] = query_expression()
