@@ -29,8 +29,7 @@ export const NETWORK_ERROR_STATUS = 0
 
 type FetchResult<T> = { data?: T; error?: unknown; response: Response }
 
-// Turns an openapi-fetch result into data, or throws an ApiError.
-export async function unwrap<T>(request: Promise<FetchResult<T>>): Promise<T> {
+async function settle<T>(request: Promise<FetchResult<T>>): Promise<FetchResult<T>> {
   let result: FetchResult<T>
   try {
     result = await request
@@ -43,7 +42,20 @@ export async function unwrap<T>(request: Promise<FetchResult<T>>): Promise<T> {
       typeof body === 'object' && body !== null && 'detail' in body ? body.detail : null
     throw new ApiError(result.response.status, detail)
   }
-  return result.data as T
+  return result
+}
+
+// Turns an openapi-fetch result into data, or throws an ApiError.
+export async function unwrap<T>(request: Promise<FetchResult<T>>): Promise<T> {
+  return (await settle(request)).data as T
+}
+
+// For paged lists: the page, and how many match in all (the X-Total-Count header).
+export async function unwrapWithTotal<T>(
+  request: Promise<FetchResult<T>>,
+): Promise<{ data: T; total: number }> {
+  const result = await settle(request)
+  return { data: result.data as T, total: Number(result.response.headers.get('X-Total-Count')) }
 }
 
 export function errorMessage(error: unknown): string {

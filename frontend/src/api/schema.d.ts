@@ -73,6 +73,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Categories */
+        get: operations["list_categories_categories_get"];
+        put?: never;
+        /** Create Category */
+        post: operations["create_category_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Category */
+        get: operations["get_category_categories__category_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Category */
+        patch: operations["update_category_categories__category_id__patch"];
+        trace?: never;
+    };
+    "/categories/{category_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Category */
+        post: operations["archive_category_categories__category_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/categories/{category_id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unarchive Category */
+        post: operations["unarchive_category_categories__category_id__unarchive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings/company": {
         parameters: {
             query?: never;
@@ -351,6 +421,23 @@ export interface paths {
         head?: never;
         /** Update Partner */
         patch: operations["update_partner_partners__partner_id__patch"];
+        trace?: never;
+    };
+    "/partners/{partner_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Partner Summary */
+        get: operations["get_partner_summary_partners__partner_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/partners/{partner_id}/archive": {
@@ -750,6 +837,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/moves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Moves */
+        get: operations["list_moves_moves_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products": {
         parameters: {
             query?: never;
@@ -762,6 +866,23 @@ export interface paths {
         put?: never;
         /** Add Products */
         post: operations["add_products_products_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{product_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Product Summary */
+        get: operations["get_product_summary_products__product_id__summary_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1002,6 +1123,40 @@ export interface components {
             /** File */
             file: string;
         };
+        /** CategoryCreate */
+        CategoryCreate: {
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: number | null;
+        };
+        /** CategoryRead */
+        CategoryRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id: number | null;
+            /** Is Active */
+            is_active: boolean;
+            /** Path */
+            path: string;
+            /** Depth */
+            depth: number;
+        };
+        /** CategoryUpdate */
+        CategoryUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Parent Id */
+            parent_id?: number | null;
+        };
+        /** CommittedQuantity */
+        CommittedQuantity: {
+            /** Committed Quantity */
+            committed_quantity: string;
+        };
         /** CompanyRead */
         CompanyRead: {
             /** Name */
@@ -1141,6 +1296,13 @@ export interface components {
          * @enum {string}
          */
         InvoiceState: "draft" | "posted" | "cancelled";
+        /** InvoiceTotals */
+        InvoiceTotals: {
+            /** Invoiced */
+            invoiced: string;
+            /** Due */
+            due: string;
+        };
         /**
          * InvoiceType
          * @enum {string}
@@ -1174,6 +1336,64 @@ export interface components {
         LocationUpdate: {
             /** Name */
             name: string;
+        };
+        /** MoveLocation */
+        MoveLocation: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** MovePage */
+        MovePage: {
+            /** Items */
+            items: components["schemas"]["MoveRead"][];
+            /** Next Cursor */
+            next_cursor: number | null;
+        };
+        /** MoveRead */
+        MoveRead: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Product Id */
+            product_id: number;
+            /** Quantity */
+            quantity: string;
+            from_location: components["schemas"]["MoveLocation"];
+            to_location: components["schemas"]["MoveLocation"];
+            transfer: components["schemas"]["MoveTransfer"] | null;
+            created_by: components["schemas"]["UserSummary"];
+            /** Note */
+            note: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "in" | "out" | "count" | "internal";
+            /**
+             * Direction
+             * @enum {integer}
+             */
+            direction: 1 | -1 | 0;
+        };
+        /** MoveTransfer */
+        MoveTransfer: {
+            /** Id */
+            id: number;
+            /** Reference */
+            reference: string;
+        };
+        /** OrderTotals */
+        OrderTotals: {
+            /** Count */
+            count: number;
+            /** Total */
+            total: string;
         };
         /** PartnerCreate */
         PartnerCreate: {
@@ -1226,6 +1446,13 @@ export interface components {
              */
             created_at: string;
             created_by: components["schemas"]["UserSummary"];
+        };
+        /** PartnerSummary */
+        PartnerSummary: {
+            sales_orders: components["schemas"]["OrderTotals"] | null;
+            purchase_orders: components["schemas"]["OrderTotals"] | null;
+            customer_invoices: components["schemas"]["InvoiceTotals"] | null;
+            vendor_bills: components["schemas"]["InvoiceTotals"] | null;
         };
         /** PartnerUpdate */
         PartnerUpdate: {
@@ -1304,6 +1531,8 @@ export interface components {
              * @default 0
              */
             cost_price: number | string;
+            /** Category Id */
+            category_id?: number | null;
         };
         /** ProductRead */
         ProductRead: {
@@ -1317,6 +1546,8 @@ export interface components {
             sale_price: string;
             /** Cost Price */
             cost_price: string;
+            /** Category Id */
+            category_id: number | null;
             /** Is Active */
             is_active: boolean;
             /**
@@ -1328,6 +1559,12 @@ export interface components {
             /** Image Url */
             readonly image_url: string | null;
         };
+        /** ProductSummary */
+        ProductSummary: {
+            stock: components["schemas"]["StockTotals"] | null;
+            sales: components["schemas"]["CommittedQuantity"] | null;
+            purchases: components["schemas"]["CommittedQuantity"] | null;
+        };
         /** ProductUpdate */
         ProductUpdate: {
             /** Name */
@@ -1338,6 +1575,8 @@ export interface components {
             sale_price?: number | string | null;
             /** Cost Price */
             cost_price?: number | string | null;
+            /** Category Id */
+            category_id?: number | null;
         };
         /** ProfileUpdate */
         ProfileUpdate: {
@@ -1536,6 +1775,17 @@ export interface components {
             reserved: string;
             /** Available */
             available: string;
+        };
+        /** StockTotals */
+        StockTotals: {
+            /** In */
+            in: string;
+            /** Out */
+            out: string;
+            /** Counted Up */
+            counted_up: string;
+            /** Counted Down */
+            counted_down: string;
         };
         /** TransferLineDone */
         TransferLineDone: {
@@ -1882,6 +2132,198 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_categories_categories_get: {
+        parameters: {
+            query?: {
+                include_archived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_category_categories_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_category_categories__category_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_category_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_category_categories__category_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unarchive_category_categories__category_id__unarchive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"];
                 };
             };
             /** @description Validation Error */
@@ -2662,6 +3104,37 @@ export interface operations {
             };
         };
     };
+    get_partner_summary_partners__partner_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartnerSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     archive_partner_partners__partner_id__archive_post: {
         parameters: {
             query?: never;
@@ -2729,6 +3202,7 @@ export interface operations {
             query?: {
                 state?: components["schemas"]["SalesState"] | null;
                 partner_id?: number | null;
+                product_id?: number | null;
                 skip?: number;
                 limit?: number;
             };
@@ -3058,6 +3532,7 @@ export interface operations {
             query?: {
                 state?: components["schemas"]["PurchaseState"] | null;
                 partner_id?: number | null;
+                product_id?: number | null;
                 skip?: number;
                 limit?: number;
             };
@@ -3387,6 +3862,8 @@ export interface operations {
             query?: {
                 warehouse_id?: number | null;
                 product_id?: number | null;
+                category_id?: number | null;
+                include_subcategories?: boolean;
             };
             header?: never;
             path?: never;
@@ -3614,11 +4091,47 @@ export interface operations {
             };
         };
     };
+    list_moves_moves_get: {
+        parameters: {
+            query?: {
+                product_id?: number | null;
+                /** @description next_cursor from the previous page */
+                before?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_products_products_get: {
         parameters: {
             query?: {
                 name?: string | null;
                 include_archived?: boolean;
+                category_id?: number | null;
+                include_subcategories?: boolean;
                 skip?: number;
                 limit?: number;
             };
@@ -3668,6 +4181,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_product_summary_products__product_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSummary"];
                 };
             };
             /** @description Validation Error */
