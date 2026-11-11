@@ -58,7 +58,27 @@ function invoiceSection(type: 'customer_invoice' | 'vendor_bill', label: string)
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/stock', label: 'Stock', icon: Boxes, visible: everyone, paths: ['/stock'] },
-  { to: '/products', label: 'Products', icon: Package, visible: everyone, paths: ['/products'] },
+  {
+    to: '/products',
+    label: 'Products',
+    icon: Package,
+    visible: everyone,
+    paths: ['/products', '/categories'],
+    sections: [
+      {
+        to: '/products',
+        label: 'Products',
+        visible: everyone,
+        isActive: ({ pathname }) => under(pathname, '/products'),
+      },
+      {
+        to: '/categories',
+        label: 'Categories',
+        visible: everyone,
+        isActive: ({ pathname }) => under(pathname, '/categories'),
+      },
+    ],
+  },
   { to: '/partners', label: 'Partners', icon: Users, visible: everyone, paths: ['/partners'] },
   {
     to: '/warehouses',
