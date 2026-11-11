@@ -22,12 +22,13 @@ def auth_issued_ago(user: User, seconds: int) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def create_product(client, headers, sku="CHR-001", sale_price="50.00", cost_price="30.00"):
-    response = await client.post(
-        "/products",
-        json={"name": sku, "sku": sku, "sale_price": sale_price, "cost_price": cost_price},
-        headers=headers,
-    )
+async def create_product(
+    client, headers, sku="CHR-001", sale_price="50.00", cost_price="30.00", category_id=None
+):
+    body = {"name": sku, "sku": sku, "sale_price": sale_price, "cost_price": cost_price}
+    if category_id is not None:
+        body["category_id"] = category_id
+    response = await client.post("/products", json=body, headers=headers)
     assert response.status_code == 201, response.text
     return response.json()
 

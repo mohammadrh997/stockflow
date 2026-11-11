@@ -1,3 +1,4 @@
+from app.models.category import Category
 from app.models.company import CompanySettings
 from app.models.invoice import Invoice, InvoiceLine, Payment
 from app.models.partner import Partner
@@ -24,4 +25,5 @@ __all__ = [
     "InvoiceLine",
     "Payment",
     "CompanySettings",
+    "Category",
 ]

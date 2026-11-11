@@ -70,6 +70,25 @@ PRODUCTS = [
     ("CABLE-HDMI", "HDMI Cable 2 m", "9.50", "3.20"),
 ]
 
+# parent -> children; each product below names the category it goes in
+CATEGORIES = {
+    "Furniture": ["Chairs", "Desks", "Storage"],
+    "Electronics": ["Monitors", "Accessories", "Cables"],
+    "Office Supplies": [],
+}
+CATEGORY_OF = {
+    "CHAIR-ERG": "Chairs",
+    "DESK-STD": "Desks",
+    "CAB-3D": "Storage",
+    "BOARD-120": "Office Supplies",
+    "MON-27": "Monitors",
+    "KB-MECH": "Accessories",
+    "MOUSE-WL": "Accessories",
+    "LAMP-LED": "Accessories",
+    "CABLE-HDMI": "Cables",
+    "PAPER-A4": "Office Supplies",
+}
+
 DEMO_LOGO = Path(__file__).parent / "demo_assets" / "clearcypher-logo.png"
 COMPANY = {
     "name": "ClearCypher",
@@ -127,12 +146,27 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
     shelf_a = api.post("/locations", {"name": "Shelf A", "warehouse_id": main["id"]})
     shelf_b = api.post("/locations", {"name": "Shelf B", "warehouse_id": main["id"]})
 
+    print("Categories")
+    category_ids = {}
+    for parent, children in CATEGORIES.items():
+        parent_id = api.post("/categories", {"name": parent})["id"]
+        category_ids[parent] = parent_id
+        for child in children:
+            body = {"name": child, "parent_id": parent_id}
+            category_ids[child] = api.post("/categories", body)["id"]
+
     print("Products and partners")
     products = {}
     for sku, name, sale_price, cost_price in PRODUCTS:
         products[sku] = api.post(
             "/products",
-            {"sku": sku, "name": name, "sale_price": sale_price, "cost_price": cost_price},
+            {
+                "sku": sku,
+                "name": name,
+                "sale_price": sale_price,
+                "cost_price": cost_price,
+                "category_id": category_ids[CATEGORY_OF[sku]],
+            },
         )["id"]
 
     print("Product images")

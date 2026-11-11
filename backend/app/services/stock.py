@@ -96,7 +96,10 @@ async def available_in_warehouse(db: AsyncSession, product_id: int, warehouse_id
 
 
 async def stock_report(
-    db: AsyncSession, warehouse_id: int | None = None, product_id: int | None = None
+    db: AsyncSession,
+    warehouse_id: int | None = None,
+    product_id: int | None = None,
+    category_ids: list[int] | None = None,
 ) -> list[dict]:
     movements = _movements(product_id)
     on_hand_stmt = (
@@ -119,7 +122,10 @@ async def stock_report(
         reserved_stmt = reserved_stmt.where(Transfer.warehouse_id == warehouse_id)
     if product_id is not None:
         reserved_stmt = reserved_stmt.where(TransferLine.product_id == product_id)
-
+    if category_ids is not None:
+        in_categories = select(Product.id).where(Product.category_id.in_(category_ids))
+        on_hand_stmt = on_hand_stmt.where(movements.c.product_id.in_(in_categories))
+        reserved_stmt = reserved_stmt.where(TransferLine.product_id.in_(in_categories))
     totals: dict[tuple[int, int], dict[str, Decimal]] = {}
     for pid, wid, qty in (await db.execute(on_hand_stmt)).all():
         totals.setdefault((pid, wid), {"on_hand": Decimal("0"), "reserved": Decimal("0")})[
