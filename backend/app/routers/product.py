@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, sta
 from sqlalchemy import select
 
 from app.dependencies import (
+    CurrentUser,
     DBsession,
     Module,
     StorageDep,
     get_current_user,
+    has_access,
     pagination_params,
     require_access,
 )
@@ -16,8 +18,10 @@ from app.models.user import Access, User
 from app.routers.pagination import with_total
 from app.routers.uploads import read_image_upload
 from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
+from app.schemas.summary import ProductSummary
 from app.services import category as category_service
 from app.services import product as product_service
+from app.services import summaries
 from app.services.common import InvalidReference, paginate
 from app.services.images import InvalidImage
 from app.services.product import CategoryArchived, ProductNotFound, SKUAlreadyExists
@@ -56,6 +60,24 @@ async def get_products(
         stmt = stmt.where(Product.category_id.in_(categories))
     page = await paginate(db, stmt, pagination["skip"], pagination["limit"])
     return with_total(response, page)
+
+
+@router.get("/{product_id}/summary", response_model=ProductSummary)
+async def get_product_summary(db: DBsession, product_id: int, user: CurrentUser):
+    try:
+        await product_service.fetch_product(db, product_id)
+    except ProductNotFound:
+        raise HTTPException(status_code=404, detail="Product Was Not Found") from None
+
+    # Each part only for users who can see that module; the others get null
+    stock = has_access(user, Module.inventory, Access.user)
+    sales = has_access(user, Module.sales, Access.user)
+    purchase = has_access(user, Module.purchase, Access.user)
+    return ProductSummary(
+        stock=await summaries.stock_totals(db, product_id) if stock else None,
+        sales=await summaries.committed_sales(db, product_id) if sales else None,
+        purchases=await summaries.committed_purchases(db, product_id) if purchase else None,
+    )
 
 
 @router.get("/{product_id}", response_model=ProductRead)
