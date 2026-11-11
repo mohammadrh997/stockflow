@@ -1,6 +1,6 @@
 import { MoreHorizontal } from 'lucide-react'
-import { useState } from 'react'
-import { Link } from 'react-router'
+import { useState, type MouseEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
 import { errorMessage } from '@/api/errors'
@@ -80,6 +80,17 @@ export function CategoriesPage() {
   // Moves and new parents only ever pick active categories.
   const active = useCategories(false)
   const [editing, setEditing] = useState<Editing>(null)
+  const navigate = useNavigate()
+
+  function openRow(event: MouseEvent, href: string) {
+    // Clicks in the menu bubble up here too (React passes them through its portal).
+    const inside = (event.target as HTMLElement).closest(
+      'a, button, [role="menu"], [role="menuitem"]',
+    )
+    if (inside) return
+    if (event.ctrlKey || event.metaKey) window.open(href, '_blank')
+    else navigate(href)
+  }
 
   return (
     <div className="grid gap-6">
@@ -113,7 +124,9 @@ export function CategoriesPage() {
             {categories.data.map((category) => (
               <li
                 key={category.id}
-                className="flex min-h-10 items-center gap-2 rounded-md py-1 pr-1 hover:bg-muted/60"
+                className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md py-1 pr-1 hover:bg-muted/60"
+                // The whole row opens its products, like a table row; the menu keeps its own clicks.
+                onClick={(event) => openRow(event, `/products?category=${category.id}`)}
                 // Each level is indented a step, so the tree reads at a glance.
                 style={{ paddingLeft: `${0.75 + (category.depth - 1) * 1.5}rem` }}
               >

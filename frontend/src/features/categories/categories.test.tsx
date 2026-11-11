@@ -105,6 +105,24 @@ describe('categories page', () => {
     )
   })
 
+  it('opens the products of a category from anywhere on its row, but not from its menu', async () => {
+    mockTree()
+    server.use(http.get(`${API}/products`, () => HttpResponse.json([])))
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    const { router } = renderApp('/categories')
+    const user = userEvent.setup()
+
+    const row = (await screen.findByText('Tables')).closest('li')!
+    await user.click(within(row).getByRole('button', { name: 'Actions for Tables' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Rename or move' }))
+    expect(router.state.location.pathname).toBe('/categories')
+    await user.keyboard('{Escape}')
+
+    await user.click(row)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/products'))
+    expect(router.state.location.search).toBe('?category=4')
+  })
+
   it('adds a subcategory under the row it was opened from', async () => {
     mockTree()
     let body: unknown
