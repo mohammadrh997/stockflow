@@ -380,8 +380,10 @@ describe('product smart buttons', () => {
         const params = new URL(request.url).searchParams
         queries.push(params.toString())
         expect(params.get('product_id')).toBe('1')
-        const state = params.get('state')
-        const matching = all.filter((o) => !state || o.state === state)
+        // As the server does: cancelled orders are left out when asked.
+        const matching = all.filter(
+          (o) => params.get('exclude_cancelled') !== 'true' || o.state !== 'cancelled',
+        )
         const skip = Number(params.get('skip') ?? 0)
         const limit = Number(params.get('limit'))
         return HttpResponse.json(matching.slice(skip, skip + limit), {
@@ -398,13 +400,11 @@ describe('product smart buttons', () => {
 
     const sales = await screen.findByRole('button', { name: 'sales orders: 102' })
     await waitFor(() => expect(sales).toHaveTextContent('101 sold'))
-    expect(queries).toEqual(
-      expect.arrayContaining([
-        'product_id=1&limit=100',
-        'product_id=1&skip=3&limit=100',
-        'product_id=1&state=cancelled&limit=1',
-      ]),
-    )
+    // 102 orders still hold it, so the newest 100 start after the first 2.
+    expect(queries).toEqual([
+      'product_id=1&exclude_cancelled=true&limit=100',
+      'product_id=1&exclude_cancelled=true&skip=2&limit=100',
+    ])
     expect(screen.queryByRole('button', { name: /purchase orders/ })).not.toBeInTheDocument()
 
     // The newest page, newest first, without the cancelled order.
@@ -415,7 +415,8 @@ describe('product smart buttons', () => {
       '/sales-orders/103',
       '/sales-orders/101',
     ])
-    expect(links).toHaveLength(99)
+    // A full page now: nothing is dropped after it arrives.
+    expect(links).toHaveLength(100)
     expect(screen.getByText('Showing the newest orders only.')).toBeInTheDocument()
   })
 })

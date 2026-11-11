@@ -3202,6 +3202,7 @@ export interface operations {
             query?: {
                 state?: components["schemas"]["SalesState"] | null;
                 partner_id?: number | null;
+                exclude_cancelled?: boolean;
                 product_id?: number | null;
                 skip?: number;
                 limit?: number;
@@ -3532,6 +3533,7 @@ export interface operations {
             query?: {
                 state?: components["schemas"]["PurchaseState"] | null;
                 partner_id?: number | null;
+                exclude_cancelled?: boolean;
                 product_id?: number | null;
                 skip?: number;
                 limit?: number;

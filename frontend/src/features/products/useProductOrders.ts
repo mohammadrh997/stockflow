@@ -25,9 +25,11 @@ export type ProductOrders = {
   complete: boolean
 }
 
-type Query = { product_id: number; skip?: number; limit: number; state?: 'cancelled' }
+type Query = { skip?: number; limit: number }
 
-function fetchOrders(kind: OrderKind, query: Query) {
+// Only the orders still holding the product: the server leaves cancelled ones out.
+function fetchOrders(kind: OrderKind, productId: number, page: Query) {
+  const query = { product_id: productId, exclude_cancelled: true, ...page }
   return kind === 'sales'
     ? unwrapWithTotal(api.GET('/sales-orders', { params: { query } }))
     : unwrapWithTotal(api.GET('/purchase-orders', { params: { query } }))
@@ -35,16 +37,12 @@ function fetchOrders(kind: OrderKind, query: Query) {
 
 async function load(kind: OrderKind, productId: number): Promise<ProductOrders> {
   // The lists run oldest first, so the newest orders sit on the last page.
-  const first = await fetchOrders(kind, { product_id: productId, limit: PAGE })
-  const [page, cancelled] = await Promise.all([
+  const first = await fetchOrders(kind, productId, { limit: PAGE })
+  const page =
     first.total > PAGE
-      ? fetchOrders(kind, { product_id: productId, skip: first.total - PAGE, limit: PAGE })
-      : first,
-    // The list can't leave cancelled orders out, but it can count them on their own.
-    fetchOrders(kind, { product_id: productId, state: 'cancelled', limit: 1 }),
-  ])
+      ? await fetchOrders(kind, productId, { skip: first.total - PAGE, limit: PAGE })
+      : first
   const orders = page.data
-    .filter((order) => order.state !== 'cancelled')
     .map((order) => ({
       id: order.id,
       reference: order.reference,
@@ -54,11 +52,7 @@ async function load(kind: OrderKind, productId: number): Promise<ProductOrders> 
       ),
     }))
     .sort((a, b) => b.id - a.id)
-  return {
-    count: first.total - cancelled.total,
-    orders,
-    complete: first.total <= PAGE,
-  }
+  return { count: first.total, orders, complete: first.total <= PAGE }
 }
 
 export function useProductOrders(kind: OrderKind, productId: number, enabled: boolean) {
