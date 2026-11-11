@@ -1,4 +1,5 @@
 import { ArrowLeftRight, Boxes, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 
 import { can } from '@/auth/permissions'
@@ -11,7 +12,8 @@ import { formatQuantity } from '@/lib/format'
 import { sumQuantities, toThousandths } from '@/lib/quantity'
 import { cn } from '@/lib/utils'
 import {
-  useProductOrders,
+  useProductOrderCount,
+  useProductOrderList,
   useProductSummary,
   type OrderKind,
   type ProductSummary,
@@ -89,27 +91,29 @@ function OrdersButton({
   label,
   done,
 }: OrdersProps) {
-  const query = useProductOrders(kind, productId, true)
-  const { data } = query
-  const count = data ? String(data.count) : null
+  const [open, setOpen] = useState(false)
+  const total = useProductOrderCount(kind, productId)
+  const list = useProductOrderList(kind, productId, total.data, open)
+  const { data } = list
+  const count = total.data === undefined ? null : String(total.data)
   const path = `/${kind}-orders`
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={SMART_BUTTON}
         aria-label={count === null ? label : `${label}: ${count}`}
       >
         <SmartButtonFace
           icon={icon}
-          value={query.isError ? '?' : (count ?? <SmartButtonLoading />)}
+          value={total.isError ? '?' : (count ?? <SmartButtonLoading />)}
           // "1 sales order", "2 sales orders"
-          label={data?.count === 1 ? label.replace(/s$/, '') : label}
+          label={total.data === 1 ? label.replace(/s$/, '') : label}
           detail={summaryFailed ? undefined : committed && `${formatQuantity(committed)} ${done}`}
         />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-2">
-        {query.isError ? (
+        {total.isError || list.isError ? (
           <p className="p-2 text-sm text-destructive">Could not load the orders.</p>
         ) : !data ? (
           <p className="p-2 text-sm text-muted-foreground">Loading…</p>

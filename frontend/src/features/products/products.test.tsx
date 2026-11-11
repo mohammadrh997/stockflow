@@ -451,14 +451,12 @@ describe('product smart buttons', () => {
 
     const sales = await screen.findByRole('button', { name: 'sales orders: 102' })
     await waitFor(() => expect(sales).toHaveTextContent('101 sold'))
-    // 102 orders still hold it, so the newest 100 start after the first 2.
-    expect(queries).toEqual([
-      'product_id=1&exclude_cancelled=true&limit=100',
-      'product_id=1&exclude_cancelled=true&skip=2&limit=100',
-    ])
+    // Opening the page only asks how many: one row, the total from the header.
+    expect(queries).toEqual(['product_id=1&exclude_cancelled=true&limit=1'])
     expect(screen.queryByRole('button', { name: /purchase orders/ })).not.toBeInTheDocument()
 
-    // The newest page, newest first, without the cancelled order.
+    // The orders themselves load when the list opens: 102 hold it, so the newest 100
+    // start after the first 2.
     await user.click(sales)
     const list = await screen.findByRole('list', { name: 'sales orders' })
     const links = within(list).getAllByRole('link')
@@ -469,6 +467,10 @@ describe('product smart buttons', () => {
     // A full page now: nothing is dropped after it arrives.
     expect(links).toHaveLength(100)
     expect(screen.getByText('Showing the newest orders only.')).toBeInTheDocument()
+    expect(queries).toEqual([
+      'product_id=1&exclude_cancelled=true&limit=1',
+      'product_id=1&exclude_cancelled=true&skip=2&limit=100',
+    ])
   })
 })
 

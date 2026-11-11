@@ -18,9 +18,7 @@ export type ProductOrder = {
 }
 
 export type ProductOrders = {
-  // Every order holding the product, cancelled ones left out.
-  count: number
-  // The newest of them, newest first.
+  // The newest orders holding the product, newest first.
   orders: ProductOrder[]
   // False when there are more than one page holds, so only the newest are listed.
   complete: boolean
@@ -36,32 +34,47 @@ function fetchOrders(kind: OrderKind, productId: number, page: Query) {
     : unwrapWithTotal(api.GET('/purchase-orders', { params: { query } }))
 }
 
-async function load(kind: OrderKind, productId: number): Promise<ProductOrders> {
-  // The lists run oldest first, so the newest orders sit on the last page.
-  const first = await fetchOrders(kind, productId, { limit: PAGE })
-  const page =
-    first.total > PAGE
-      ? await fetchOrders(kind, productId, { skip: first.total - PAGE, limit: PAGE })
-      : first
-  const orders = page.data
-    .map((order) => ({
-      id: order.id,
-      reference: order.reference,
-      state: order.state,
-      quantity: sumQuantities(
-        order.lines.filter((line) => line.product_id === productId).map((line) => line.quantity),
-      ),
-    }))
-    .sort((a, b) => b.id - a.id)
-  return { count: first.total, orders, complete: first.total <= PAGE }
-}
-
-export function useProductOrders(kind: OrderKind, productId: number, enabled: boolean) {
+// How many orders hold the product: one row asked for, the total read from the header.
+export function useProductOrderCount(kind: OrderKind, productId: number) {
   return useQuery({
     // Under the order list's key, so any change to those orders refreshes it.
-    queryKey: [`${kind}-orders`, 'with-product', productId],
-    queryFn: () => load(kind, productId),
-    enabled,
+    queryKey: [`${kind}-orders`, 'count-with-product', productId],
+    queryFn: async () => (await fetchOrders(kind, productId, { limit: 1 })).total,
+  })
+}
+
+// The orders themselves, only once someone opens the list. The lists run oldest first, so
+// knowing the count, the newest page is asked for straight away.
+export function useProductOrderList(
+  kind: OrderKind,
+  productId: number,
+  count: number | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [`${kind}-orders`, 'with-product', productId, count],
+    queryFn: async (): Promise<ProductOrders> => {
+      const total = count ?? 0
+      if (total === 0) return { orders: [], complete: true } // nothing to ask for
+      const page = await fetchOrders(kind, productId, {
+        skip: Math.max(0, total - PAGE),
+        limit: PAGE,
+      })
+      const orders = page.data
+        .map((order) => ({
+          id: order.id,
+          reference: order.reference,
+          state: order.state,
+          quantity: sumQuantities(
+            order.lines
+              .filter((line) => line.product_id === productId)
+              .map((line) => line.quantity),
+          ),
+        }))
+        .sort((a, b) => b.id - a.id)
+      return { orders, complete: page.total <= PAGE }
+    },
+    enabled: enabled && count !== undefined,
   })
 }
 
