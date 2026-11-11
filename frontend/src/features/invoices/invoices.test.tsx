@@ -381,3 +381,49 @@ describe('invoice page', () => {
     })
   })
 })
+
+describe('totals elsewhere after a payment', () => {
+  it('refreshes the partner totals at once, even within the cache time', async () => {
+    mockReferenceData()
+    let due = '200.00'
+    server.use(
+      http.get(`${API}/partners/6/summary`, () =>
+        HttpResponse.json({
+          sales_orders: null,
+          purchase_orders: null,
+          customer_invoices: { invoiced: '200.00', due },
+          vendor_bills: null,
+        }),
+      ),
+      http.get(`${API}/invoices`, () => HttpResponse.json([posted])),
+      http.get(`${API}/invoices/5`, () => HttpResponse.json(posted)),
+      http.post(`${API}/invoices/5/payments`, () => {
+        due = '0.00'
+        return HttpResponse.json(
+          { ...posted, amount_paid: '200.00', amount_due: '0.00', payment_state: 'paid' },
+          { status: 201 },
+        )
+      }),
+    )
+    signInAs(salesManager)
+    const { router, queryClient } = renderApp('/partners/6')
+    // As in the app: what was fetched in the last 30 seconds isn't asked for again.
+    queryClient.setDefaultOptions({ queries: { retry: false, staleTime: 30_000 } })
+    const user = userEvent.setup()
+
+    expect(
+      await screen.findByRole('link', { name: '200.00 invoiced, 200.00 still due' }),
+    ).toBeInTheDocument()
+
+    await router.navigate('/invoices/5')
+    await user.click(await screen.findByRole('button', { name: 'Register payment' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await router.navigate('/partners/6')
+    expect(
+      await screen.findByRole('link', { name: '200.00 invoiced, 0.00 still due' }),
+    ).toBeInTheDocument()
+  })
+})

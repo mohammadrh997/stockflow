@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 
 import { api, type Schemas } from '@/api/client'
 import { unwrap } from '@/api/errors'
+import { invalidateSummaries } from '@/api/summaries'
 
 export type Transfer = Schemas['TransferRead']
 export type TransferType = Schemas['TransferType']
@@ -50,14 +51,10 @@ function useStoreTransfer() {
   return (transfer: Transfer) => {
     queryClient.setQueryData(['transfer', transfer.id], transfer)
     return Promise.all(
-      [
-        'transfers',
-        'stock',
-        'purchase-order',
-        'purchase-orders',
-        'sales-order',
-        'sales-orders',
-      ].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+      ['transfers', 'stock', 'purchase-order', 'purchase-orders', 'sales-order', 'sales-orders']
+        .map((key) => queryClient.invalidateQueries({ queryKey: [key] }))
+        // In and out totals on products move with every validated transfer.
+        .concat(invalidateSummaries(queryClient)),
     )
   }
 }

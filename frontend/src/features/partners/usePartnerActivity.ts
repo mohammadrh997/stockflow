@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { api, type Schemas } from '@/api/client'
 import { unwrap } from '@/api/errors'
+import { summaryKey } from '@/api/summaries'
 
 export type PartnerSummary = Schemas['PartnerSummary']
 
@@ -9,7 +10,7 @@ export type PartnerSummary = Schemas['PartnerSummary']
 // the user can't see that area (sales figures for sales users, purchase for purchase).
 export function usePartnerSummary(partnerId: number, enabled: boolean) {
   return useQuery({
-    queryKey: ['partners', partnerId, 'summary'],
+    queryKey: summaryKey('partner', partnerId),
     queryFn: () =>
       unwrap(
         api.GET('/partners/{partner_id}/summary', { params: { path: { partner_id: partnerId } } }),

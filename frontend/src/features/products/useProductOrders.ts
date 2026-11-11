@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { api, type Schemas } from '@/api/client'
 import { unwrap, unwrapWithTotal } from '@/api/errors'
+import { summaryKey } from '@/api/summaries'
 import { sumQuantities } from '@/lib/quantity'
 
 // The API's largest page: the popover lists at most this many of the newest orders.
@@ -70,7 +71,7 @@ export type ProductSummary = Schemas['ProductSummary']
 // is null when the user can't see that area.
 export function useProductSummary(productId: number) {
   return useQuery({
-    queryKey: ['products', productId, 'summary'],
+    queryKey: summaryKey('product', productId),
     queryFn: () =>
       unwrap(
         api.GET('/products/{product_id}/summary', { params: { path: { product_id: productId } } }),
