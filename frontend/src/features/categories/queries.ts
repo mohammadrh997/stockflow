@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, type Schemas } from '@/api/client'
-import { unwrap } from '@/api/errors'
+import { unwrap, unwrapWithTotal } from '@/api/errors'
 
 export type Category = Schemas['CategoryRead']
 export type CategoryCreate = Schemas['CategoryCreate']
@@ -56,5 +56,23 @@ export function useSetCategoryActive(id: number) {
           : api.POST('/categories/{category_id}/archive', { params }),
       ),
     onSuccess: invalidate,
+  })
+}
+
+// How many active products sit in a category: directly, or with its subcategories too.
+export function useCategoryProductCount(id: number, includeSubcategories: boolean) {
+  return useQuery({
+    // Under 'products', so adding or moving a product refreshes it.
+    queryKey: ['products', 'count-in-category', id, includeSubcategories],
+    queryFn: async () =>
+      (
+        await unwrapWithTotal(
+          api.GET('/products', {
+            params: {
+              query: { category_id: id, include_subcategories: includeSubcategories, limit: 1 },
+            },
+          }),
+        )
+      ).total,
   })
 }

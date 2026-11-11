@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { parentChoices } from './categoryTree'
-import { useCreateCategory, useUpdateCategory, type Category } from './queries'
+import { useCreateCategory, type Category } from './queries'
 
 const TOP = 'top'
 
@@ -30,15 +30,13 @@ type Values = { name: string; parent: string }
 
 type Props = {
   categories: Category[]
-  // Editing this category; without it, a new one is added.
-  category?: Category
   // For a new one: where it starts (a row's "Add subcategory").
   parentId?: number | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-// The dialog stays mounted while closed; the form inside starts fresh on every opening.
+// Adds a category. The dialog stays mounted while closed; the form starts fresh on every opening.
 export function CategoryDialog({ open, onOpenChange, ...props }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,14 +49,11 @@ export function CategoryDialog({ open, onOpenChange, ...props }: Props) {
 
 function CategoryForm({
   categories,
-  category,
   parentId = null,
   onDone,
 }: Omit<Props, 'open' | 'onOpenChange'> & { onDone: () => void }) {
   const create = useCreateCategory()
-  const update = useUpdateCategory(category?.id ?? 0)
   const [formError, setFormError] = useState<string | null>(null)
-  const startParent = category ? category.parent_id : parentId
   const {
     register,
     control,
@@ -67,28 +62,19 @@ function CategoryForm({
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     defaultValues: {
-      name: category?.name ?? '',
-      parent: startParent === null ? TOP : String(startParent),
+      name: '',
+      parent: parentId === null ? TOP : String(parentId),
     },
   })
-  const choices = parentChoices(categories, category)
+  const choices = parentChoices(categories)
 
   async function submit(values: Values) {
     setFormError(null)
     const name = values.name.trim()
     const parent_id = values.parent === TOP ? null : Number(values.parent)
     try {
-      if (category) {
-        // Only what changed: an unchanged parent isn't sent, so it can't be refused.
-        await update.mutateAsync({
-          name,
-          ...(parent_id !== category.parent_id && { parent_id }),
-        })
-        toast.success('Category saved')
-      } else {
-        await create.mutateAsync({ name, parent_id })
-        toast.success(`Added ${name}`)
-      }
+      await create.mutateAsync({ name, parent_id })
+      toast.success(`Added ${name}`)
       onDone()
     } catch (error) {
       setFormError(applyFieldErrors(error, ['name'], setError).join(' ') || null)
@@ -98,12 +84,12 @@ function CategoryForm({
   return (
     <form className="grid gap-4" onSubmit={handleSubmit(submit)} noValidate>
       <DialogHeader>
-        <DialogTitle>{category ? `Edit ${category.name}` : 'New category'}</DialogTitle>
+        <DialogTitle>New category</DialogTitle>
       </DialogHeader>
       {formError && <ErrorMessage message={formError} />}
-      <FormField label="Name" htmlFor="category-name" error={errors.name?.message}>
+      <FormField label="Name" htmlFor="new-category-name" error={errors.name?.message}>
         <Input
-          id="category-name"
+          id="new-category-name"
           autoFocus
           aria-invalid={errors.name ? true : undefined}
           {...register('name', {
@@ -112,13 +98,13 @@ function CategoryForm({
           })}
         />
       </FormField>
-      <FormField label="Parent category" htmlFor="category-parent">
+      <FormField label="Parent category" htmlFor="new-category-parent">
         <Controller
           name="parent"
           control={control}
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="category-parent" className="w-full">
+              <SelectTrigger id="new-category-parent" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -135,7 +121,7 @@ function CategoryForm({
       </FormField>
       <DialogFooter>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : category ? 'Save' : 'Add category'}
+          {isSubmitting ? 'Saving…' : 'Add category'}
         </Button>
       </DialogFooter>
     </form>

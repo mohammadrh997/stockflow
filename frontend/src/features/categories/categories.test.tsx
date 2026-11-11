@@ -85,7 +85,7 @@ describe('categories page', () => {
     server.use(http.get(`${API}/categories`, () => HttpResponse.json(categories)))
   }
 
-  it('shows the tree read-only to people who cannot manage products', async () => {
+  it('shows the tree, with New category only for inventory managers', async () => {
     mockTree()
     signInAs(makeUser({ sales_access: 'user' }))
     renderApp('/categories')
@@ -97,7 +97,6 @@ describe('categories page', () => {
         .map((item) => item.textContent),
     ).toEqual(['Furniture', 'Chairs', 'Office', 'Tables', 'Paper'])
     expect(screen.queryByRole('button', { name: 'New category' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument()
     const [section] = screen.getAllByRole('navigation', { name: 'Section' })
     expect(within(section).getByRole('link', { name: 'Categories' })).toHaveAttribute(
       'aria-current',
@@ -105,26 +104,131 @@ describe('categories page', () => {
     )
   })
 
-  it('opens the products of a category from anywhere on its row, but not from its menu', async () => {
+  it('opens a category from anywhere on its row', async () => {
     mockTree()
-    server.use(http.get(`${API}/products`, () => HttpResponse.json([])))
-    signInAs(makeUser({ inventory_access: 'manager' }))
+    signInAs(makeUser())
     const { router } = renderApp('/categories')
     const user = userEvent.setup()
 
-    const row = (await screen.findByText('Tables')).closest('li')!
-    await user.click(within(row).getByRole('button', { name: 'Actions for Tables' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Rename or move' }))
-    expect(router.state.location.pathname).toBe('/categories')
-    await user.keyboard('{Escape}')
-
-    await user.click(row)
-    await waitFor(() => expect(router.state.location.pathname).toBe('/products'))
-    expect(router.state.location.search).toBe('?category=4')
+    await user.click((await screen.findByText('Tables')).closest('li')!)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/categories/4'))
   })
 
-  it('adds a subcategory under the row it was opened from', async () => {
+  it('adds a top-level category from the list', async () => {
     mockTree()
+    let body: unknown
+    server.use(
+      http.post(`${API}/categories`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(cat(9, 'Toys', null), { status: 201 })
+      }),
+    )
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/categories')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'New category' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Name'), ' Toys ')
+    await user.click(within(dialog).getByRole('button', { name: 'Add category' }))
+
+    await waitFor(() => expect(body).toEqual({ name: 'Toys', parent_id: null }))
+  })
+
+  it('lists archived categories only when asked', async () => {
+    server.use(
+      http.get(`${API}/categories`, ({ request }) =>
+        HttpResponse.json(
+          new URL(request.url).searchParams.get('include_archived') === 'true'
+            ? [...tree, cat(6, 'Old stuff', null, false)]
+            : tree,
+        ),
+      ),
+    )
+    signInAs(makeUser())
+    renderApp('/categories')
+    const user = userEvent.setup()
+
+    await screen.findByRole('list', { name: 'Categories' })
+    expect(screen.queryByText('Old stuff')).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('Show archived'))
+    const row = (await screen.findByText('Old stuff')).closest('li')!
+    expect(within(row).getByText('Archived')).toBeInTheDocument()
+  })
+})
+
+describe('category page', () => {
+  function mockCategory(categories: Category[] = tree) {
+    const counts: string[] = []
+    server.use(
+      http.get(`${API}/categories`, () => HttpResponse.json(categories)),
+      http.get(`${API}/products`, ({ request }) => {
+        const params = new URL(request.url).searchParams
+        counts.push(params.toString())
+        const total = params.get('include_subcategories') === 'true' ? 7 : 2
+        return HttpResponse.json([], { headers: { 'X-Total-Count': String(total) } })
+      }),
+    )
+    return counts
+  }
+
+  it('shows its products in a smart button and its subcategories below', async () => {
+    const counts = mockCategory()
+    signInAs(makeUser())
+    renderApp('/categories/1')
+
+    expect(await screen.findByRole('heading', { name: 'Furniture' })).toBeInTheDocument()
+    const products = await screen.findByRole('link', { name: '2 products, 7 with subcategories' })
+    expect(products).toHaveAttribute('href', '/products?category=1')
+    expect(counts).toEqual(
+      expect.arrayContaining([
+        'category_id=1&include_subcategories=false&limit=1',
+        'category_id=1&include_subcategories=true&limit=1',
+      ]),
+    )
+    const children = screen.getByRole('list', { name: 'Subcategories' })
+    expect(
+      within(children)
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([
+      ['Chairs', '/categories/2'],
+      ['Tables', '/categories/4'],
+    ])
+    // Read-only without inventory manager access.
+    expect(screen.getByLabelText('Name')).toBeDisabled()
+    expect(
+      screen.queryByRole('button', { name: /Archive|Add subcategory/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renames and moves it, sending only what changed', async () => {
+    mockCategory()
+    const bodies: unknown[] = []
+    server.use(
+      http.patch(`${API}/categories/4`, async ({ request }) => {
+        bodies.push(await request.json())
+        return HttpResponse.json(cat(4, 'Furniture / Desks', 1))
+      }),
+    )
+    signInAs(makeUser({ inventory_access: 'manager' }))
+    renderApp('/categories/4')
+    const user = userEvent.setup()
+
+    const name = await screen.findByLabelText('Name')
+    await user.clear(name)
+    await user.type(name, 'Desks')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(bodies).toEqual([{ name: 'Desks' }]))
+
+    await user.click(screen.getByRole('combobox', { name: 'Parent category' }))
+    await user.click(await screen.findByRole('option', { name: 'Paper' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(bodies.at(-1)).toEqual({ name: 'Desks', parent_id: 5 }))
+  })
+
+  it('adds a subcategory under it', async () => {
+    mockCategory()
     let body: unknown
     server.use(
       http.post(`${API}/categories`, async ({ request }) => {
@@ -133,47 +237,22 @@ describe('categories page', () => {
       }),
     )
     signInAs(makeUser({ inventory_access: 'manager' }))
-    renderApp('/categories')
+    renderApp('/categories/2')
     const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('button', { name: 'Actions for Chairs' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Add subcategory' }))
+    await user.click(await screen.findByRole('button', { name: 'Add subcategory' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByRole('combobox', { name: 'Parent category' })).toHaveTextContent(
       'Furniture / Chairs',
     )
-    await user.type(within(dialog).getByLabelText('Name'), ' Gaming ')
+    await user.type(within(dialog).getByLabelText('Name'), 'Gaming')
     await user.click(within(dialog).getByRole('button', { name: 'Add category' }))
 
     await waitFor(() => expect(body).toEqual({ name: 'Gaming', parent_id: 2 }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  })
-
-  it('sends only the name when a category is renamed in place', async () => {
-    mockTree()
-    let body: unknown
-    server.use(
-      http.patch(`${API}/categories/4`, async ({ request }) => {
-        body = await request.json()
-        return HttpResponse.json(cat(4, 'Furniture / Desks', 1))
-      }),
-    )
-    signInAs(makeUser({ inventory_access: 'manager' }))
-    renderApp('/categories')
-    const user = userEvent.setup()
-
-    await user.click(await screen.findByRole('button', { name: 'Actions for Tables' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Rename or move' }))
-    const name = within(await screen.findByRole('dialog')).getByLabelText('Name')
-    await user.clear(name)
-    await user.type(name, 'Desks')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    await waitFor(() => expect(body).toEqual({ name: 'Desks' }))
   })
 
   it('says why the server refused to archive', async () => {
-    mockTree()
+    mockCategory()
     server.use(
       http.post(`${API}/categories/1/archive`, () =>
         HttpResponse.json(
@@ -183,39 +262,34 @@ describe('categories page', () => {
       ),
     )
     signInAs(makeUser({ inventory_access: 'manager' }))
-    renderApp('/categories')
+    renderApp('/categories/1')
     const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('button', { name: 'Actions for Furniture' }))
-    await user.click(await screen.findByRole('menuitem', { name: 'Archive' }))
+    await user.click(await screen.findByRole('button', { name: 'Archive' }))
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Archive' }),
+    )
 
     expect(await screen.findByText(/it still has active subcategories/)).toBeInTheDocument()
   })
 
-  it('shows archived categories when asked, offering only Restore', async () => {
-    const requests: (string | null)[] = []
-    server.use(
-      http.get(`${API}/categories`, ({ request }) => {
-        const archived = new URL(request.url).searchParams.get('include_archived')
-        requests.push(archived)
-        return HttpResponse.json(
-          archived === 'true' ? [...tree, cat(6, 'Old stuff', null, false)] : tree,
-        )
-      }),
-    )
+  it('keeps an archived category read-only until restored', async () => {
+    mockCategory([...tree, cat(6, 'Old stuff', null, false)])
     signInAs(makeUser({ inventory_access: 'manager' }))
-    renderApp('/categories')
-    const user = userEvent.setup()
+    renderApp('/categories/6')
 
-    await screen.findByRole('list', { name: 'Categories' })
-    await user.click(screen.getByLabelText('Show archived'))
-    const row = (await screen.findByText('Old stuff')).closest('li')!
-    expect(within(row).getByText('Archived')).toBeInTheDocument()
-    await user.click(within(row).getByRole('button', { name: 'Actions for Old stuff' }))
-    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
-      'Restore',
-    ])
-    expect(requests).toContain('true')
+    expect(await screen.findByLabelText('Name')).toBeDisabled()
+    expect(screen.getByText('Restore it to make changes.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add subcategory' })).not.toBeInTheDocument()
+  })
+
+  it('shows not found for an unknown category', async () => {
+    mockCategory()
+    signInAs(makeUser())
+    renderApp('/categories/99')
+
+    expect(await screen.findByRole('heading', { name: /not found/i })).toBeInTheDocument()
   })
 })
 

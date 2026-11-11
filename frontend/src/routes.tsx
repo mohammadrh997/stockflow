@@ -59,6 +59,7 @@ const CategoriesPage = lazyPage(
   () => import('@/features/categories/CategoriesPage'),
   'CategoriesPage',
 )
+const CategoryPage = lazyPage(() => import('@/features/categories/CategoryPage'), 'CategoryPage')
 const CompanyPage = lazyPage(() => import('@/features/company/CompanyPage'), 'CompanyPage')
 const InvoicePage = lazyPage(() => import('@/features/invoices/InvoicePage'), 'InvoicePage')
 const InvoicesPage = lazyPage(() => import('@/features/invoices/InvoicesPage'), 'InvoicesPage')
@@ -120,6 +121,7 @@ export const routes: RouteObject[] = [
                 ),
               },
               { path: 'categories', element: <CategoriesPage /> },
+              { path: 'categories/:categoryId', element: <CategoryPage /> },
               { path: 'partners', element: <PartnersPage /> },
               {
                 path: 'partners/new',
