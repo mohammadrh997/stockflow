@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { setAppearance } from '@/lib/appearance'
 import { makeUser, renderApp } from '@/test/renderApp'
-import { API, server } from '@/test/server'
+import { API, defaultCompany, server } from '@/test/server'
 import { getToken, setToken } from './token'
 
 async function logIn(email = 'ada@example.com', password = 'password123') {
@@ -159,7 +159,43 @@ describe('layout', () => {
     renderApp('/')
 
     const nav = await screen.findByRole('navigation', { name: 'Main' })
-    expect(within(nav).getAllByRole('link')).toHaveLength(10)
+    expect(within(nav).getAllByRole('link')).toHaveLength(9)
+    expect(within(nav).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/users')
+  })
+
+  it('shows the pages of the open area in the top bar, keeping its sidebar entry lit', async () => {
+    setToken('token')
+    server.use(
+      http.get(`${API}/auth/me`, () => HttpResponse.json(makeUser({ is_admin: true }))),
+      http.get(`${API}/settings/company`, () => HttpResponse.json(defaultCompany)),
+    )
+    renderApp('/settings/company')
+
+    const main = await screen.findByRole('navigation', { name: 'Main' })
+    expect(within(main).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    // One copy for wide screens and one for phones; both say the same.
+    const [section] = screen.getAllByRole('navigation', { name: 'Section' })
+    expect(
+      within(section)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Users', 'Company'])
+    expect(within(section).getByRole('link', { name: 'Company' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('shows no top-bar links in an area with a single page', async () => {
+    setToken('token')
+    server.use(http.get(`${API}/auth/me`, () => HttpResponse.json(makeUser({ is_admin: true }))))
+    renderApp('/')
+
+    await screen.findByRole('navigation', { name: 'Main' })
+    expect(screen.queryByRole('navigation', { name: 'Section' })).not.toBeInTheDocument()
   })
 
   it('switches between light and dark from the header', async () => {

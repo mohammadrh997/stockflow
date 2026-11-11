@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 
-import { canOnInvoices } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
+import { defaultInvoiceType } from '@/components/layout/navigation'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ListToolbar } from '@/components/ListToolbar'
 import { Money } from '@/components/Money'
@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDate, today } from '@/lib/dates'
 import { useListParams } from '@/lib/useListParams'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
@@ -36,12 +35,12 @@ const ALL = 'all'
 export function InvoicesPage() {
   const { user } = useAuth()
   const list = useListParams()
-  // Everyone here can read both kinds; the kind they work on comes first.
-  const types: InvoiceType[] = canOnInvoices(user, 'customer_invoice')
-    ? ['customer_invoice', 'vendor_bill']
-    : ['vendor_bill', 'customer_invoice']
-  const requested = list.get('type') as InvoiceType
-  const type = types.includes(requested) ? requested : types[0]
+  // Everyone here can read both kinds, picked in the top bar; it opens on the kind they work on.
+  const requested = list.get('type')
+  const type: InvoiceType =
+    requested === 'customer_invoice' || requested === 'vendor_bill'
+      ? requested
+      : defaultInvoiceType(user)
   const state = (list.get('state') || undefined) as InvoiceState | undefined
   const partnerId = list.get('partner') ? Number(list.get('partner')) : undefined
   const invoices = useInvoices({
@@ -100,22 +99,12 @@ export function InvoicesPage() {
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Invoices" />
+      <PageHeader title={INVOICE_TYPE_LABELS[type].many} />
       <p className="-mt-3 text-sm text-muted-foreground">
-        Invoices are created from an order once its goods have been delivered or received.
+        {customer ? 'Invoices' : 'Bills'} are created from an order once its goods have been
+        {customer ? ' delivered' : ' received'}.
       </p>
       <ListToolbar>
-        {types.length > 1 && (
-          <Tabs value={type} onValueChange={(value) => list.set('type', value)}>
-            <TabsList>
-              {types.map((value) => (
-                <TabsTrigger key={value} value={value}>
-                  {INVOICE_TYPE_LABELS[value].many}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
         <Select
           value={state ?? ALL}
           onValueChange={(value) => list.set('state', value === ALL ? '' : value)}

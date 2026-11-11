@@ -114,9 +114,11 @@ describe('invoice list', () => {
 
     const row = (await screen.findByRole('link', { name: 'INV00001' })).closest('tr')!
     expect(query?.get('invoice_type')).toBe('customer_invoice')
-    expect(screen.getByRole('tab', { name: 'Customer invoices' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    expect(screen.getByRole('heading', { name: 'Customer invoices' })).toBeInTheDocument()
+    const [section] = screen.getAllByRole('navigation', { name: 'Section' })
+    expect(within(section).getByRole('link', { name: 'Invoices' })).toHaveAttribute(
+      'aria-current',
+      'page',
     )
     expect(within(row).getByText('Not paid')).toBeInTheDocument()
     expect(within(row).getByText('Overdue')).toBeInTheDocument()
@@ -138,7 +140,12 @@ describe('invoice list', () => {
 
     expect(await screen.findByText('No vendor bills yet.')).toBeInTheDocument()
     expect(types[0]).toBe('vendor_bill')
-    await user.click(screen.getByRole('tab', { name: 'Customer invoices' }))
+    const [section] = screen.getAllByRole('navigation', { name: 'Section' })
+    expect(within(section).getByRole('link', { name: 'Bills' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await user.click(within(section).getByRole('link', { name: 'Invoices' }))
 
     await waitFor(() => expect(types.at(-1)).toBe('customer_invoice'))
     expect(await screen.findByText('No customer invoices yet.')).toBeInTheDocument()
