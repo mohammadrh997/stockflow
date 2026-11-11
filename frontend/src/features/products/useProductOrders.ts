@@ -1,18 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { api } from '@/api/client'
-import { unwrap } from '@/api/errors'
-import type { PurchaseOrder } from '@/features/purchase/queries'
-import type { SalesOrder } from '@/features/sales/queries'
+import { api, type Schemas } from '@/api/client'
+import { unwrap, unwrapWithTotal } from '@/api/errors'
 import { sumQuantities } from '@/lib/quantity'
 
-// The API's largest page.
+// The API's largest page: the popover lists at most this many of the newest orders.
 const PAGE = 100
-// A stop so a huge history can't keep the page busy (3,000 orders, oldest first, as the API
-// sorts them); past it, counts say "at least". The button's note repeats this number.
-const MAX_PAGES = 30
 
-type Order = SalesOrder | PurchaseOrder
+export type OrderKind = 'sales' | 'purchase'
 
 export type ProductOrder = {
   id: number
@@ -22,64 +17,69 @@ export type ProductOrder = {
 }
 
 export type ProductOrders = {
+  // Every order holding the product, cancelled ones left out.
+  count: number
+  // The newest of them, newest first.
   orders: ProductOrder[]
-  // What confirmed and finished orders hold: quotations and drafts don't count yet.
-  committed: string
-  // True when MAX_PAGES was reached and older orders weren't looked at.
-  partial: boolean
+  // False when there are more than one page holds, so only the newest are listed.
+  complete: boolean
 }
 
-// The order lists can't be filtered by product yet, so every page is fetched and each
-// order's lines are checked here. Replace with a product filter once the API has one.
-async function scan(
-  fetchPage: (skip: number) => Promise<Order[]>,
-  productId: number,
-): Promise<ProductOrders> {
-  const orders: ProductOrder[] = []
-  const committed: string[] = []
-  let partial = false
-  for (let page = 0; ; page += 1) {
-    if (page === MAX_PAGES) {
-      partial = true
-      break
-    }
-    const rows = await fetchPage(page * PAGE)
-    for (const order of rows) {
-      if (order.state === 'cancelled') continue
-      const lines = order.lines.filter((line) => line.product_id === productId)
-      if (lines.length === 0) continue
-      const quantity = sumQuantities(lines.map((line) => line.quantity))
-      orders.push({ id: order.id, reference: order.reference, state: order.state, quantity })
-      if (order.state !== 'draft') committed.push(quantity)
-    }
-    if (rows.length < PAGE) break
-  }
-  // Newest first, like the order lists.
-  orders.sort((a, b) => b.id - a.id)
-  return { orders, committed: sumQuantities(committed), partial }
+type Query = { product_id: number; skip?: number; limit: number; state?: 'cancelled' }
+
+function fetchOrders(kind: OrderKind, query: Query) {
+  return kind === 'sales'
+    ? unwrapWithTotal(api.GET('/sales-orders', { params: { query } }))
+    : unwrapWithTotal(api.GET('/purchase-orders', { params: { query } }))
 }
 
-export function useProductSalesOrders(productId: number, enabled: boolean) {
-  return useQuery({
-    // Under 'sales-orders', so any change to sales orders refreshes it.
-    queryKey: ['sales-orders', 'with-product', productId],
-    queryFn: () =>
-      scan(
-        (skip) => unwrap(api.GET('/sales-orders', { params: { query: { skip, limit: PAGE } } })),
-        productId,
+async function load(kind: OrderKind, productId: number): Promise<ProductOrders> {
+  // The lists run oldest first, so the newest orders sit on the last page.
+  const first = await fetchOrders(kind, { product_id: productId, limit: PAGE })
+  const [page, cancelled] = await Promise.all([
+    first.total > PAGE
+      ? fetchOrders(kind, { product_id: productId, skip: first.total - PAGE, limit: PAGE })
+      : first,
+    // The list can't leave cancelled orders out, but it can count them on their own.
+    fetchOrders(kind, { product_id: productId, state: 'cancelled', limit: 1 }),
+  ])
+  const orders = page.data
+    .filter((order) => order.state !== 'cancelled')
+    .map((order) => ({
+      id: order.id,
+      reference: order.reference,
+      state: order.state,
+      quantity: sumQuantities(
+        order.lines.filter((line) => line.product_id === productId).map((line) => line.quantity),
       ),
+    }))
+    .sort((a, b) => b.id - a.id)
+  return {
+    count: first.total - cancelled.total,
+    orders,
+    complete: first.total <= PAGE,
+  }
+}
+
+export function useProductOrders(kind: OrderKind, productId: number, enabled: boolean) {
+  return useQuery({
+    // Under the order list's key, so any change to those orders refreshes it.
+    queryKey: [`${kind}-orders`, 'with-product', productId],
+    queryFn: () => load(kind, productId),
     enabled,
   })
 }
 
-export function useProductPurchaseOrders(productId: number, enabled: boolean) {
+export type ProductSummary = Schemas['ProductSummary']
+
+// Stock moved in and out, and what confirmed orders hold, added up by the server. Each part
+// is null when the user can't see that area.
+export function useProductSummary(productId: number) {
   return useQuery({
-    queryKey: ['purchase-orders', 'with-product', productId],
+    queryKey: ['products', productId, 'summary'],
     queryFn: () =>
-      scan(
-        (skip) => unwrap(api.GET('/purchase-orders', { params: { query: { skip, limit: PAGE } } })),
-        productId,
+      unwrap(
+        api.GET('/products/{product_id}/summary', { params: { path: { product_id: productId } } }),
       ),
-    enabled,
   })
 }

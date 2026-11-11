@@ -2,12 +2,11 @@ import { Link, useParams } from 'react-router'
 
 import { DataTable, type Column } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
-import { Pagination } from '@/components/Pagination'
-import { LocationName } from '@/components/RecordNames'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDateTime, formatQuantity } from '@/lib/format'
-import { PAGE_SIZE, useListParams } from '@/lib/useListParams'
+import { useListParams } from '@/lib/useListParams'
 import { cn } from '@/lib/utils'
 import { useProduct } from './queries'
 import { useProductMoves, type MoveKind, type ProductMove } from './useProductMoves'
@@ -28,18 +27,21 @@ const KIND_LABELS: Record<MoveKind, string> = {
 }
 
 const columns: Column<ProductMove>[] = [
-  { header: 'Date', cell: (move) => formatDateTime(move.at) },
+  { header: 'Date', cell: (move) => formatDateTime(move.created_at) },
   {
     header: 'Reference',
-    cell: (move) => (
-      <Link to={`/transfers/${move.transfer.id}`} className="font-medium hover:underline">
-        {move.transfer.reference}
-      </Link>
-    ),
+    cell: (move) =>
+      move.transfer ? (
+        <Link to={`/transfers/${move.transfer.id}`} className="font-medium hover:underline">
+          {move.transfer.reference}
+        </Link>
+      ) : (
+        '—'
+      ),
   },
   { header: 'Type', cell: (move) => <Badge variant="outline">{KIND_LABELS[move.kind]}</Badge> },
-  { header: 'From', cell: (move) => <LocationName id={move.fromLocationId} /> },
-  { header: 'To', cell: (move) => <LocationName id={move.toLocationId} /> },
+  { header: 'From', cell: (move) => move.from_location.name },
+  { header: 'To', cell: (move) => move.to_location.name },
   {
     header: 'Quantity',
     className: 'text-right',
@@ -57,7 +59,7 @@ const columns: Column<ProductMove>[] = [
       </span>
     ),
   },
-  { header: 'By', cell: (move) => move.transfer.validatedBy ?? '—' },
+  { header: 'By', cell: (move) => move.created_by.name },
 ]
 
 export function ProductMovesPage() {
@@ -68,9 +70,8 @@ export function ProductMovesPage() {
   const requested = list.get('kind')
   const kind = KINDS.some((k) => k.value === requested) ? (requested as MoveKind) : 'all'
 
-  // The whole history is loaded at once, so filtering and paging happen here.
-  const rows = (moves.data?.moves ?? []).filter((move) => kind === 'all' || move.kind === kind)
-  const pageRows = rows.slice(list.skip, list.skip + PAGE_SIZE)
+  // The tabs filter the moves loaded so far; "Load more" brings in older ones.
+  const rows = moves.moves?.filter((move) => kind === 'all' || move.kind === kind)
   const name = product.data?.name ?? `Product #${id}`
 
   return (
@@ -92,27 +93,32 @@ export function ProductMovesPage() {
           ))}
         </TabsList>
       </Tabs>
-      {moves.data?.partial && (
-        <p className="text-sm text-muted-foreground">
-          Only the oldest 3,000 done transfers were checked, so recent moves may be missing.
-        </p>
-      )}
       <DataTable
         columns={columns}
-        rows={moves.data ? pageRows : undefined}
+        rows={rows}
         rowKey={(move) => move.id}
         isPending={moves.isPending}
         error={moves.error}
         onRetry={() => moves.refetch()}
-        emptyMessage={kind === 'all' ? 'No moves yet.' : 'No moves of this kind.'}
+        emptyMessage={
+          kind === 'all'
+            ? 'No moves yet.'
+            : moves.hasNextPage
+              ? 'None of this kind among the latest moves. Load more to look further back.'
+              : 'No moves of this kind.'
+        }
       />
-      <Pagination
-        page={list.page}
-        pageSize={PAGE_SIZE}
-        rowCount={pageRows.length}
-        hasNext={list.skip + PAGE_SIZE < rows.length}
-        onPageChange={list.setPage}
-      />
+      {moves.hasNextPage && (
+        <div>
+          <Button
+            variant="outline"
+            disabled={moves.isFetchingNextPage}
+            onClick={() => moves.fetchNextPage()}
+          >
+            {moves.isFetchingNextPage ? 'Loading…' : 'Load older moves'}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
