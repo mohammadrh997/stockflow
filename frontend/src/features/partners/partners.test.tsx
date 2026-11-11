@@ -138,54 +138,48 @@ describe('partners', () => {
     expect(screen.queryByRole('heading', { name: 'Invoices' })).not.toBeInTheDocument()
   })
 
-  it('sums up orders and invoices in buttons above the partner', async () => {
-    const queries: string[] = []
-    const order = (id: number, state: string, total: string) => ({
-      id,
-      reference: `SO0000${id}`,
-      partner_id: 1,
-      warehouse_id: 1,
-      state,
-      created_at: '2026-01-01T10:00:00Z',
-      created_by: { id: 1, name: 'Admin' },
-      lines: [],
-      total,
-    })
+  it('shows the server totals in buttons above the partner', async () => {
     server.use(
       http.get(`${API}/partners/1`, () =>
         HttpResponse.json(makePartner({ is_customer: true, is_supplier: true })),
       ),
-      http.get(`${API}/sales-orders`, ({ request }) => {
-        queries.push(new URL(request.url).search)
-        return HttpResponse.json([
-          order(1, 'confirmed', '100.00'),
-          order(2, 'draft', '20.50'),
-          order(3, 'cancelled', '999.00'),
-        ])
-      }),
-      http.get(`${API}/invoices`, ({ request }) => {
-        const query = new URL(request.url).searchParams
-        if (query.get('invoice_type') !== 'customer_invoice') return HttpResponse.json([])
-        return HttpResponse.json([
-          { amount_total: '100.00', amount_due: '40.00' },
-          { amount_total: '50.00', amount_due: '0.00' },
-        ])
-      }),
+      // Sales only: the server leaves the purchase side out.
+      http.get(`${API}/partners/1/summary`, () =>
+        HttpResponse.json({
+          sales_orders: { count: 2, total: '120.50' },
+          purchase_orders: null,
+          customer_invoices: { invoiced: '150.00', due: '40.00' },
+          vendor_bills: null,
+        }),
+      ),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
     )
-    // Sales only: purchase orders stay hidden, but both invoice kinds can be read.
     signInAs(makeUser({ sales_access: 'user' }))
     renderApp('/partners/1')
 
     const sales = await screen.findByRole('link', { name: '2 sales orders, 120.50 in total' })
-    expect(sales).toHaveTextContent('120.50 in total')
     expect(sales).toHaveAttribute('href', '/sales-orders?partner=1')
-    expect(queries[0]).toContain('partner_id=1')
     const invoiced = await screen.findByRole('link', { name: '150.00 invoiced, 40.00 still due' })
-    expect(invoiced).toHaveTextContent('40.00 still due')
     expect(invoiced).toHaveAttribute('href', '/invoices?type=customer_invoice&partner=1')
-    expect(
-      await screen.findByRole('link', { name: '0.00 billed, 0.00 still due' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /purchase order/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /purchase order|billed/ })).not.toBeInTheDocument()
+  })
+
+  it('asks for no totals when the user sees neither side', async () => {
+    let asked = false
+    server.use(
+      http.get(`${API}/partners/1`, () => HttpResponse.json(makePartner())),
+      http.get(`${API}/partners/1/summary`, () => {
+        asked = true
+        return HttpResponse.json({})
+      }),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
+    )
+    // A supplier, seen by a sales user.
+    signInAs(makeUser({ sales_access: 'user' }))
+    renderApp('/partners/1')
+
+    expect(await screen.findByLabelText('Name')).toHaveValue('Acme')
+    expect(asked).toBe(false)
+    expect(screen.queryByRole('link', { name: /in total|still due/ })).not.toBeInTheDocument()
   })
 })
