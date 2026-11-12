@@ -23,7 +23,8 @@ Every setting is listed in `.env.example`. Locally only the four in the setup st
 |---|---|
 | `CORS_ORIGINS` | the frontend's URL, as a JSON list: `["https://your-frontend.onrender.com"]` |
 | `CLIENT_IP_HEADER` | the header holding the real client IP behind the proxy. On Render it's `cf-connecting-ip`. Leave it unset locally |
-| `ACCESS_TOKEN_EXP_MINUTES` | how long a login lasts. The default is 480 (8 hours) |
+| `ACCESS_TOKEN_EXP_MINUTES` | how long an access token lasts before the frontend renews it. The default is 15 |
+| `REFRESH_TOKEN_EXP_DAYS` | how long a login survives without being used. The default is 7 |
 | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_KEY_ID`, `STORAGE_SECRET_KEY`, `STORAGE_PUBLIC_URL` | the S3-compatible bucket for product images. Without them, image uploads return 503 and everything else works |
 
 `SECRET_KEY` must be at least 32 characters, and the app refuses to start with a shorter one. Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.

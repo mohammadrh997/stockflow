@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -47,3 +49,13 @@ def decode_token(token: str) -> TokenData | None:
         return TokenData(user_id=int(payload["sub"]), issued_at=int(payload["iat"]))
     except (InvalidTokenError, ValueError):
         return None
+
+
+def new_refresh_token() -> str:
+    return secrets.token_urlsafe(32)  # 256 random bits
+
+
+def hash_refresh_token(token: str) -> str:
+    # A plain hash is enough: unlike a password, the token is random and too long to guess,
+    # and an unsalted hash can be looked up directly
+    return hashlib.sha256(token.encode()).hexdigest()

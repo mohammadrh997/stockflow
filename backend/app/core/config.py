@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     secret_key: str = Field(min_length=32)
     algorithm: str = "HS256"
     access_token_exp_minutes: int = 480
+    # Each use of a refresh token replaces it, so this is how long a login survives unused
+    refresh_token_exp_days: int = 7
     redis_url: str | None = None
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:5173"]

@@ -11,6 +11,7 @@ async def test_login_returns_token(client, make_user):
 
     assert response.status_code == 200
     assert response.json()["token_type"] == "bearer"
+    assert response.json()["refresh_token"]
 
 
 async def test_me_returns_current_user(client, make_user):

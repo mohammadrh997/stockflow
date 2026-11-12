@@ -1,3 +1,4 @@
+from app.models.auth import RefreshToken
 from app.models.category import Category
 from app.models.company import CompanySettings
 from app.models.invoice import Invoice, InvoiceLine, Payment
@@ -26,4 +27,5 @@ __all__ = [
     "Payment",
     "CompanySettings",
     "Category",
+    "RefreshToken",
 ]

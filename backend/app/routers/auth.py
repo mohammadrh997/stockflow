@@ -6,15 +6,18 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
 from app.core.limiter import limiter
-from app.core.security import DUMMY_HASH, create_access_token, hash_password, verify_password
+from app.core.security import DUMMY_HASH, hash_password, verify_password
 from app.dependencies import CurrentUser, DBsession
 from app.models.user import User
+from app.schemas.auth import RefreshRequest, Token
 from app.schemas.user import PasswordChange, ProfileUpdate, UserRead
+from app.services import auth as auth_service
+from app.services.auth import InvalidRefreshToken
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/token")
+@router.post("/token", response_model=Token)
 @limiter.limit("5/minute")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBsession, request: Request
@@ -28,7 +31,24 @@ async def login(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return {"access_token": create_access_token(str(user.id)), "token_type": "bearer"}
+    tokens = await auth_service.start_session(db, user)
+    return Token(access_token=tokens.access_token, refresh_token=tokens.refresh_token)
+
+
+@router.post("/refresh", response_model=Token)
+@limiter.limit("30/minute")
+async def refresh(payload: RefreshRequest, db: DBsession, request: Request):
+    try:
+        tokens = await auth_service.renew_session(db, payload.refresh_token)
+    except InvalidRefreshToken:
+        raise HTTPException(status_code=401, detail="Session expired") from None
+    return Token(access_token=tokens.access_token, refresh_token=tokens.refresh_token)
+
+
+@router.post("/logout", status_code=204)
+async def logout(payload: RefreshRequest, db: DBsession):
+    # 204 whatever the token: there's nothing to tell a client about one that's already gone
+    await auth_service.end_session(db, payload.refresh_token)
 
 
 @router.get("/me", response_model=UserRead)
@@ -44,7 +64,7 @@ async def update_me(user: CurrentUser, payload: ProfileUpdate, db: DBsession):
     return user
 
 
-@router.post("/me/password")
+@router.post("/me/password", response_model=Token)
 @limiter.limit("5/minute")
 async def change_password(
     user: CurrentUser, payload: PasswordChange, db: DBsession, request: Request
@@ -54,5 +74,7 @@ async def change_password(
 
     user.hashed_password = await hash_password(payload.new_password)
     user.password_changed_at = datetime.now(UTC)
-    await db.commit()
-    return {"access_token": create_access_token(str(user.id)), "token_type": "bearer"}
+    # Logged out everywhere else; this browser carries on with a new session
+    await auth_service.end_all_sessions(db, user.id)
+    tokens = await auth_service.start_session(db, user)  # commits the password too
+    return Token(access_token=tokens.access_token, refresh_token=tokens.refresh_token)
