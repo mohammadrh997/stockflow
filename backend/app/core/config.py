@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     database_url: str
     secret_key: str = Field(min_length=32)
     algorithm: str = "HS256"
-    access_token_exp_minutes: int = 480
+    access_token_exp_minutes: int = 15
     # Each use of a refresh token replaces it, so this is how long a login survives unused
     refresh_token_exp_days: int = 7
     redis_url: str | None = None
