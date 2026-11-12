@@ -1,13 +1,13 @@
 import createClient, { type Middleware } from 'openapi-fetch'
 
-import { getToken } from '@/auth/token'
+import { renewSession } from '@/auth/refresh'
+import { getRefreshToken, getToken } from '@/auth/token'
 import type { components, paths } from './schema'
 import { requestFinished, requestStarted } from './slowRequests'
 
 export type Schemas = components['schemas']
 
-// The backend declares no response model for these two endpoints.
-export type TokenResponse = { access_token: string; token_type: string }
+export type TokenResponse = Schemas['Token']
 
 let onUnauthorized: () => void = () => {}
 
@@ -15,19 +15,42 @@ export function setUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler
 }
 
+// Logging in and renewing answer 401 for wrong details, not for an expired login.
+const NO_RENEWAL = new Set(['/auth/token', '/auth/refresh', '/auth/logout'])
+
+// For each request in flight: a copy to send again, and the refresh token stored when it
+// left (if that has changed by the time it fails, someone already renewed).
+const inFlight = new Map<string, { copy: Request; refreshToken: string | null }>()
+
 const authMiddleware: Middleware = {
-  onRequest({ request }) {
+  onRequest({ request, id, schemaPath }) {
     const token = getToken()
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`)
     }
+    if (!NO_RENEWAL.has(schemaPath)) {
+      inFlight.set(id, { copy: request.clone(), refreshToken: getRefreshToken() })
+    }
     return request
   },
-  onResponse({ response, schemaPath }) {
-    if (response.status === 401 && schemaPath !== '/auth/token') {
-      onUnauthorized()
+  async onResponse({ response, id, schemaPath }) {
+    const sent = inFlight.get(id)
+    inFlight.delete(id)
+    if (response.status !== 401 || !sent) return response
+
+    // The access token ran out: renew it quietly and send the request again.
+    const outcome = await renewSession(sent.refreshToken)
+    if (outcome === 'offline') return response // no answer yet; the login stays
+    if (outcome === 'renewed') {
+      sent.copy.headers.set('Authorization', `Bearer ${getToken()}`)
+      const retried = await globalThis.fetch(sent.copy)
+      if (retried.status !== 401) return retried
     }
+    if (schemaPath !== '/auth/token') onUnauthorized()
     return response
+  },
+  onError({ id }) {
+    inFlight.delete(id)
   },
 }
 

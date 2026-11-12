@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 
 import { api, setUnauthorizedHandler, type TokenResponse } from '@/api/client'
 import { unwrap } from '@/api/errors'
-import { clearToken, getToken, setToken } from './token'
+import { clearToken, getToken, setTokens, type TokenPair } from './token'
 import { AuthContext, meQueryKey, type AuthContextValue } from './useAuth'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -40,16 +40,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       }),
     )) as TokenResponse
-    setToken(data.access_token)
+    setTokens(data)
     setTokenState(data.access_token)
     setSessionExpired(false)
   }, [])
 
   const logout = useCallback(() => endSession(false), [endSession])
 
-  const replaceToken = useCallback((next: string) => {
-    setToken(next)
-    setTokenState(next)
+  const replaceTokens = useCallback((next: TokenPair) => {
+    setTokens(next)
+    setTokenState(next.access_token)
   }, [])
 
   const value = useMemo<AuthContextValue>(
@@ -60,9 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionExpired,
       login,
       logout,
-      replaceToken,
+      replaceTokens,
     }),
-    [token, userQuery, sessionExpired, login, logout, replaceToken],
+    [token, userQuery, sessionExpired, login, logout, replaceTokens],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

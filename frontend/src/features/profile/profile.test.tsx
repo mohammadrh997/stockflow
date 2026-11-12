@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { getToken } from '@/auth/token'
+import { getRefreshToken, getToken } from '@/auth/token'
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
 import { API, server } from '@/test/server'
 
@@ -16,11 +16,15 @@ async function changePassword(current: string, next: string) {
 }
 
 describe('profile', () => {
-  it('replaces the stored token with the one a password change returns', async () => {
+  it('replaces the stored tokens with the new login a password change returns', async () => {
     let authorization: string | null = null
     server.use(
       http.post(`${API}/auth/me/password`, () =>
-        HttpResponse.json({ access_token: 'fresh-token', token_type: 'bearer' }),
+        HttpResponse.json({
+          access_token: 'fresh-token',
+          refresh_token: 'fresh-refresh',
+          token_type: 'bearer',
+        }),
       ),
       http.patch(`${API}/auth/me`, ({ request }) => {
         authorization = request.headers.get('Authorization')
@@ -33,6 +37,7 @@ describe('profile', () => {
     await changePassword('password123', 'better-password')
 
     await waitFor(() => expect(getToken()).toBe('fresh-token'))
+    expect(getRefreshToken()).toBe('fresh-refresh')
     expect(await screen.findByText('Password changed')).toBeInTheDocument()
 
     const user = userEvent.setup()

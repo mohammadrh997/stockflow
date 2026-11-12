@@ -2,6 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
 
 import type { User } from './permissions'
+import type { TokenPair } from './token'
 
 export type AuthContextValue = {
   token: string | null
@@ -10,8 +11,8 @@ export type AuthContextValue = {
   sessionExpired: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
-  // A password change returns a new token; the old one stops working at once.
-  replaceToken: (token: string) => void
+  // A password change starts a new login (the others end): its tokens replace the old ones.
+  replaceTokens: (tokens: TokenPair) => void
 }
 
 export const meQueryKey = ['me'] as const
