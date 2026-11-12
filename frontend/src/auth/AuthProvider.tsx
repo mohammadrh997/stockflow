@@ -3,7 +3,14 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 
 import { api, setUnauthorizedHandler, type TokenResponse } from '@/api/client'
 import { unwrap } from '@/api/errors'
-import { clearToken, getToken, setTokens, type TokenPair } from './token'
+import {
+  ACCESS_TOKEN_KEY,
+  clearToken,
+  getRefreshToken,
+  getToken,
+  setTokens,
+  type TokenPair,
+} from './token'
 import { AuthContext, meQueryKey, type AuthContextValue } from './useAuth'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -26,6 +33,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(() => {})
   }, [endSession])
 
+  // Every tab shares one login. When another tab logs out, this one follows; when another
+  // logs in or renews, this one picks up the new token.
+  useEffect(() => {
+    function onStorage(event: StorageEvent) {
+      if (event.key !== ACCESS_TOKEN_KEY && event.key !== null) return
+      const next = getToken()
+      if (next === null) {
+        setTokenState(null)
+        setSessionExpired(false)
+        queryClient.clear()
+      } else {
+        setTokenState(next)
+        setSessionExpired(false)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [queryClient])
+
   const userQuery = useQuery({
     queryKey: meQueryKey,
     queryFn: () => unwrap(api.GET('/auth/me')),
@@ -45,7 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionExpired(false)
   }, [])
 
-  const logout = useCallback(() => endSession(false), [endSession])
+  const logout = useCallback(() => {
+    // Tell the server, so this login can't be renewed again; the browser forgets it either
+    // way, without waiting for the answer.
+    const refreshToken = getRefreshToken()
+    if (refreshToken) {
+      api.POST('/auth/logout', { body: { refresh_token: refreshToken } }).catch(() => {})
+    }
+    endSession(false)
+  }, [endSession])
 
   const replaceTokens = useCallback((next: TokenPair) => {
     setTokens(next)

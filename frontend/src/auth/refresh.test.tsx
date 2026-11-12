@@ -1,10 +1,11 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import { makeUser, renderApp } from '@/test/renderApp'
 import { API, server } from '@/test/server'
-import { getRefreshToken, getToken, setTokens } from './token'
+import { clearToken, getRefreshToken, getToken, setTokens } from './token'
 
 const OLD = { access_token: 'old-access', refresh_token: 'old-refresh' }
 const NEW = { access_token: 'new-access', refresh_token: 'new-refresh' }
@@ -105,5 +106,62 @@ describe('renewing the login', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
     expect(getRefreshToken()).toBe('old-refresh')
+  })
+})
+
+describe('logging out, here and in other tabs', () => {
+  function signedIn() {
+    setTokens(NEW)
+    server.use(http.get(`${API}/auth/me`, () => HttpResponse.json(makeUser())))
+  }
+
+  // What the browser tells this tab when another tab changes the stored login.
+  function otherTabChanged() {
+    window.dispatchEvent(new StorageEvent('storage', { key: 'stockflow.token' }))
+  }
+
+  it('tells the server, so the login cannot be renewed again', async () => {
+    signedIn()
+    let body: unknown
+    server.use(
+      http.post(`${API}/auth/logout`, async ({ request }) => {
+        body = await request.json()
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderApp('/')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: /Ada/ }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Log out' }))
+
+    expect(await screen.findByRole('button', { name: 'Log in' })).toBeInTheDocument()
+    await waitFor(() => expect(body).toEqual({ refresh_token: 'new-refresh' }))
+    expect(getToken()).toBeNull()
+    expect(getRefreshToken()).toBeNull()
+  })
+
+  it('follows another tab that logs out', async () => {
+    signedIn()
+    const { router } = renderApp('/stock')
+    expect(await screen.findByRole('heading', { name: 'Stock' })).toBeInTheDocument()
+
+    clearToken()
+    act(() => otherTabChanged())
+
+    expect(await screen.findByRole('button', { name: 'Log in' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
+    expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument()
+  })
+
+  it('follows another tab that logs in', async () => {
+    server.use(http.get(`${API}/auth/me`, () => HttpResponse.json(makeUser())))
+    renderApp('/')
+    expect(await screen.findByRole('button', { name: 'Log in' })).toBeInTheDocument()
+
+    setTokens(NEW)
+    act(() => otherTabChanged())
+
+    expect(await screen.findByRole('heading', { name: 'Welcome, Ada' })).toBeInTheDocument()
   })
 })
