@@ -1,8 +1,14 @@
 import { getRefreshToken, setTokens, type TokenPair } from './token'
 
 // renewed: a fresh access token is stored. expired: the login is over; log in again.
-// offline: the server couldn't be reached, so nothing is known yet; the login stays.
-export type RenewOutcome = 'renewed' | 'expired' | 'offline'
+// unavailable: renewing didn't happen this time (no connection, a rate limit, a server
+// error), so nothing is known about the login, which stays. `response` is the server's
+// answer, to give the waiting request in place of its 401; none when it couldn't be reached.
+export type RenewOutcome =
+  { kind: 'renewed' } | { kind: 'expired' } | { kind: 'unavailable'; response?: Response }
+
+const RENEWED: RenewOutcome = { kind: 'renewed' }
+const EXPIRED: RenewOutcome = { kind: 'expired' }
 
 const LOCK = 'stockflow-refresh'
 
@@ -16,11 +22,17 @@ async function callRefresh(refreshToken: string): Promise<RenewOutcome> {
       body: JSON.stringify({ refresh_token: refreshToken }),
     })
   } catch {
-    return 'offline'
+    return { kind: 'unavailable' }
   }
-  if (!response.ok) return response.status >= 500 ? 'offline' : 'expired'
+  if (!response.ok) {
+    // A rate limit (429) is refused before the token is looked at, so it isn't used up:
+    // like a server error, it says nothing about the login, which can be renewed later.
+    return response.status >= 500 || response.status === 429
+      ? { kind: 'unavailable', response }
+      : EXPIRED
+  }
   setTokens((await response.json()) as TokenPair)
-  return 'renewed'
+  return RENEWED
 }
 
 // Each refresh token works once, and the server ends the whole login if it sees one twice.
@@ -29,8 +41,8 @@ async function callRefresh(refreshToken: string): Promise<RenewOutcome> {
 // replaced, and uses the new one instead of sending the old one again.
 async function renewInTurn(usedWith: string | null): Promise<RenewOutcome> {
   const current = getRefreshToken()
-  if (current === null) return 'expired' // logged out, or a login from before refresh tokens
-  if (current !== usedWith) return 'renewed' // another request or tab already renewed it
+  if (current === null) return EXPIRED // logged out, or a login from before refresh tokens
+  if (current !== usedWith) return RENEWED // another request or tab already renewed it
   return callRefresh(current)
 }
 

@@ -97,13 +97,31 @@ describe('renewing the login', () => {
     expect(getRefreshToken()).toBeNull()
   })
 
+  it('keeps the login when renewing is rate limited', async () => {
+    setTokens(OLD)
+    mockExpiredAccess(() => HttpResponse.json({ detail: 'Rate limit exceeded' }, { status: 429 }))
+    const { router } = renderApp('/')
+
+    // The reason shown is the rate limit, not a logout.
+    expect(
+      await screen.findByText('Too many attempts. Wait a minute and try again.'),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+    expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument()
+    expect(getToken()).toBe('old-access')
+    expect(getRefreshToken()).toBe('old-refresh')
+  })
+
   it('keeps the login when the server cannot be reached to renew it', async () => {
     setTokens(OLD)
     mockExpiredAccess(() => HttpResponse.error())
     const { router } = renderApp('/')
 
     await waitFor(() => expect(getToken()).toBe('old-access'))
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Could not reach the server. Check your connection and try again.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
     expect(getRefreshToken()).toBe('old-refresh')
   })

@@ -33,20 +33,26 @@ const authMiddleware: Middleware = {
     }
     return request
   },
-  async onResponse({ response, id, schemaPath }) {
+  async onResponse({ response, id }) {
     const sent = inFlight.get(id)
     inFlight.delete(id)
     if (response.status !== 401 || !sent) return response
 
     // The access token ran out: renew it quietly and send the request again.
     const outcome = await renewSession(sent.refreshToken)
-    if (outcome === 'offline') return response // no answer yet; the login stays
-    if (outcome === 'renewed') {
+    if (outcome.kind === 'unavailable') {
+      // The login stays. The request ends with why renewing failed ("too many attempts",
+      // "server unavailable", no connection), not with a 401 that reads as logged out.
+      // Requests waiting on the same renewal each get their own copy of the answer.
+      if (outcome.response) return outcome.response.clone()
+      throw new TypeError('Could not reach the server to renew the login')
+    }
+    if (outcome.kind === 'renewed') {
       sent.copy.headers.set('Authorization', `Bearer ${getToken()}`)
       const retried = await globalThis.fetch(sent.copy)
       if (retried.status !== 401) return retried
     }
-    if (schemaPath !== '/auth/token') onUnauthorized()
+    onUnauthorized()
     return response
   },
   onError({ id }) {
