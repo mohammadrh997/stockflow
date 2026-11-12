@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { setAppearance } from '@/lib/appearance'
 import { makeUser, renderApp } from '@/test/renderApp'
 import { API, defaultCompany, server } from '@/test/server'
-import { getToken, setToken } from './token'
+import { getRefreshToken, getToken, setToken } from './token'
 
 async function logIn(email = 'ada@example.com', password = 'password123') {
   const user = userEvent.setup()
@@ -24,7 +24,11 @@ describe('login', () => {
       http.post(`${API}/auth/token`, async ({ request }) => {
         contentType = request.headers.get('Content-Type')
         body = await request.text()
-        return HttpResponse.json({ access_token: 'new-token', token_type: 'bearer' })
+        return HttpResponse.json({
+          access_token: 'new-token',
+          refresh_token: 'new-refresh',
+          token_type: 'bearer',
+        })
       }),
       http.get(`${API}/auth/me`, ({ request }) => {
         authorization = request.headers.get('Authorization')
@@ -41,6 +45,7 @@ describe('login', () => {
     expect(new URLSearchParams(body).get('username')).toBe('ada@example.com')
     expect(new URLSearchParams(body).get('password')).toBe('password123')
     expect(getToken()).toBe('new-token')
+    expect(getRefreshToken()).toBe('new-refresh')
     expect(authorization).toBe('Bearer new-token')
   })
 

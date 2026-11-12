@@ -16,10 +16,10 @@ export function useUpdateProfile() {
 }
 
 export function useChangePassword() {
-  const { replaceToken } = useAuth()
+  const { replaceTokens } = useAuth()
   return useMutation({
     mutationFn: async (body: Schemas['PasswordChange']) =>
       (await unwrap(api.POST('/auth/me/password', { body }))) as TokenResponse,
-    onSuccess: (data) => replaceToken(data.access_token),
+    onSuccess: (data) => replaceTokens(data),
   })
 }
