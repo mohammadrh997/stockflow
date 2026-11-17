@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 MAX_PAGES = 5  # a bill is a page or two; this keeps one upload from using up the quota
 MAX_LINES = 100
+RETRY_DELAY = 2.0  # seconds before the one retry when Google is overloaded
 _MAX_AMOUNT = Decimal("9999999999")  # fits Numeric(12, 2) and Numeric(12, 3)
 
 
@@ -184,29 +185,39 @@ class GeminiBillReader:
             http_options=types.HttpOptions(timeout=60_000),  # ms
         )
 
+    async def _generate(self, data: bytes, mime_type: str):
+        types = self._types
+        return await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=[types.Part.from_bytes(data=data, mime_type=mime_type), "Read this bill."],
+            config=types.GenerateContentConfig(
+                system_instruction=PROMPT,
+                response_mime_type="application/json",
+                response_schema=RawBill,
+                temperature=0,
+            ),
+        )
+
     async def read(self, data: bytes, mime_type: str) -> Bill:
         from google.genai import errors
 
-        types = self._types
-        try:
-            response = await self._client.aio.models.generate_content(
-                model=self._model,
-                contents=[types.Part.from_bytes(data=data, mime_type=mime_type), "Read this bill."],
-                config=types.GenerateContentConfig(
-                    system_instruction=PROMPT,
-                    response_mime_type="application/json",
-                    response_schema=RawBill,
-                    temperature=0,
-                ),
-            )
-        except errors.APIError as exc:
-            if exc.code == 429:
-                raise ReaderUnavailable("bill reading is busy; try again in a minute") from None
-            logger.error("Gemini refused the request: %s %s", exc.code, exc.message)
-            raise ReaderUnavailable("bill reading isn't available right now") from None
-        except Exception:
-            logger.exception("Gemini didn't answer")
-            raise ReaderUnavailable("bill reading isn't available right now") from None
+        for attempt in (1, 2):
+            try:
+                response = await self._generate(data, mime_type)
+                break
+            except errors.APIError as exc:
+                # 503 is Google's "high demand": it usually passes within seconds, so one
+                # more try. 429 is our quota running out, which a retry wouldn't fix.
+                if exc.code == 503 and attempt == 1:
+                    await asyncio.sleep(RETRY_DELAY)
+                    continue
+                if exc.code in (429, 503):
+                    raise ReaderUnavailable("bill reading is busy; try again in a minute") from None
+                logger.error("Gemini refused the request: %s %s", exc.code, exc.message)
+                raise ReaderUnavailable("bill reading isn't available right now") from None
+            except Exception:
+                logger.exception("Gemini didn't answer")
+                raise ReaderUnavailable("bill reading isn't available right now") from None
 
         raw = response.parsed
         if not isinstance(raw, RawBill):

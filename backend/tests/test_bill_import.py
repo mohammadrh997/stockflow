@@ -8,6 +8,7 @@ from google.genai import errors
 from pypdf import PdfWriter
 
 from app.models.user import Access
+from app.services import bill_reader as reader_module  # the fixture is called bill_reader
 from app.services.bill_reader import (
     Bill,
     BillLine,
@@ -360,13 +361,15 @@ async def test_bill_imports_need_purchase_access(client, make_user, bill_reader)
 
 
 class StubModels:
-    def __init__(self, answer=None, error=None):
-        self.answer, self.error, self.requests = answer, error, []
+    """Answers `answer`, after raising each of `errors` once, in order."""
+
+    def __init__(self, answer=None, errors=()):
+        self.answer, self.errors, self.requests = answer, list(errors), []
 
     async def generate_content(self, **request):
         self.requests.append(request)
-        if self.error is not None:
-            raise self.error
+        if self.errors:
+            raise self.errors.pop(0)
         return self.answer
 
 
@@ -393,10 +396,29 @@ async def test_gemini_reader_sends_the_file_and_schema_and_checks_the_answer():
         await gemini_reader(models).read(PNG, "image/png")
 
 
+def api_error(code: int) -> errors.APIError:
+    return errors.APIError(code, {"error": {"message": "from Google", "status": "X"}})
+
+
 async def test_gemini_errors_become_unavailable():
-    busy = errors.APIError(429, {"error": {"message": "quota", "status": "RESOURCE_EXHAUSTED"}})
+    quota = StubModels(errors=[api_error(429)])
     with pytest.raises(ReaderUnavailable, match="busy"):
-        await gemini_reader(StubModels(error=busy)).read(PNG, "image/png")
+        await gemini_reader(quota).read(PNG, "image/png")
+    assert len(quota.requests) == 1  # out of quota: no retry
 
     with pytest.raises(ReaderUnavailable, match="isn't available"):
-        await gemini_reader(StubModels(error=TimeoutError())).read(PNG, "image/png")
+        await gemini_reader(StubModels(errors=[TimeoutError()])).read(PNG, "image/png")
+
+
+async def test_an_overloaded_model_is_tried_once_more(monkeypatch):
+    monkeypatch.setattr(reader_module, "RETRY_DELAY", 0)
+    raw = RawBill(lines=[RawLine(description="Chair", quantity=1, unit_price=5)])
+
+    models = StubModels(answer=SimpleNamespace(parsed=raw, text=None), errors=[api_error(503)])
+    assert (await gemini_reader(models).read(PNG, "image/png")).lines[0].description == "Chair"
+    assert len(models.requests) == 2
+
+    models = StubModels(errors=[api_error(503), api_error(503)])
+    with pytest.raises(ReaderUnavailable, match="busy"):
+        await gemini_reader(models).read(PNG, "image/png")
+    assert len(models.requests) == 2
