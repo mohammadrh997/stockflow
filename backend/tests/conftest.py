@@ -14,6 +14,7 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL  # before any app import, so app 
 for name in ("STORAGE_ENDPOINT", "STORAGE_BUCKET", "STORAGE_KEY_ID", "STORAGE_SECRET_KEY"):
     os.environ[name] = ""
 os.environ["STORAGE_PUBLIC_URL"] = "https://images.test"
+os.environ["GEMINI_API_KEY"] = ""  # nor Google: bill reading uses FakeBillReader
 
 from collections.abc import AsyncIterator, Awaitable, Callable  # noqa: E402
 
@@ -27,13 +28,14 @@ from sqlalchemy.pool import NullPool  # noqa: E402
 from alembic import command  # noqa: E402
 from app.core.database import Base  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
-from app.dependencies import get_db, get_optional_storage  # noqa: E402
+from app.dependencies import get_db, get_optional_bill_reader, get_optional_storage  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.user import (
     Access,  # noqa: E402
     User,  # noqa: E402
 )
 from app.schemas.user import UserCreate  # noqa: E402
+from app.services.bill_reader import Bill  # noqa: E402
 from app.services.bootstrap import ensure_defaults  # noqa: E402
 from app.services.storage import MemoryStorage  # noqa: E402
 from app.services.users import create_user  # noqa: E402
@@ -129,3 +131,26 @@ def storage(client: AsyncClient) -> MemoryStorage:
     memory = MemoryStorage()
     app.dependency_overrides[get_optional_storage] = lambda: memory
     return memory
+
+
+class FakeBillReader:
+    """Stands in for Gemini: returns `bill` as if read from the file, or raises `error`."""
+
+    def __init__(self) -> None:
+        self.bill: Bill | None = None
+        self.error: Exception | None = None
+        self.mime_types: list[str] = []  # what each call was given
+
+    async def read(self, data: bytes, mime_type: str) -> Bill:
+        self.mime_types.append(mime_type)
+        if self.error is not None:
+            raise self.error
+        assert self.bill is not None, "set bill_reader.bill first"
+        return self.bill
+
+
+@pytest.fixture
+def bill_reader(client: AsyncClient) -> FakeBillReader:
+    fake = FakeBillReader()
+    app.dependency_overrides[get_optional_bill_reader] = lambda: fake
+    return fake

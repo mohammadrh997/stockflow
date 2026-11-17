@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     storage_key_id: str | None = None
     storage_secret_key: SecretStr | None = None
     storage_public_url: str | None = None  # where browsers load images from
+    # Reading supplier bills (Google Gemini). Without a key, bill import answers 503.
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.5-flash-lite"
 
 
 settings = Settings()

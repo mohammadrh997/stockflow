@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.core.security import decode_token
 from app.models.user import Access, User
+from app.services.bill_reader import BillReader, configured_bill_reader
 from app.services.storage import Storage, configured_storage
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
@@ -108,3 +109,19 @@ def get_storage(storage: OptionalStorageDep) -> Storage:
 
 
 StorageDep = Annotated[Storage, Depends(get_storage)]
+
+
+def get_optional_bill_reader() -> BillReader | None:
+    """Gemini, or None without an API key. Tests override this one."""
+    return configured_bill_reader()
+
+
+def get_bill_reader(
+    reader: Annotated[BillReader | None, Depends(get_optional_bill_reader)],
+) -> BillReader:
+    if reader is None:
+        raise HTTPException(status_code=503, detail="Bill reading isn't configured")
+    return reader
+
+
+BillReaderDep = Annotated[BillReader, Depends(get_bill_reader)]

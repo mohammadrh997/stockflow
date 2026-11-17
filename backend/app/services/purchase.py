@@ -64,9 +64,11 @@ async def _ensure_reference_free(db: AsyncSession, order: PurchaseOrder) -> None
         )
 
 
-async def _commit(db: AsyncSession, order: PurchaseOrder) -> None:
+async def save_order(db: AsyncSession, order: PurchaseOrder, commit: bool = True) -> None:
+    """Commits, or with commit=False only flushes (to get the order's id inside a larger
+    change). Either way, a supplier reference taken in the meantime becomes a clean 409."""
     try:
-        await db.commit()
+        await (db.commit() if commit else db.flush())
     except IntegrityError as exc:
         # Two requests passed the check at once; the index let only one through
         await db.rollback()
@@ -86,6 +88,16 @@ async def _build_line(db: AsyncSession, data: PurchaseOrderLineCreate) -> Purcha
 async def create_purchase_order(
     db: AsyncSession, data: PurchaseOrderCreate, created_by_id: int
 ) -> PurchaseOrder:
+    order = await add_purchase_order(db, data, created_by_id)
+    await save_order(db, order)
+    return await fetch_purchase_order(db, order.id)
+
+
+async def add_purchase_order(
+    db: AsyncSession, data: PurchaseOrderCreate, created_by_id: int
+) -> PurchaseOrder:
+    """Checks and adds a new order, with its id, but doesn't commit: the caller saves it,
+    together with anything that has to be saved at the same time (see bill imports)."""
     partner = await _get_supplier(db, data.partner_id)
     warehouse = await resolve_warehouse(db, data.warehouse_id)
     lines = [await _build_line(db, line) for line in data.lines]
@@ -100,8 +112,8 @@ async def create_purchase_order(
     )
     await _ensure_reference_free(db, order)
     db.add(order)
-    await _commit(db, order)
-    return await fetch_purchase_order(db, order.id)
+    await save_order(db, order, commit=False)
+    return order
 
 
 async def fetch_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
@@ -173,7 +185,7 @@ async def update_purchase_order(
     # a new reference, or the same one moved to another supplier
     if {"partner_reference", "partner_id"} & data.model_fields_set:
         await _ensure_reference_free(db, order)
-    await _commit(db, order)
+    await save_order(db, order)
     return await fetch_purchase_order(db, order.id)
 
 
