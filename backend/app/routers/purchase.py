@@ -23,6 +23,7 @@ from app.schemas.purchase import (
 )
 from app.services import documents
 from app.services import purchase as purchase_service
+from app.services.common import DuplicatePartnerReference
 from app.services.documents import DocumentNotAvailable
 from app.services.purchase import (
     InvalidReference,
@@ -49,6 +50,8 @@ async def create_order(db: DBsession, payload: PurchaseOrderCreate, user: Curren
         return await purchase_service.create_purchase_order(db, payload, user.id)
     except InvalidReference as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+    except DuplicatePartnerReference as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
 
 
 @router.get("", response_model=list[PurchaseOrderRead])
@@ -91,6 +94,8 @@ async def update_order(db: DBsession, order_id: int, payload: PurchaseOrderUpdat
         raise HTTPException(status_code=409, detail="Order is not Draft") from None
     except InvalidReference as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
+    except DuplicatePartnerReference as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
 
 
 @router.post("/{order_id}/lines", response_model=PurchaseOrderRead)

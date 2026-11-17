@@ -21,11 +21,12 @@ from app.schemas.invoice import (
     InvoiceLineUpdate,
     InvoicePost,
     InvoiceRead,
+    InvoiceUpdate,
     PaymentCreate,
 )
 from app.services import documents
 from app.services import invoice as invoice_service
-from app.services.common import LineNotFound
+from app.services.common import DuplicatePartnerReference, LineNotFound
 from app.services.documents import DocumentNotAvailable
 from app.services.invoice import (
     InvalidDueDate,
@@ -38,6 +39,7 @@ from app.services.invoice import (
     NothingToInvoice,
     PaymentExceedsAmountDue,
     QuantityExceedsInvoiceable,
+    ReferenceOnBillsOnly,
 )
 from app.services.purchase import PurchaseOrderNotFound
 from app.services.sale import SalesOrderNotFound
@@ -114,6 +116,21 @@ async def get_invoice(db: DBsession, invoice_id: int):
         return await invoice_service.fetch_invoice(db, invoice_id)
     except InvoiceNotFound:
         raise HTTPException(status_code=404, detail="Invoice not found") from None
+
+
+@router.patch("/{invoice_id}", response_model=InvoiceRead)
+async def update_invoice(db: DBsession, invoice_id: int, payload: InvoiceUpdate, user: CurrentUser):
+    try:
+        await _get_invoice_for(db, invoice_id, user, Access.user)
+        return await invoice_service.update_invoice(db, invoice_id, payload)
+    except InvoiceNotDraft:
+        raise HTTPException(status_code=409, detail="Invoice is not Draft") from None
+    except ReferenceOnBillsOnly:
+        raise HTTPException(
+            status_code=422, detail="Only vendor bills have a vendor reference"
+        ) from None
+    except DuplicatePartnerReference as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
 
 
 @router.patch("/{invoice_id}/lines/{line_id}", response_model=InvoiceRead)

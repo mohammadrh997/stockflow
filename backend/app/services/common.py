@@ -23,6 +23,9 @@ class OrderHasNoLines(Exception): ...  # 409
 class OrderNotCancellable(Exception): ...  # 409
 
 
+class DuplicatePartnerReference(Exception): ...  # 409: the supplier's number is already used
+
+
 async def resolve_warehouse(db: AsyncSession, warehouse_id: int | None) -> Warehouse:
     if warehouse_id is not None:
         warehouse = await db.get(Warehouse, warehouse_id)

@@ -5,7 +5,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field, computed_field, model_validator
 
 from app.models.invoice import InvoiceState, InvoiceType
-from app.schemas.common import Amount, Price, Quantity, line_subtotal
+from app.schemas.common import Amount, PartnerReference, Price, Quantity, line_subtotal
 from app.schemas.user import UserSummary
 
 
@@ -18,6 +18,10 @@ class InvoiceCreate(BaseModel):
         if (self.purchase_order_id is None) == (self.sales_order_id is None):
             raise ValueError("send exactly one of sales_order_id or purchase_order_id")
         return self
+
+
+class InvoiceUpdate(BaseModel):
+    partner_reference: PartnerReference = None  # vendor bills only; null removes it
 
 
 class InvoicePost(BaseModel):
@@ -86,6 +90,7 @@ class InvoiceRead(BaseModel):
     invoice_type: InvoiceType
     state: InvoiceState
     partner_id: int
+    partner_reference: str | None
     sales_order_id: int | None
     purchase_order_id: int | None
     invoice_date: date | None

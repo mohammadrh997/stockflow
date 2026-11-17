@@ -3,7 +3,17 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Numeric, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -25,12 +35,23 @@ class PurchaseState(enum.StrEnum):
 
 class PurchaseOrder(Base):
     __tablename__ = "purchase_orders"
-    __table_args__ = (enum_check("state", PurchaseState),)
+    __table_args__ = (
+        enum_check("state", PurchaseState),
+        # One supplier reference per supplier, ignoring case; a cancelled order frees it
+        Index(
+            "uq_purchase_orders_partner_reference",
+            "partner_id",
+            text("lower(partner_reference)"),
+            unique=True,
+            postgresql_where=text("state <> 'cancelled'"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     reference: Mapped[str] = mapped_column(unique=True)
     partner_id: Mapped[int] = mapped_column(ForeignKey("partners.id"))
     partner: Mapped["Partner"] = relationship()
+    partner_reference: Mapped[str | None] = mapped_column(String(100))  # the supplier's own
     warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"))
     warehouse: Mapped["Warehouse"] = relationship()
     state: Mapped[PurchaseState] = mapped_column(

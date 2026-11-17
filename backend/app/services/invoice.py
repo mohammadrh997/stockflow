@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -10,8 +11,14 @@ from app.models.purchase import PurchaseOrder, PurchaseOrderLine
 from app.models.sale import SalesOrder, SalesOrderLine
 from app.models.stock import StockMove
 from app.schemas.common import line_subtotal
-from app.schemas.invoice import InvoiceCreate, InvoiceLineUpdate, InvoicePost, PaymentCreate
-from app.services.common import LineNotFound, Page, paginate
+from app.schemas.invoice import (
+    InvoiceCreate,
+    InvoiceLineUpdate,
+    InvoicePost,
+    InvoiceUpdate,
+    PaymentCreate,
+)
+from app.services.common import DuplicatePartnerReference, LineNotFound, Page, paginate
 from app.services.purchase import lock_purchase_order
 from app.services.references import RefSequence, next_number
 from app.services.sale import lock_sales_order
@@ -45,6 +52,9 @@ class InvoiceAlreadyCancelled(Exception): ...  # 409 (state conflict)
 
 
 class InvalidDueDate(Exception): ...  # 422 (invalid input)
+
+
+class ReferenceOnBillsOnly(Exception): ...  # 422: a customer invoice's number is our own
 
 
 def _get_line(invoice: Invoice, line_id: int) -> InvoiceLine:
@@ -84,6 +94,21 @@ async def _invoiceable_quantities(
         line_id: delivered.get(line_id, Decimal("0")) - invoiced.get(line_id, Decimal("0"))
         for line_id in line_ids
     }
+
+
+async def _bill_with_reference(
+    db: AsyncSession, partner_id: int, reference: str, exclude_id: int | None = None
+) -> Invoice | None:
+    """The supplier's live bill (not cancelled) that already carries this number, if any."""
+    stmt = select(Invoice).where(
+        Invoice.partner_id == partner_id,
+        Invoice.invoice_type == InvoiceType.vendor_bill,
+        Invoice.state != InvoiceState.cancelled,
+        func.lower(Invoice.partner_reference) == func.lower(reference),
+    )
+    if exclude_id is not None:
+        stmt = stmt.where(Invoice.id != exclude_id)
+    return await db.scalar(stmt.limit(1))
 
 
 def _line_from_order_line(
@@ -170,9 +195,17 @@ async def create_invoice(db: AsyncSession, data: InvoiceCreate, user_id: int) ->
     if not lines:
         raise NothingToInvoice(order.reference)
 
+    # A bill takes the order's supplier reference, unless an earlier bill of the same order
+    # already did: a second bill for the rest of the goods has a number of its own
+    reference = None
+    if isinstance(order, PurchaseOrder) and order.partner_reference is not None:
+        if await _bill_with_reference(db, order.partner_id, order.partner_reference) is None:
+            reference = order.partner_reference
+
     invoice = Invoice(
         invoice_type=kind,
         partner_id=order.partner_id,
+        partner_reference=reference,
         sales_order_id=order.id if kind == InvoiceType.customer_invoice else None,
         purchase_order_id=order.id if kind == InvoiceType.vendor_bill else None,
         created_by_id=user_id,
@@ -181,6 +214,37 @@ async def create_invoice(db: AsyncSession, data: InvoiceCreate, user_id: int) ->
     db.add(invoice)
     await db.commit()
     return await fetch_invoice(db, invoice.id)
+
+
+async def update_invoice(db: AsyncSession, invoice_id: int, data: InvoiceUpdate) -> Invoice:
+    invoice = await _lock_invoice(db, invoice_id)
+    if invoice.state != InvoiceState.draft:
+        raise InvoiceNotDraft(invoice_id)
+
+    if "partner_reference" in data.model_fields_set:
+        reference = data.partner_reference
+        if reference is not None:
+            if invoice.invoice_type != InvoiceType.vendor_bill:
+                raise ReferenceOnBillsOnly()
+            taken = await _bill_with_reference(db, invoice.partner_id, reference, invoice.id)
+            if taken is not None:
+                raise DuplicatePartnerReference(
+                    f"this supplier's bill {reference} is already entered as "
+                    f"{taken.number or f'draft bill {taken.id}'}"
+                )
+        invoice.partner_reference = reference
+
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # Two requests passed the check at once; the index let only one through
+        await db.rollback()
+        if "uq_invoices_partner_reference" in str(exc.orig):
+            raise DuplicatePartnerReference(
+                f"this supplier's bill {data.partner_reference} is already entered"
+            ) from None
+        raise
+    return await fetch_invoice(db, invoice_id)
 
 
 async def update_line(

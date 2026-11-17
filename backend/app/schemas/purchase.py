@@ -4,7 +4,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pydantic import BaseModel, computed_field
 
 from app.models.purchase import PurchaseState
-from app.schemas.common import Price, Quantity
+from app.schemas.common import PartnerReference, Price, Quantity
 from app.schemas.user import UserSummary
 
 
@@ -35,12 +35,14 @@ class PurchaseOrderLineRead(BaseModel):
 
 class PurchaseOrderCreate(BaseModel):
     partner_id: int
+    partner_reference: PartnerReference = None
     warehouse_id: int | None = None
     lines: list[PurchaseOrderLineCreate] = []
 
 
 class PurchaseOrderUpdate(BaseModel):
     partner_id: int | None = None
+    partner_reference: PartnerReference = None  # sending null removes it
     warehouse_id: int | None = None
 
 
@@ -50,6 +52,7 @@ class PurchaseOrderRead(BaseModel):
     id: int
     reference: str
     partner_id: int
+    partner_reference: str | None
     warehouse_id: int
     state: PurchaseState
     created_by: UserSummary
