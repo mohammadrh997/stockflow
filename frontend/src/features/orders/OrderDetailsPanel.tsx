@@ -10,6 +10,8 @@ type Props = {
   order: {
     partner_id: number
     warehouse_id: number
+    // Purchase orders: the supplier's own number for the order.
+    partner_reference?: string | null
     created_at: string
     created_by: { name: string } | null
   }
@@ -32,9 +34,13 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props
         <div className="grid gap-4">
           <OrderDetailsForm
             // Remount with what the server saved.
-            key={`${order.partner_id}|${order.warehouse_id}`}
+            key={`${order.partner_id}|${order.warehouse_id}|${order.partner_reference ?? ''}`}
             role={role}
-            defaultValues={{ partner_id: order.partner_id, warehouse_id: order.warehouse_id }}
+            defaultValues={{
+              partner_id: order.partner_id,
+              warehouse_id: order.warehouse_id,
+              partner_reference: order.partner_reference,
+            }}
             submitLabel="Save details"
             onSubmit={async (details) => {
               await onSave(details)
@@ -49,6 +55,12 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props
           <dd>
             <PartnerName id={order.partner_id} />
           </dd>
+          {order.partner_reference && (
+            <>
+              <dt className="text-muted-foreground">Supplier reference</dt>
+              <dd>{order.partner_reference}</dd>
+            </>
+          )}
           <dt className="text-muted-foreground">Warehouse</dt>
           <dd>
             <WarehouseName id={order.warehouse_id} />

@@ -23,6 +23,7 @@ import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
+import { BillReferenceField } from './BillReferenceField'
 import { InvoiceLinesTable } from './InvoiceLinesTable'
 import { INVOICE_TYPE_LABELS, useInvoice, type Invoice } from './queries'
 
@@ -109,6 +110,20 @@ export function InvoicePage() {
             <Detail label={customer ? 'Customer' : 'Supplier'}>
               <PartnerName id={data.partner_id} />
             </Detail>
+            {/* Only a bill has one: a customer invoice's number is our own. */}
+            {!customer && (
+              <Detail label="Supplier reference">
+                {editable ? (
+                  <BillReferenceField
+                    // Remount with what the server saved.
+                    key={data.partner_reference ?? ''}
+                    invoice={data}
+                  />
+                ) : (
+                  (data.partner_reference ?? <span className="text-muted-foreground">—</span>)
+                )}
+              </Detail>
+            )}
             <Detail label="Order">
               <InvoiceOrderLink invoice={data} />
             </Detail>

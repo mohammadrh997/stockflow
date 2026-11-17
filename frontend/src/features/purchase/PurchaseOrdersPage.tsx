@@ -50,6 +50,10 @@ export function PurchaseOrdersPage() {
       ),
     },
     { header: 'Supplier', cell: (order) => <PartnerName id={order.partner_id} /> },
+    {
+      header: 'Supplier ref.',
+      cell: (order) => order.partner_reference ?? <span className="text-muted-foreground">—</span>,
+    },
     ...(severalWarehouses
       ? [
           {

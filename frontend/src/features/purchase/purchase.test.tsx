@@ -20,6 +20,7 @@ function makeOrder(overrides: Partial<PurchaseOrder> = {}): PurchaseOrder {
     id: 7,
     reference: 'PO00007',
     partner_id: 5,
+    partner_reference: null,
     warehouse_id: 1,
     state: 'draft',
     created_by: { id: 1, name: 'Admin' },
@@ -384,5 +385,72 @@ describe('purchase order page', () => {
     renderApp('/purchase-orders/7')
 
     expect(await screen.findByRole('heading', { name: 'No access' })).toBeInTheDocument()
+  })
+})
+
+describe('supplier reference', () => {
+  it('is edited with a draft, says a duplicate on the field, and clears when emptied', async () => {
+    mockReferenceData()
+    const bodies: unknown[] = []
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () =>
+        HttpResponse.json(makeOrder({ partner_reference: 'Q-1' })),
+      ),
+      http.patch(`${API}/purchase-orders/7`, async ({ request }) => {
+        const body = (await request.json()) as { partner_reference: string | null }
+        bodies.push(body)
+        if (body.partner_reference === 'Q-2') {
+          return HttpResponse.json(
+            { detail: "this supplier's reference Q-2 is already on PO00003" },
+            { status: 409 },
+          )
+        }
+        return HttpResponse.json(makeOrder({ partner_reference: body.partner_reference }))
+      }),
+    )
+    signInAs(purchaseUser)
+    renderApp('/purchase-orders/7')
+    const user = userEvent.setup()
+
+    const reference = await screen.findByLabelText('Supplier reference')
+    expect(reference).toHaveValue('Q-1')
+    const save = screen.getByRole('button', { name: 'Save details' })
+    expect(save).toBeDisabled()
+
+    await user.clear(reference)
+    await user.type(reference, 'Q-2')
+    await user.click(save)
+    expect(
+      await screen.findByText("this supplier's reference Q-2 is already on PO00003"),
+    ).toBeInTheDocument()
+    expect(reference).toHaveAttribute('aria-invalid', 'true')
+
+    await user.clear(reference)
+    await user.click(save)
+    await waitFor(() => expect(bodies.at(-1)).toMatchObject({ partner_reference: null }))
+  })
+
+  it('shows on a confirmed order and in the list', async () => {
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () =>
+        HttpResponse.json(makeOrder({ state: 'confirmed', partner_reference: 'Q-9' })),
+      ),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
+      http.get(`${API}/purchase-orders`, () =>
+        HttpResponse.json([makeOrder({ partner_reference: 'Q-9' })], {
+          headers: { 'X-Total-Count': '1' },
+        }),
+      ),
+    )
+    signInAs(purchaseManager)
+    const { router } = renderApp('/purchase-orders/7')
+
+    expect(await screen.findByText('Supplier reference')).toBeInTheDocument()
+    expect(screen.getByText('Supplier reference').nextElementSibling).toHaveTextContent('Q-9')
+
+    await router.navigate('/purchase-orders')
+    expect(await screen.findByRole('columnheader', { name: 'Supplier ref.' })).toBeInTheDocument()
+    expect(await screen.findByRole('cell', { name: 'Q-9' })).toBeInTheDocument()
   })
 })

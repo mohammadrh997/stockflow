@@ -68,6 +68,16 @@ export function InvoicesPage() {
       header: customer ? 'Customer' : 'Supplier',
       cell: (invoice) => <PartnerName id={invoice.partner_id} />,
     },
+    // A bill also carries the supplier's own number for it.
+    ...(customer
+      ? []
+      : [
+          {
+            header: 'Supplier ref.',
+            cell: (invoice: Invoice) =>
+              invoice.partner_reference ?? <span className="text-muted-foreground">—</span>,
+          },
+        ]),
     { header: 'Order', cell: (invoice) => <InvoiceOrderLink invoice={invoice} /> },
     {
       header: 'Due',
