@@ -7,6 +7,7 @@ import { Pagination } from '@/components/Pagination'
 import { PartnerName } from '@/components/RecordNames'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDateTime } from '@/lib/format'
+import { useListState, type ListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { ImportBillDialog } from './ImportBillDialog'
 import { ImportStateBadge } from './ImportStateBadge'
@@ -33,33 +34,39 @@ export function ImportSupplier({
   )
 }
 
-const columns: Column<BillImportSummary>[] = [
-  {
-    header: 'Bill',
-    cell: (bill) => (
-      <Link to={`/bill-imports/${bill.id}`} className="font-medium hover:underline">
-        {bill.partner_reference ?? `Import #${bill.id}`}
-      </Link>
-    ),
-  },
-  { header: 'Supplier', cell: (bill) => <ImportSupplier bill={bill} /> },
-  {
-    header: 'Items',
-    cell: (bill) => (
-      <span className="flex flex-wrap items-center gap-2">
-        {bill.line_count}
-        {bill.state === 'open' && bill.missing_products > 0 && (
-          <span className="text-amber-700 dark:text-amber-400">
-            {bill.missing_products} without a product
-          </span>
-        )}
-      </span>
-    ),
-  },
-  { header: 'Status', cell: (bill) => <ImportStateBadge state={bill.state} /> },
-  { header: 'Imported', cell: (bill) => formatDateTime(bill.created_at) },
-  { header: 'By', cell: (bill) => bill.created_by.name },
-]
+function columns(listState: ListState | undefined): Column<BillImportSummary>[] {
+  return [
+    {
+      header: 'Bill',
+      cell: (bill) => (
+        <Link
+          to={`/bill-imports/${bill.id}`}
+          state={listState}
+          className="font-medium hover:underline"
+        >
+          {bill.partner_reference ?? `Import #${bill.id}`}
+        </Link>
+      ),
+    },
+    { header: 'Supplier', cell: (bill) => <ImportSupplier bill={bill} /> },
+    {
+      header: 'Items',
+      cell: (bill) => (
+        <span className="flex flex-wrap items-center gap-2">
+          {bill.line_count}
+          {bill.state === 'open' && bill.missing_products > 0 && (
+            <span className="text-amber-700 dark:text-amber-400">
+              {bill.missing_products} without a product
+            </span>
+          )}
+        </span>
+      ),
+    },
+    { header: 'Status', cell: (bill) => <ImportStateBadge state={bill.state} /> },
+    { header: 'Imported', cell: (bill) => formatDateTime(bill.created_at) },
+    { header: 'By', cell: (bill) => bill.created_by.name },
+  ]
+}
 
 export function BillImportsPage() {
   const list = useListParams()
@@ -71,6 +78,18 @@ export function BillImportsPage() {
     skip: list.skip,
     limit: list.limit,
   })
+
+  // What each import opened from here gets, to step through this same tab.
+  const listState = useListState(
+    {
+      endpoint: '/bill-imports',
+      query: { state: tab === 'all' ? undefined : tab },
+      limit: list.limit,
+      skip: list.skip,
+      recordBase: '/bill-imports',
+    },
+    imports.data?.data,
+  )
 
   return (
     <div className="grid gap-6">
@@ -94,10 +113,11 @@ export function BillImportsPage() {
         </Tabs>
       </ListToolbar>
       <DataTable
-        columns={columns}
+        columns={columns(listState)}
         rows={imports.data?.data}
         rowKey={(bill) => bill.id}
         rowHref={(bill) => `/bill-imports/${bill.id}`}
+        rowState={listState}
         isPending={imports.isPending}
         error={imports.error}
         onRetry={() => imports.refetch()}

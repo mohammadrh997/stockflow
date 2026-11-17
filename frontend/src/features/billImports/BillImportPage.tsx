@@ -16,12 +16,14 @@ import { PageSpinner } from '@/components/PageSpinner'
 import { Panel } from '@/components/Panel'
 import { PartnerPicker } from '@/components/PartnerPicker'
 import { RecordLayout } from '@/components/RecordLayout'
+import { RecordPager } from '@/components/RecordPager'
 import { WarehouseName } from '@/components/RecordNames'
 import { WarehousePicker } from '@/components/WarehousePicker'
 import { Button } from '@/components/ui/button'
 import { usePurchaseOrder } from '@/features/purchase/queries'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { formatDate } from '@/lib/dates'
+import { useListHref } from '@/lib/recordPager'
 import { ImportSupplier } from './BillImportsPage'
 import { ImportLinesTable } from './ImportLinesTable'
 import { ImportStateBadge } from './ImportStateBadge'
@@ -184,6 +186,7 @@ function Details({ bill, editable }: { bill: BillImport; editable: boolean }) {
 export function BillImportPage() {
   const id = Number(useParams().importId)
   const query = useBillImport(id)
+  const listHref = useListHref('/bill-imports')
 
   if (query.isPending) return <PageSpinner />
   if (query.error instanceof ApiError && query.error.status === 404) return <NotFoundPage />
@@ -197,7 +200,13 @@ export function BillImportPage() {
 
   return (
     <RecordLayout
-      header={<PageHeader title={title} trail={[{ to: '/bill-imports', label: 'Bill imports' }]} />}
+      header={
+        <PageHeader
+          title={title}
+          trail={[{ to: listHref, label: 'Bill imports' }]}
+          pager={<RecordPager id={bill.id} />}
+        />
+      }
       status={<ImportStateBadge state={bill.state} />}
       actions={<Actions bill={bill} />}
       details={<Details bill={bill} editable={editable} />}

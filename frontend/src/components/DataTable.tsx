@@ -24,6 +24,8 @@ type Props<T> = {
   rowKey: (row: T) => string | number
   // Makes the whole row open this link; the links and buttons inside it keep working.
   rowHref?: (row: T) => string
+  // Handed to the record a row opens (router state), e.g. the list to page through.
+  rowState?: unknown
   isPending: boolean
   error: unknown
   onRetry?: () => void
@@ -39,6 +41,7 @@ export function DataTable<T>({
   rows,
   rowKey,
   rowHref,
+  rowState,
   isPending,
   error,
   onRetry,
@@ -50,7 +53,7 @@ export function DataTable<T>({
   function openRow(event: MouseEvent, href: string) {
     if ((event.target as HTMLElement).closest('a, button, input, [role="checkbox"]')) return
     if (event.ctrlKey || event.metaKey) window.open(href, '_blank')
-    else navigate(href)
+    else navigate(href, { state: rowState })
   }
 
   if (error) return <ErrorMessage error={error} onRetry={onRetry} />

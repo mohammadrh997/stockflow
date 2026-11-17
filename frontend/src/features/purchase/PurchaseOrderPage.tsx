@@ -9,6 +9,7 @@ import { DisabledReason } from '@/components/DisabledReason'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { PageHeader } from '@/components/PageHeader'
+import { RecordPager } from '@/components/RecordPager'
 import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
@@ -22,6 +23,7 @@ import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useO
 import { orderMovementText } from '@/features/orders/orderMovement'
 import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
+import { useListHref } from '@/lib/recordPager'
 import { ImportedFromRow } from '@/features/billImports/ImportedFromRow'
 import { OrderDetailsPanel } from '@/features/orders/OrderDetailsPanel'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
@@ -36,6 +38,7 @@ export function PurchaseOrderPage() {
   const id = Number(useParams().orderId)
   const { user } = useAuth()
   const order = usePurchaseOrder(id)
+  const listHref = useListHref('/purchase-orders')
   const updateOrder = useUpdatePurchaseOrder(id)
   const lines = usePurchaseOrderLines(id)
   const confirm = usePurchaseOrderAction(id, 'confirm')
@@ -99,7 +102,8 @@ export function PurchaseOrderPage() {
       header={
         <PageHeader
           pageTitle={data.reference}
-          trail={[{ to: '/purchase-orders', label: 'Purchase orders' }]}
+          trail={[{ to: listHref, label: 'Purchase orders' }]}
+          pager={<RecordPager id={data.id} />}
           title={
             <>
               {data.reference}

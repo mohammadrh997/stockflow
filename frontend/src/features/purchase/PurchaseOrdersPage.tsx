@@ -20,6 +20,7 @@ import {
 import { moneyHeading, useCurrency } from '@/features/company/queries'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { formatDateTime } from '@/lib/format'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { usePurchaseOrders, type PurchaseOrder, type PurchaseState } from './queries'
 
@@ -36,6 +37,17 @@ export function PurchaseOrdersPage() {
     skip: list.skip,
     limit: list.limit,
   })
+  // What each order opened from here gets, to step through this same list.
+  const listState = useListState(
+    {
+      endpoint: '/purchase-orders',
+      query: { state, partner_id: partnerId },
+      limit: list.limit,
+      skip: list.skip,
+      recordBase: '/purchase-orders',
+    },
+    orders.data,
+  )
   const warehouses = useWarehouses()
   const severalWarehouses = (warehouses.data?.length ?? 0) > 1
 
@@ -44,7 +56,11 @@ export function PurchaseOrdersPage() {
     {
       header: 'Reference',
       cell: (order) => (
-        <Link to={`/purchase-orders/${order.id}`} className="font-medium hover:underline">
+        <Link
+          to={`/purchase-orders/${order.id}`}
+          state={listState}
+          className="font-medium hover:underline"
+        >
           {order.reference}
         </Link>
       ),
@@ -114,6 +130,7 @@ export function PurchaseOrdersPage() {
         rows={orders.data}
         rowKey={(order) => order.id}
         rowHref={(order) => `/purchase-orders/${order.id}`}
+        rowState={listState}
         isPending={orders.isPending}
         error={orders.error}
         onRetry={() => orders.refetch()}

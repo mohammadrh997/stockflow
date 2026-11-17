@@ -15,9 +15,11 @@ type Props = {
   actions?: ReactNode
   // Small actions about the record itself (Archive), shown right next to its name.
   nameActions?: ReactNode
+  // Previous and next through the list the record came from, at the end of the row.
+  pager?: ReactNode
 }
 
-export function PageHeader({ title, pageTitle, trail, actions, nameActions }: Props) {
+export function PageHeader({ title, pageTitle, trail, actions, nameActions, pager }: Props) {
   const name = pageTitle ?? (typeof title === 'string' ? title : undefined)
   usePageTitle(name)
 
@@ -52,6 +54,7 @@ export function PageHeader({ title, pageTitle, trail, actions, nameActions }: Pr
           {nameActions}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {pager}
       </div>
     </div>
   )
