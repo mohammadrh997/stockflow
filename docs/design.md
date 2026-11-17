@@ -62,6 +62,7 @@ Customer invoices come from sales orders, and vendor bills from purchase orders.
 - **Invoice lines copy the quantity and price.** A product price changed later never changes an existing invoice.
 - **Draft → posted, or cancelled.** Drafts can be edited; posting freezes them. The number (`INV00001`, `BILL00001`) is given at posting, so abandoned drafts don't use up numbers.
 - **Posting stores the line subtotals and the total.** For orders the total is computed, but an invoice's total is a legal fact. If the rounding code ever changed, a computed total would quietly change old invoices, and a frozen one can't. A database check makes sure a posted invoice always has its number and total.
+- **A supplier's bill number can be used only once** per supplier, ignoring case; cancelled documents don't count. A unique index enforces it. A second bill for the same order starts without one, since the rest of a partial delivery comes with its own bill.
 - **Payments are their own rows.** Amount paid, amount due and payment status (not paid / partial / paid) are computed from them, never stored. A posted invoice can only be cancelled while it has no payments.
 
 This is billing, not accounting: there are no taxes, journal entries or credit notes yet.
@@ -130,9 +131,19 @@ Two more results from the invoicing tests, with the locks removed:
 
 The state check ("is this order still a draft?") happens *after* the lock is taken. Checked before the lock, it could be stale.
 
+## Bill import
+
+A supplier's bill becomes a draft purchase order: Gemini reads it, PostgreSQL matches it, a person reviews it.
+
+- **The model only reads, and its answer is untrusted.** It's checked against a fixed schema and nothing is saved before a review, so a bill with hidden instructions can at worst produce a wrong reading.
+- **Matching is done in the database:** an exact product code first, then the closest name (`pg_trgm`), only above 0.45 similarity. A wrong match is worse than none.
+- **Imports are saved,** so one can wait for a missing product. Confirm is one transaction and locks the import, so a double click can't make two orders.
+- **Limits:** 10 imports an hour per user. Google's "overloaded" is retried once.
+- **Free tier:** Google may use what's sent, so the demo uses sample bills only.
+
 ## Permissions
 
-Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts and cancelling a backorder need an inventory manager. Customer invoices follow sales access and vendor bills follow purchase access: users draft them, managers post, cancel and record payments. Reading is broader on purpose: anyone with sales or purchase access can read and print both kinds of invoice, because in a small business the same people follow customer and supplier payments.
+Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts and cancelling a backorder need an inventory manager. Customer invoices follow sales access and vendor bills follow purchase access: users draft them, managers post, cancel and record payments. Reading is broader on purpose: anyone with sales or purchase access can read and print both kinds of invoice, because in a small business the same people follow customer and supplier payments. Bill imports need purchase access.
 
 The backend enforces every rule through FastAPI dependencies. The frontend only hides buttons the user can't use; it never decides.
 
@@ -140,8 +151,8 @@ The backend enforces every rule through FastAPI dependencies. The frontend only 
 
 - Passwords are hashed with Argon2, in a thread pool so hashing doesn't block the event loop.
 - Login hashes against a dummy hash when the email doesn't exist. Unknown emails and wrong passwords then take the same time and return the same message.
-- Tokens are JWTs with the user id, issue time and expiry (480 minutes). The user is loaded from the database on every request, so deactivating someone takes effect immediately.
-- Changing or resetting a password sets `password_changed_at`, and any token issued before that is rejected.
+- Access tokens are JWTs that last 15 minutes. A refresh token renews them; it's stored only as a hash and works once, and if a used one comes back, that login is ended. A login expires after 7 days unused.
+- Logging out, changing a password or deactivating a user ends their logins on the server.
 - Login and password change are rate limited to 5 per minute per client IP. The client IP comes only from a header the edge proxy overwrites (`CF-Connecting-IP` on Render, set by `CLIENT_IP_HEADER`). The `X-Forwarded-For` sent by the client is never trusted, because anyone can fake it to get a fresh limit with every request. Locally, the socket address is used. The limit is kept in memory, which is enough for a single instance; running several instances would need Redis.
 
 ## Errors
@@ -175,6 +186,7 @@ The API is a Docker image on Render, and the database is on Neon. Migrations run
 ## Not built yet
 
 - Transfers between warehouses, which would go through a transit location in two steps.
-- Credit notes, taxes, and the supplier's own bill number on vendor bills.
+- Credit notes and taxes.
+- A list for inventory managers of the products bill imports are waiting for.
 - Units of measure, lots and serial numbers.
 - Reorder alerts, which would run in a background worker.
