@@ -155,7 +155,8 @@ export function PurchaseOrderPage() {
               />
             </DisabledReason>
           )}
-          {isDraft && cancelButton}
+          {/* Next to the status in every state, like Confirm and Create bill. */}
+          {cancelButton}
         </>
       }
       actions={
@@ -167,7 +168,6 @@ export function PurchaseOrderPage() {
             <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
           )}
           {/* Once confirmed, cancelling sits with the other buttons on the right. */}
-          {!isDraft && cancelButton}
         </>
       }
       details={
