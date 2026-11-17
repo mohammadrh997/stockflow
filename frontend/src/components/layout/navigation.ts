@@ -92,7 +92,21 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Purchase orders',
     icon: Truck,
     visible: (user) => can(user, 'purchase'),
-    paths: ['/purchase-orders'],
+    paths: ['/purchase-orders', '/bill-imports'],
+    sections: [
+      {
+        to: '/purchase-orders',
+        label: 'Purchase orders',
+        visible: (user) => can(user, 'purchase'),
+        isActive: ({ pathname }) => under(pathname, '/purchase-orders'),
+      },
+      {
+        to: '/bill-imports',
+        label: 'Bill imports',
+        visible: (user) => can(user, 'purchase'),
+        isActive: ({ pathname }) => under(pathname, '/bill-imports'),
+      },
+    ],
   },
   {
     to: '/sales-orders',

@@ -55,6 +55,14 @@ const SalesOrdersPage = lazyPage(
   'SalesOrdersPage',
 )
 const StockPage = lazyPage(() => import('@/features/stock/StockPage'), 'StockPage')
+const BillImportPage = lazyPage(
+  () => import('@/features/billImports/BillImportPage'),
+  'BillImportPage',
+)
+const BillImportsPage = lazyPage(
+  () => import('@/features/billImports/BillImportsPage'),
+  'BillImportsPage',
+)
 const CategoriesPage = lazyPage(
   () => import('@/features/categories/CategoriesPage'),
   'CategoriesPage',
@@ -144,6 +152,18 @@ export const routes: RouteObject[] = [
                   { index: true, element: <PurchaseOrdersPage /> },
                   { path: 'new', element: <NewPurchaseOrderPage /> },
                   { path: ':orderId', element: <PurchaseOrderPage /> },
+                ],
+              },
+              {
+                path: 'bill-imports',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'purchase')}>
+                    <Outlet />
+                  </RequireAccess>
+                ),
+                children: [
+                  { index: true, element: <BillImportsPage /> },
+                  { path: ':importId', element: <BillImportPage /> },
                 ],
               },
               {

@@ -31,6 +31,8 @@ type Props = {
   onCreate?: (name: string) => void
   // Shown with "No products found.", e.g. who to ask when the user cannot create one.
   emptyHint?: string
+  // For a picker without a visible label, such as one per row of a table.
+  'aria-label'?: string
 }
 
 // Searches active products on the server by name.
@@ -45,6 +47,7 @@ export function ProductPicker({
   className,
   onCreate,
   emptyHint,
+  'aria-label': ariaLabel,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -71,6 +74,7 @@ export function ProductPicker({
             id={id}
             variant="outline"
             role="combobox"
+            aria-label={ariaLabel}
             aria-expanded={open}
             disabled={disabled}
             className="min-w-0 flex-1 justify-between font-normal"
