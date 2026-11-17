@@ -4241,6 +4241,7 @@ export interface operations {
         parameters: {
             query?: {
                 state?: components["schemas"]["BillImportState"] | null;
+                purchase_order_id?: number | null;
                 skip?: number;
                 limit?: number;
             };

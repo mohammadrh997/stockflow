@@ -454,3 +454,55 @@ describe('supplier reference', () => {
     expect(await screen.findByRole('cell', { name: 'Q-9' })).toBeInTheDocument()
   })
 })
+
+describe('an order made from a supplier bill', () => {
+  it('links back to the bill it was imported from', async () => {
+    mockReferenceData()
+    let query: URLSearchParams | undefined
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () =>
+        HttpResponse.json(makeOrder({ state: 'confirmed', partner_reference: 'ZF-0917' })),
+      ),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
+      http.get(`${API}/bill-imports`, ({ request }) => {
+        query = new URL(request.url).searchParams
+        return HttpResponse.json(
+          [
+            {
+              id: 2,
+              state: 'done',
+              supplier_name: 'ZAGROS FURNITURE WORKS LLC',
+              partner_id: 5,
+              partner_reference: 'ZF-0917',
+              purchase_order_id: 7,
+              created_at: '2026-11-17T10:00:00Z',
+              created_by: { id: 1, name: 'Admin' },
+              line_count: 3,
+              missing_products: 0,
+            },
+          ],
+          { headers: { 'X-Total-Count': '1' } },
+        )
+      }),
+    )
+    signInAs(purchaseManager)
+    renderApp('/purchase-orders/7')
+
+    expect(await screen.findByRole('link', { name: 'Bill ZF-0917' })).toHaveAttribute(
+      'href',
+      '/bill-imports/2',
+    )
+    expect(query?.get('purchase_order_id')).toBe('7')
+    expect(screen.getByText('Imported from')).toBeInTheDocument()
+  })
+
+  it('says nothing about a source for an order made by hand', async () => {
+    mockReferenceData()
+    server.use(http.get(`${API}/purchase-orders/7`, () => HttpResponse.json(makeOrder())))
+    signInAs(purchaseUser)
+    renderApp('/purchase-orders/7')
+
+    expect(await screen.findByRole('link', { name: 'Desk' })).toBeInTheDocument()
+    expect(screen.queryByText('Imported from')).not.toBeInTheDocument()
+  })
+})

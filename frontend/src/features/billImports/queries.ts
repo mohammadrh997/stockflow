@@ -29,6 +29,21 @@ export function useBillImport(id: number) {
   })
 }
 
+// The import a purchase order was made from, if it was; null when it was made by hand.
+export function useImportOfOrder(orderId: number) {
+  return useQuery({
+    // Under 'bill-imports', so confirming an import refreshes it.
+    queryKey: ['bill-imports', 'of-order', orderId],
+    queryFn: async () => {
+      const { data } = await unwrapWithTotal(
+        api.GET('/bill-imports', { params: { query: { purchase_order_id: orderId, limit: 1 } } }),
+      )
+      // Checked again here: an import is only shown as the source if it names this order.
+      return data.find((bill) => bill.purchase_order_id === orderId) ?? null
+    },
+  })
+}
+
 // Every change returns the whole import, warnings included: cache it, refresh the list.
 function useStoreImport() {
   const queryClient = useQueryClient()

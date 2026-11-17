@@ -22,6 +22,7 @@ import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useO
 import { orderMovementText } from '@/features/orders/orderMovement'
 import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
+import { ImportedFromRow } from '@/features/billImports/ImportedFromRow'
 import { OrderDetailsPanel } from '@/features/orders/OrderDetailsPanel'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
 import {
@@ -171,6 +172,7 @@ export function PurchaseOrderPage() {
           order={data}
           editable={canEdit}
           onSave={(details) => updateOrder.mutateAsync(details)}
+          source={<ImportedFromRow orderId={data.id} />}
           note={
             seesTransfers
               ? orderMovementText({

@@ -22,6 +22,10 @@ export const server = setupServer(
   http.get(`${API}/products/:id/summary`, () =>
     HttpResponse.json({ stock: null, sales: null, purchases: null }),
   ),
+  // Asked by every purchase order page: made by hand unless a test says otherwise.
+  http.get(`${API}/bill-imports`, () =>
+    HttpResponse.json([], { headers: { 'X-Total-Count': '0' } }),
+  ),
   http.get(`${API}/partners/:id/summary`, () =>
     HttpResponse.json({
       sales_orders: null,

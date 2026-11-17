@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 
 import { DoneByRows } from '@/components/DoneByRows'
@@ -19,13 +20,15 @@ type Props = {
   onSave: (details: OrderDetails) => Promise<unknown>
   // How far the goods have moved, when the progress steps can't say it ("Partly received...").
   note?: string | null
+  // Where the order came from, as rows of the list (a supplier bill that was imported).
+  source?: ReactNode
 }
 
 const ROWS = 'grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm'
 
 // Who the order is for, from which warehouse, and who made it, as a block above the lines
 // (like a transfer's). On a draft that can be edited, the partner and warehouse are fields.
-export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props) {
+export function OrderDetailsPanel({ role, order, editable, onSave, note, source }: Props) {
   const created = <DoneByRows label="Created" at={order.created_at} by={order.created_by} />
 
   return (
@@ -47,7 +50,10 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props
               toast.success('Order saved')
             }}
           />
-          <dl className={`${ROWS} border-t pt-4`}>{created}</dl>
+          <dl className={`${ROWS} border-t pt-4`}>
+            {source}
+            {created}
+          </dl>
         </div>
       ) : (
         <dl className={ROWS}>
@@ -61,6 +67,7 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props
               <dd>{order.partner_reference}</dd>
             </>
           )}
+          {source}
           <dt className="text-muted-foreground">Warehouse</dt>
           <dd>
             <WarehouseName id={order.warehouse_id} />
