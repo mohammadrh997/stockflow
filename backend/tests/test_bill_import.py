@@ -297,7 +297,10 @@ async def test_confirming_creates_a_draft_purchase_order(client, boss, bill_read
         (chair["id"], "4.000", "118.50"),
         (desk["id"], "2.000", "289.99"),
     ]
-
+    # the order can find the import it came from
+    url = f"/bill-imports?purchase_order_id={done['purchase_order_id']}"
+    assert [row["id"] for row in (await client.get(url, headers=boss)).json()] == [result["id"]]
+    
     again = await client.post(f"/bill-imports/{result['id']}/confirm", headers=boss)
     assert again.status_code == 409
     edit = await client.patch(f"/bill-imports/{result['id']}", json={}, headers=boss)

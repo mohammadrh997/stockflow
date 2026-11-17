@@ -66,9 +66,14 @@ async def list_imports(
     response: Response,
     pagination: PaginationDep,
     state: BillImportState | None = None,
+    purchase_order_id: int | None = None,
 ):
     page = await import_service.list_imports(
-        db, pagination["skip"], pagination["limit"], state=state
+        db,
+        pagination["skip"],
+        pagination["limit"],
+        state=state,
+        purchase_order_id=purchase_order_id,
     )
     return with_total(response, page)
 

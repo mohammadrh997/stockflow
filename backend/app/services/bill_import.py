@@ -174,11 +174,17 @@ async def _lock_import(db: AsyncSession, import_id: int) -> BillImport:
 
 
 async def list_imports(
-    db: AsyncSession, skip: int, limit: int, state: BillImportState | None = None
+    db: AsyncSession,
+    skip: int,
+    limit: int,
+    state: BillImportState | None = None,
+    purchase_order_id: int | None = None,
 ) -> Page[BillImport]:
     stmt = select(BillImport).order_by(BillImport.id.desc())  # newest first
     if state is not None:
         stmt = stmt.where(BillImport.state == state)
+    if purchase_order_id is not None:  # the import an order came from
+        stmt = stmt.where(BillImport.purchase_order_id == purchase_order_id)
     return await paginate(db, stmt.options(selectinload(BillImport.lines)), skip, limit)
 
 
