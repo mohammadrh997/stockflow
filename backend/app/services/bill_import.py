@@ -108,6 +108,9 @@ async def _default_warehouse(db: AsyncSession) -> int | None:
 async def import_bill(
     db: AsyncSession, reader: BillReader, data: bytes, user_id: int
 ) -> BillImport:
+    # The login check left a transaction open. End it, so no pooled connection sits idle
+    # while the bill is checked and read, which can take a minute.
+    await db.rollback()
     mime_type = await bill_file_type(data)
     bill = await reader.read(data, mime_type)
 

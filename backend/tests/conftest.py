@@ -140,11 +140,14 @@ class FakeBillReader:
         self.bill: Bill | None = None
         self.error: Exception | None = None
         self.mime_types: list[str] = []  # what each call was given
+        self.during_read: Callable[[], Awaitable[None]] | None = None  # runs mid-"reading"
 
     async def read(self, data: bytes, mime_type: str) -> Bill:
         self.mime_types.append(mime_type)
         if self.error is not None:
             raise self.error
+        if self.during_read is not None:
+            await self.during_read()
         assert self.bill is not None, "set bill_reader.bill first"
         return self.bill
 

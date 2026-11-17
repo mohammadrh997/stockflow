@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 from google.genai import errors
 from pypdf import PdfWriter
+from sqlalchemy import text
 
 from app.models.user import Access
 from app.services import bill_reader as reader_module  # the fixture is called bill_reader
@@ -422,3 +423,23 @@ async def test_an_overloaded_model_is_tried_once_more(monkeypatch):
     with pytest.raises(ReaderUnavailable, match="busy"):
         await gemini_reader(models).read(PNG, "image/png")
     assert len(models.requests) == 2
+
+
+async def test_no_database_connection_is_held_while_the_bill_is_read(client, boss, bill_reader, db):
+    # Reading can take a minute; a transaction left open meanwhile would keep a pooled
+    # connection busy, and a few imports at once would starve every other request.
+    seen = []
+
+    async def count_open_transactions() -> None:
+        result = await db.execute(
+            text(
+                "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"
+                " AND state LIKE 'idle in transaction%' AND pid <> pg_backend_pid()"
+            )
+        )
+        seen.append(result.scalar_one())
+        await db.rollback()
+
+    bill_reader.during_read = count_open_transactions
+    await imported(client, boss, bill_reader, bill(line("Anything")))
+    assert seen == [0]
