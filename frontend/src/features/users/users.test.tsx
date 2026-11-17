@@ -103,3 +103,30 @@ describe('users', () => {
     expect(body).toEqual({ new_password: 'new-password-1' })
   })
 })
+
+describe('stepping through users', () => {
+  it('steps through the list as loaded, without asking for more', async () => {
+    let listCalls = 0
+    server.use(
+      http.get(`${API}/users`, () => {
+        listCalls += 1
+        return HttpResponse.json([admin, seller])
+      }),
+      http.get(`${API}/users/1`, () => HttpResponse.json(admin)),
+      http.get(`${API}/users/2`, () => HttpResponse.json(seller)),
+    )
+    signInAs(admin)
+    const { router } = renderApp('/users')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('link', { name: 'Ada' }))
+    const pager = await screen.findByRole('navigation', { name: 'Records' })
+    expect(pager).toHaveTextContent('1 / 2')
+    await user.click(within(pager).getByRole('button', { name: 'Next record' }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/users/2'))
+    expect(await screen.findByRole('navigation', { name: 'Records' })).toHaveTextContent('2 / 2')
+    expect(screen.getByRole('button', { name: 'Next record' })).toBeDisabled()
+    expect(listCalls).toBe(1)
+  })
+})

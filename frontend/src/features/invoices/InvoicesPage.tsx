@@ -1,5 +1,3 @@
-import { Link } from 'react-router'
-
 import { useAuth } from '@/auth/useAuth'
 import { defaultInvoiceType } from '@/components/layout/navigation'
 import { DataTable, type Column } from '@/components/DataTable'
@@ -19,6 +17,8 @@ import {
 } from '@/components/ui/select'
 import { formatDate, today } from '@/lib/dates'
 import { moneyHeading, useCurrency } from '@/features/company/queries'
+import { RecordLink } from '@/components/RecordLink'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
@@ -44,13 +44,17 @@ export function InvoicesPage() {
       : defaultInvoiceType(user)
   const state = (list.get('state') || undefined) as InvoiceState | undefined
   const partnerId = list.get('partner') ? Number(list.get('partner')) : undefined
-  const invoices = useInvoices({
+  const query = {
     invoice_type: type,
     state,
     partner_id: partnerId,
-    skip: list.skip,
-    limit: list.limit,
-  })
+  }
+  const invoices = useInvoices({ ...query, skip: list.skip, limit: list.limit })
+  // What each record opened from here gets, to step through this same list.
+  const listState = useListState(
+    { endpoint: '/invoices', query, limit: list.limit, skip: list.skip, recordBase: '/invoices' },
+    invoices.data,
+  )
   const now = today()
   const currency = useCurrency()
   const customer = type === 'customer_invoice'
@@ -59,9 +63,7 @@ export function InvoicesPage() {
     {
       header: 'Number',
       cell: (invoice) => (
-        <Link to={`/invoices/${invoice.id}`} className="font-medium hover:underline">
-          {invoiceTitle(invoice)}
-        </Link>
+        <RecordLink to={`/invoices/${invoice.id}`}>{invoiceTitle(invoice)}</RecordLink>
       ),
     },
     {
@@ -147,6 +149,7 @@ export function InvoicesPage() {
         rows={invoices.data}
         rowKey={(invoice) => invoice.id}
         rowHref={(invoice) => `/invoices/${invoice.id}`}
+        rowState={listState}
         isPending={invoices.isPending}
         error={invoices.error}
         onRetry={() => invoices.refetch()}

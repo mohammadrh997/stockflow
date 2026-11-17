@@ -13,20 +13,23 @@ export function RecordPager({ id }: { id: number }) {
   const navigate = useNavigate()
   const list = readListContext(location.state)
   const index = list ? list.ids.indexOf(id) : -1
+  // A list loaded whole (users, warehouses...) has every id already: nothing to fetch.
+  const whole = list !== null && !list.endpoint
   const [moving, setMoving] = useState(false)
   // How many there are in all: one row asked for, the total read from the header.
   const total = useQuery({
     queryKey: ['record-pager', list?.endpoint, list?.query],
     queryFn: async () => (await fetchListPage({ ...list!, limit: 1 }, 0)).total,
-    enabled: index >= 0,
+    enabled: index >= 0 && !whole,
   })
+  const count = whole ? list.ids.length : total.data
 
   const position = list && index >= 0 ? list.skip + index + 1 : null
   const hasPrevious = position !== null && position > 1
   const hasNext =
     position !== null &&
-    (total.data !== undefined
-      ? position < total.data
+    (count !== undefined
+      ? position < count
       : index < list!.ids.length - 1 || list!.ids.length === list!.limit)
 
   async function step(by: -1 | 1) {
@@ -35,6 +38,7 @@ export function RecordPager({ id }: { id: number }) {
     let at = index + by
     // Past either end of the page: the neighbouring page of the same list, same filters.
     if (at < 0 || at >= ids.length) {
+      if (whole) return
       setMoving(true)
       try {
         skip = at < 0 ? Math.max(0, skip - list.limit) : skip + list.limit
@@ -78,7 +82,7 @@ export function RecordPager({ id }: { id: number }) {
     <nav aria-label="Records" className="flex items-center gap-1 text-sm text-muted-foreground">
       <span className="mr-1 tabular-nums">
         {position}
-        {total.data !== undefined && ` / ${total.data}`}
+        {count !== undefined && ` / ${count}`}
       </span>
       <Button
         variant="outline"

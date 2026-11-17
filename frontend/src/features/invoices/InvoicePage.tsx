@@ -20,6 +20,8 @@ import { formatDate, today } from '@/lib/dates'
 import { CurrencyCode } from '@/features/company/CurrencyCode'
 import { moneyHeading, useCurrency } from '@/features/company/queries'
 import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
@@ -54,6 +56,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 export function InvoicePage() {
   const id = Number(useParams().invoiceId)
+  const listHref = useListHref('')
   const { user } = useAuth()
   const invoice = useInvoice(id)
   const currency = useCurrency()
@@ -72,10 +75,15 @@ export function InvoicePage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={invoiceTitle(data)}
-          trail={fromOrder ?? [{ to: `/invoices?type=${data.invoice_type}`, label: 'Invoices' }]}
+          trail={
+            fromOrder ?? [
+              { to: listHref || `/invoices?type=${data.invoice_type}`, label: 'Invoices' },
+            ]
+          }
           title={
             <>
               {invoiceTitle(data)}

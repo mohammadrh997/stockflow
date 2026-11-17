@@ -2,6 +2,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { RowStateContext } from '@/lib/recordPager'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -71,42 +72,44 @@ export function DataTable<T>({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isPending &&
-            Array.from({ length: LOADING_ROWS }, (_, index) => (
-              <TableRow key={index}>
+          <RowStateContext value={rowState}>
+            {isPending &&
+              Array.from({ length: LOADING_ROWS }, (_, index) => (
+                <TableRow key={index}>
+                  {columns.map((column) => (
+                    <TableCell key={column.header}>
+                      <Skeleton className="h-4 w-full max-w-32" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            {!isPending && rows?.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="py-8 text-center text-muted-foreground"
+                >
+                  <div className="grid justify-items-center gap-3">
+                    {emptyMessage}
+                    {emptyAction}
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {rows?.map((row) => (
+              <TableRow
+                key={rowKey(row)}
+                className={rowHref && 'cursor-pointer'}
+                onClick={rowHref && ((event) => openRow(event, rowHref(row)))}
+              >
                 {columns.map((column) => (
-                  <TableCell key={column.header}>
-                    <Skeleton className="h-4 w-full max-w-32" />
+                  <TableCell key={column.header} className={column.className}>
+                    {column.cell(row)}
                   </TableCell>
                 ))}
               </TableRow>
             ))}
-          {!isPending && rows?.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={columns.length}
-                className="py-8 text-center text-muted-foreground"
-              >
-                <div className="grid justify-items-center gap-3">
-                  {emptyMessage}
-                  {emptyAction}
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-          {rows?.map((row) => (
-            <TableRow
-              key={rowKey(row)}
-              className={rowHref && 'cursor-pointer'}
-              onClick={rowHref && ((event) => openRow(event, rowHref(row)))}
-            >
-              {columns.map((column) => (
-                <TableCell key={column.header} className={column.className}>
-                  {column.cell(row)}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
+          </RowStateContext>
         </TableBody>
       </Table>
     </div>

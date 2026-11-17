@@ -11,6 +11,7 @@ import { Panel } from '@/components/Panel'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { cn } from '@/lib/utils'
 import { CategoryDialog } from './CategoryDialog'
@@ -26,11 +27,13 @@ export function CategoriesPage() {
   const active = useCategories(false)
   const [adding, setAdding] = useState(false)
   const navigate = useNavigate()
+  // The tree is loaded whole, so each category opened from here steps through it in order.
+  const listState = useListState({ limit: 0, skip: 0, recordBase: '/categories' }, categories.data)
 
   function openRow(event: MouseEvent, href: string) {
     if ((event.target as HTMLElement).closest('a, button')) return
     if (event.ctrlKey || event.metaKey) window.open(href, '_blank')
-    else navigate(href)
+    else navigate(href, { state: listState })
   }
 
   return (
@@ -77,7 +80,11 @@ export function CategoriesPage() {
                   )}
                   title={category.path}
                 >
-                  <Link to={`/categories/${category.id}`} className="hover:underline">
+                  <Link
+                    to={`/categories/${category.id}`}
+                    state={listState}
+                    className="hover:underline"
+                  >
                     {category.name}
                   </Link>
                 </span>

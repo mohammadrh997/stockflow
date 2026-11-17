@@ -11,6 +11,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { ProductThumb } from '@/components/ProductThumb'
 import { Pagination } from '@/components/Pagination'
 import { Button } from '@/components/ui/button'
+import { RecordLink } from '@/components/RecordLink'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { CategoryFilter } from '@/features/categories/CategoryFilter'
 import { categoryFilterParams } from '@/features/categories/categoryParams'
@@ -23,9 +25,7 @@ const columns: Column<Product>[] = [
     cell: (product) => (
       <span className="flex items-center gap-2">
         <ProductThumb url={product.image_url} />
-        <Link to={`/products/${product.id}`} className="font-medium hover:underline">
-          {product.name}
-        </Link>
+        <RecordLink to={`/products/${product.id}`}>{product.name}</RecordLink>
       </span>
     ),
   },
@@ -49,13 +49,17 @@ export function ProductsPage() {
   const list = useListParams()
   const name = list.get('name')
   const showArchived = list.get('archived') === 'true'
-  const products = useProducts({
+  const query = {
     name: name || undefined,
     include_archived: showArchived,
     ...categoryFilterParams(list),
-    skip: list.skip,
-    limit: list.limit,
-  })
+  }
+  const products = useProducts({ ...query, skip: list.skip, limit: list.limit })
+  // What each record opened from here gets, to step through this same list.
+  const listState = useListState(
+    { endpoint: '/products', query, limit: list.limit, skip: list.skip, recordBase: '/products' },
+    products.data,
+  )
 
   return (
     <div className="grid gap-6">
@@ -89,6 +93,7 @@ export function ProductsPage() {
         rows={products.data}
         rowKey={(product) => product.id}
         rowHref={(product) => `/products/${product.id}`}
+        rowState={listState}
         isPending={products.isPending}
         error={products.error}
         onRetry={() => products.refetch()}

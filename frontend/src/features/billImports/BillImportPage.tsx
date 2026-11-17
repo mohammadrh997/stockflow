@@ -200,13 +200,8 @@ export function BillImportPage() {
 
   return (
     <RecordLayout
-      header={
-        <PageHeader
-          title={title}
-          trail={[{ to: listHref, label: 'Bill imports' }]}
-          pager={<RecordPager id={bill.id} />}
-        />
-      }
+      pager={<RecordPager id={bill.id} />}
+      header={<PageHeader title={title} trail={[{ to: listHref, label: 'Bill imports' }]} />}
       status={<ImportStateBadge state={bill.state} />}
       actions={<Actions bill={bill} />}
       details={<Details bill={bill} editable={editable} />}

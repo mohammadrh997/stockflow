@@ -15,6 +15,8 @@ import { Panel } from '@/components/Panel'
 import { RecordLayout } from '@/components/RecordLayout'
 import { SMART_BUTTON, SmartButtonFace, SmartButtonLoading } from '@/components/SmartButton'
 import { Button } from '@/components/ui/button'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { CategoryDetailsForm } from './CategoryDetailsForm'
 import { CategoryDialog } from './CategoryDialog'
 import {
@@ -48,6 +50,7 @@ function ProductsButton({ category, hasChildren }: { category: Category; hasChil
 
 export function CategoryPage() {
   const id = Number(useParams().categoryId)
+  const listHref = useListHref('/categories')
   const { user } = useAuth()
   const canManage = can(user, 'inventory', 'manager')
   // The whole tree is one small request, already cached by the list and the pickers.
@@ -67,10 +70,11 @@ export function CategoryPage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={category.id} />}
       header={
         <PageHeader
           pageTitle={category.path}
-          trail={[{ to: '/categories', label: 'Categories' }]}
+          trail={[{ to: listHref, label: 'Categories' }]}
           title={
             <>
               {category.name}

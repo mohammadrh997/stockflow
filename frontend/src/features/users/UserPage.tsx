@@ -13,12 +13,15 @@ import { PageSpinner } from '@/components/PageSpinner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/lib/format'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { useSetUserActive, useUpdateUser, useUser } from './queries'
 import { ResetPasswordDialog } from './ResetPasswordDialog'
 import { UserForm } from './UserForm'
 
 export function UserPage() {
   const id = Number(useParams().userId)
+  const listHref = useListHref('/users')
   const { user: currentUser } = useAuth()
   const user = useUser(id)
   const updateUser = useUpdateUser(id)
@@ -36,7 +39,7 @@ export function UserPage() {
     <div className="grid gap-8">
       <PageHeader
         pageTitle={data.name}
-        trail={[{ to: '/users', label: 'Users' }]}
+        trail={[{ to: listHref, label: 'Users' }]}
         title={
           <>
             {data.name}
@@ -69,6 +72,7 @@ export function UserPage() {
                 }}
               />
             </DisabledReason>
+            <RecordPager id={data.id} />
           </>
         }
       />

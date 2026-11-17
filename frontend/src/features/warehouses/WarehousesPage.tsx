@@ -1,10 +1,10 @@
-import { Link } from 'react-router'
-
 import { can } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { DataTable, type Column } from '@/components/DataTable'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
+import { RecordLink } from '@/components/RecordLink'
+import { useListState } from '@/lib/recordPager'
 import { NewWarehouseDialog } from './NewWarehouseDialog'
 import { useLocations, useWarehouses, type Location, type Warehouse } from './queries'
 
@@ -18,6 +18,8 @@ export function WarehousesPage() {
   const { user } = useAuth()
   const warehouses = useWarehouses()
   const allLocations = useLocations({ include_archived: true })
+  // Loaded whole, so each warehouse opened from here steps through these same rows.
+  const listState = useListState({ limit: 0, skip: 0, recordBase: '/warehouses' }, warehouses.data)
   const locationName = new Map(allLocations.data?.map((location) => [location.id, location.name]))
   const virtualLocations = allLocations.data?.filter((location) => location.warehouse_id === null)
 
@@ -25,9 +27,7 @@ export function WarehousesPage() {
     {
       header: 'Name',
       cell: (warehouse) => (
-        <Link to={`/warehouses/${warehouse.id}`} className="font-medium hover:underline">
-          {warehouse.name}
-        </Link>
+        <RecordLink to={`/warehouses/${warehouse.id}`}>{warehouse.name}</RecordLink>
       ),
     },
     { header: 'Code', cell: (warehouse) => <Badge variant="outline">{warehouse.code}</Badge> },
@@ -63,6 +63,7 @@ export function WarehousesPage() {
         rows={warehouses.data}
         rowKey={(warehouse) => warehouse.id}
         rowHref={(warehouse) => `/warehouses/${warehouse.id}`}
+        rowState={listState}
         isPending={warehouses.isPending}
         error={warehouses.error}
         onRetry={() => warehouses.refetch()}

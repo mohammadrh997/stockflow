@@ -16,6 +16,8 @@ import { Quantity } from '@/components/Quantity'
 import { LocationName, ProductName, WarehouseName } from '@/components/RecordNames'
 import { StateBadge } from '@/components/StateBadge'
 import { formatDateTime } from '@/lib/format'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { BackorderLinks } from './BackorderLinks'
 import { CancelBackorderButton } from './CancelBackorderButton'
 import { TRANSFER_TYPE_LABELS, useTransfer, type StockMove } from './queries'
@@ -47,8 +49,9 @@ export function TransferPage() {
   const { user } = useAuth()
   const transfer = useTransfer(id)
   // Opened from an order, the trail leads back through that order.
+  const listHref = useListHref('/transfers')
   const trail = (useLocation().state as { trail?: Crumb[] } | null)?.trail ?? [
-    { to: '/transfers', label: 'Transfers' },
+    { to: listHref, label: 'Transfers' },
   ]
 
   if (transfer.isPending) return <PageSpinner />
@@ -65,6 +68,7 @@ export function TransferPage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={data.reference}

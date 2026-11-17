@@ -7,6 +7,8 @@ type Props = {
   status?: ReactNode
   // Right, on the same row: smart buttons, then what can be done with the record.
   actions?: ReactNode
+  // At the far right of that row: previous and next through the list it came from.
+  pager?: ReactNode
   // The record's own details, as a block.
   details: ReactNode
   // Everything under the details: lines, payments, history...
@@ -16,7 +18,7 @@ type Props = {
 // The shape every record page shares (orders, invoices, transfers, products, partners).
 // On very wide screens the right-hand column is kept free for an activity log later;
 // below that the content takes the full width, so the row of buttons has room.
-export function RecordLayout({ header, status, actions, details, children }: Props) {
+export function RecordLayout({ header, status, actions, pager, details, children }: Props) {
   return (
     <div className="grid gap-8">
       {header}
@@ -29,11 +31,17 @@ export function RecordLayout({ header, status, actions, details, children }: Pro
                 {/* ml-auto keeps them on the right, even when they wrap onto their own line. */}
                 <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                   {actions}
+                  {pager}
                 </div>
               </div>
             ) : (
-              // Without a status, the smart buttons lead from the left.
-              actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>
+              // Without a status, the smart buttons lead from the left; the pager stays right.
+              (actions || pager) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {actions}
+                  {pager && <div className="ml-auto">{pager}</div>}
+                </div>
+              )
             )}
             {details}
           </div>

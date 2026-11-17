@@ -99,11 +99,11 @@ export function PurchaseOrderPage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={data.reference}
           trail={[{ to: listHref, label: 'Purchase orders' }]}
-          pager={<RecordPager id={data.id} />}
           title={
             <>
               {data.reference}
