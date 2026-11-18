@@ -138,8 +138,8 @@ A supplier's bill becomes a draft purchase order: Gemini reads it, PostgreSQL ma
 - **The model only reads, and its answer is untrusted.** It's checked against a fixed schema and nothing is saved before a review, so a bill with hidden instructions can at worst produce a wrong reading.
 - **Matching is done in the database:** an exact product code first, then the closest name (`pg_trgm`), only above 0.45 similarity. A wrong match is worse than none.
 - **Imports are saved,** so one can wait for a missing product. Confirm is one transaction and locks the import, so a double click can't make two orders.
-- **The bill file is kept,** in the private bucket, so the review and the order’s history can show the original. A discarded import’s file is deleted.
-- **Missing products go to inventory,** rchase can’t create products, so it asks; inventory managers get a list of the waiting items, and creating a product from one links it in the same transaction.
+- **The bill file is kept,** in the private bucket, so the review and the order's history can show the original. A discarded import's file is deleted.
+- **Missing products go to inventory.** Purchase can't create products, so it asks; inventory managers get a list of the waiting items, and creating a product from one links it in the same transaction.
 - **Limits:** 10 imports an hour per user. Google's "overloaded" is retried once.
 - **Free tier:** Google may use what's sent, so the demo uses sample bills only.
 
