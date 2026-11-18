@@ -4,12 +4,14 @@ import { Link } from 'react-router'
 import { can } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { ArchivedBadge } from '@/components/ArchivedBadge'
+import { AvailableQuantity } from '@/components/AvailableQuantity'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ListToolbar, SearchInput, ShowArchivedToggle } from '@/components/ListToolbar'
 import { Money } from '@/components/Money'
 import { PageHeader } from '@/components/PageHeader'
 import { ProductThumb } from '@/components/ProductThumb'
 import { Pagination } from '@/components/Pagination'
+import { Quantity } from '@/components/Quantity'
 import { Button } from '@/components/ui/button'
 import { RecordLink } from '@/components/RecordLink'
 import { useListState } from '@/lib/recordPager'
@@ -18,9 +20,9 @@ import { CategoryFilter } from '@/features/categories/CategoryFilter'
 import { categoryFilterParams } from '@/features/categories/categoryParams'
 import { CategoryName } from '@/features/categories/CategoryPicker'
 import { ProductCards } from './ProductCards'
-import { useProducts, type Product } from './queries'
+import { useProducts, type ProductListItem } from './queries'
 
-const columns: Column<Product>[] = [
+const columns: Column<ProductListItem>[] = [
   {
     header: 'Name',
     cell: (product) => (
@@ -41,6 +43,16 @@ const columns: Column<Product>[] = [
     header: 'Cost price',
     className: 'text-right',
     cell: (product) => <Money value={product.cost_price} />,
+  },
+  {
+    header: 'On hand',
+    className: 'text-right',
+    cell: (product) => <Quantity value={product.on_hand} />,
+  },
+  {
+    header: 'Available',
+    className: 'text-right',
+    cell: (product) => <AvailableQuantity value={product.available} />,
   },
   { header: 'Status', cell: (product) => (product.is_active ? null : <ArchivedBadge />) },
 ]

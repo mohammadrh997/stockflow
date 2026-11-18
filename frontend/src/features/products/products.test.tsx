@@ -6,11 +6,12 @@ import { describe, expect, it } from 'vitest'
 import { PAGE_SIZE } from '@/lib/useListParams'
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
 import { API, server } from '@/test/server'
-import type { Product } from './queries'
+import type { ProductListItem } from './queries'
 import type { ProductMove } from './useProductMoves'
 import type { ProductSummary } from './useProductOrders'
 
-function makeProduct(overrides: Partial<Product> = {}): Product {
+// The list's shape, with stock; a single product's reply simply has two fields more.
+function makeProduct(overrides: Partial<ProductListItem> = {}): ProductListItem {
   return {
     id: 1,
     name: 'Desk',
@@ -22,6 +23,8 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
     created_by: { id: 1, name: 'Admin' },
+    on_hand: '0.000',
+    available: '0.000',
     ...overrides,
   }
 }
@@ -590,8 +593,15 @@ describe('product moves', () => {
 
 describe('products as cards', () => {
   const products = [
-    makeProduct({ id: 1, name: 'Desk', sku: 'DESK-1', sale_price: '50.00' }),
-    makeProduct({ id: 2, name: 'Old lamp', sku: 'LAMP-0', is_active: false }),
+    makeProduct({
+      id: 1,
+      name: 'Desk',
+      sku: 'DESK-1',
+      sale_price: '50.00',
+      on_hand: '12.000',
+      available: '8.000',
+    }),
+    makeProduct({ id: 2, name: 'Old lamp', sku: 'LAMP-0', is_active: false, on_hand: '3.000' }),
   ]
 
   function mockProducts() {
@@ -614,7 +624,11 @@ describe('products as cards', () => {
     const desk = within(cards).getByRole('link', { name: /Desk/ })
     expect(desk).toHaveTextContent('DESK-1')
     expect(desk).toHaveTextContent('50.00')
-    expect(within(cards).getByRole('link', { name: /Old lamp/ })).toHaveTextContent('Archived')
+    expect(desk).toHaveTextContent('8 available, 12 on hand')
+    const lamp = within(cards).getByRole('link', { name: /Old lamp/ })
+    expect(lamp).toHaveTextContent('Archived')
+    // Nothing free: said in words, with what's there.
+    expect(lamp).toHaveTextContent('None free3 on hand')
     expect(screen.getByRole('button', { name: 'Cards' })).toHaveAttribute('aria-pressed', 'true')
 
     await user.click(desk)
@@ -631,6 +645,14 @@ describe('products as cards', () => {
     await user.click(await screen.findByRole('button', { name: 'List' }))
     expect(await screen.findByRole('columnheader', { name: 'SKU' })).toBeInTheDocument()
     expect(first.router.state.location.search).toBe('?view=list')
+    const deskCells = within(
+      screen.getByRole('link', { name: 'Desk' }).closest('tr')!,
+    ).getAllByRole('cell')
+    expect(deskCells[5]).toHaveTextContent('12') // on hand
+    expect(deskCells[6]).toHaveTextContent('8') // available
+    expect(screen.getByRole('link', { name: 'Old lamp' }).closest('tr')).toHaveTextContent(
+      'None free',
+    )
     // Leaving and coming back: the choice is kept in this browser.
     cleanup()
 

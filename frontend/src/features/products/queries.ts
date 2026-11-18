@@ -5,6 +5,8 @@ import { unwrap } from '@/api/errors'
 import { fileUpload } from '@/lib/imageUpload'
 
 export type Product = Schemas['ProductRead']
+// A product as the list sends it: with its stock, added up across every warehouse.
+export type ProductListItem = Schemas['ProductListItem']
 export type ProductCreate = Schemas['ProductCreate']
 export type ProductUpdate = Schemas['ProductUpdate']
 

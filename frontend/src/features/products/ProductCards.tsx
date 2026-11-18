@@ -4,18 +4,21 @@ import { Link } from 'react-router'
 import { ArchivedBadge } from '@/components/ArchivedBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { Money } from '@/components/Money'
+import { Quantity } from '@/components/Quantity'
 import { ProductThumb } from '@/components/ProductThumb'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CategoryName } from '@/features/categories/CategoryPicker'
 import type { ListState } from '@/lib/recordPager'
+import { TONE_BADGE } from '@/lib/tones'
 import { cn } from '@/lib/utils'
-import type { Product } from './queries'
+import type { ProductListItem } from './queries'
 
 const GRID = 'grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6'
 const LOADING_CARDS = 8
 
 type Props = {
-  products: Product[] | undefined
+  products: ProductListItem[] | undefined
   isPending: boolean
   error: unknown
   onRetry: () => void
@@ -67,7 +70,7 @@ export function ProductCards({
             to={`/products/${product.id}`}
             state={listState}
             className={cn(
-              // A column, so the price sits at the bottom whatever the name's length.
+              // A column, so stock and price sit at the bottom whatever the name's length.
               'group flex h-full flex-col gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-muted/40',
               !product.is_active && 'opacity-70',
             )}
@@ -86,7 +89,8 @@ export function ProductCards({
                 </span>
               )}
             </span>
-            <span className="mt-auto flex items-center justify-between gap-2">
+            <CardStock product={product} />
+            <span className="flex items-center justify-between gap-2">
               <span className="font-semibold">
                 <Money value={product.sale_price} />
               </span>
@@ -96,5 +100,27 @@ export function ProductCards({
         </li>
       ))}
     </ul>
+  )
+}
+
+// Stock across every warehouse: what's free to sell first, since that's what decides a sale.
+function CardStock({ product }: { product: ProductListItem }) {
+  if (Number(product.available) <= 0) {
+    return (
+      <span className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-detail text-muted-foreground">
+        <Badge className={TONE_BADGE.danger}>None free</Badge>
+        <span>
+          <Quantity value={product.on_hand} /> on hand
+        </span>
+      </span>
+    )
+  }
+  return (
+    <span className="mt-auto text-detail text-muted-foreground">
+      <span className="font-medium text-foreground">
+        <Quantity value={product.available} />
+      </span>{' '}
+      available, <Quantity value={product.on_hand} /> on hand
+    </span>
   )
 }

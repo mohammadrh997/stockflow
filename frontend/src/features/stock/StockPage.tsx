@@ -1,16 +1,14 @@
 import { Link } from 'react-router'
 
+import { AvailableQuantity } from '@/components/AvailableQuantity'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ListToolbar } from '@/components/ListToolbar'
 import { PageHeader } from '@/components/PageHeader'
 import { ProductPicker } from '@/components/ProductPicker'
 import { Quantity } from '@/components/Quantity'
-import { Badge } from '@/components/ui/badge'
 import { WarehousePicker } from '@/components/WarehousePicker'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { useListParams } from '@/lib/useListParams'
-import { TONE_BADGE, TONE_TEXT } from '@/lib/tones'
-import { cn } from '@/lib/utils'
 import { CategoryFilter } from '@/features/categories/CategoryFilter'
 import { categoryFilterParams } from '@/features/categories/categoryParams'
 import { useStock, type StockRow } from './queries'
@@ -51,21 +49,7 @@ export function StockPage() {
     {
       header: 'Available',
       className: 'text-right',
-      // Nothing free to sell (the start page's "short on stock"): said in words, not
-      // colour alone.
-      cell: (row) =>
-        Number(row.available) <= 0 ? (
-          <span className="inline-flex items-center justify-end gap-2">
-            <Badge className={TONE_BADGE.danger}>None free</Badge>
-            <span className={cn('font-medium', TONE_TEXT.danger)}>
-              <Quantity value={row.available} />
-            </span>
-          </span>
-        ) : (
-          <span className="font-medium">
-            <Quantity value={row.available} />
-          </span>
-        ),
+      cell: (row) => <AvailableQuantity value={row.available} />,
     },
   ]
 
