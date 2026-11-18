@@ -76,7 +76,8 @@ export function TransferPage() {
           title={
             <>
               {data.reference}
-              <StateBadge state={data.state} />
+              {/* The steps below show it when there are any; otherwise the badge does. */}
+              {!fromOrder && <StateBadge state={data.state} />}
             </>
           }
         />

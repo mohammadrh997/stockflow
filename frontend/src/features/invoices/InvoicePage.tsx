@@ -15,7 +15,6 @@ import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
-import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
 import { CurrencyCode } from '@/features/company/CurrencyCode'
 import { moneyHeading, useCurrency } from '@/features/company/queries'
@@ -87,7 +86,6 @@ export function InvoicePage() {
           title={
             <>
               {invoiceTitle(data)}
-              <StateBadge state={data.state} />
               <PaymentBadge invoice={data} />
               <OverdueBadge invoice={data} today={today()} />
             </>

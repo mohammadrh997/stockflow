@@ -81,8 +81,9 @@ describe('start page', () => {
     renderApp('/')
 
     expect(await screen.findByText('Sales orders to confirm')).toBeInTheDocument()
+    // Nothing waiting: a quiet line that says so.
     expect(
-      await within(card('Sales orders to confirm')).findByText('Nothing waiting'),
+      await screen.findByRole('link', { name: /^Sales orders to confirm,\s*None$/ }),
     ).toBeInTheDocument()
   })
 

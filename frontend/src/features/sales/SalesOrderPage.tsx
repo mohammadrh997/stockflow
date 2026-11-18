@@ -12,7 +12,6 @@ import { PageHeader } from '@/components/PageHeader'
 import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
-import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { AddLineForm } from '@/features/orders/AddLineForm'
 import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
@@ -105,12 +104,7 @@ export function SalesOrderPage() {
         <PageHeader
           pageTitle={data.reference}
           trail={[{ to: listHref, label: 'Sales orders' }]}
-          title={
-            <>
-              {data.reference}
-              <StateBadge state={data.state} />
-            </>
-          }
+          title={<>{data.reference}</>}
           // Less frequent actions about the order itself, next to its number.
           nameActions={
             data.state !== 'cancelled' && (

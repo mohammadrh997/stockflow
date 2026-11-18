@@ -13,7 +13,7 @@ type Props = {
   rows: unknown[] | undefined
   isPending: boolean
   isError: boolean
-  // Lists have no total count: a full page means "at least this many".
+  // The page size the rows were asked for: a full page means "at least this many".
   limit?: number
   detail?: ReactNode
 }
@@ -31,6 +31,23 @@ export function AttentionCard({
   const count = rows?.length ?? 0
   const label = limit !== undefined && count >= limit ? `${limit}+` : String(count)
 
+  // Nothing waiting: one quiet full-width line, after the cards that need someone (grid
+  // order), so the eye goes to the work and the all-clear ones read as a short list.
+  if (!isPending && !isError && count === 0) {
+    return (
+      <Link
+        to={to}
+        className="order-last col-span-full flex items-center gap-2 rounded-lg border border-dashed px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+      >
+        <Icon className="size-4 shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        {/* Heard, not seen: keeps the two from running together for screen readers. */}
+        <span className="sr-only">,</span>
+        <span>None</span>
+      </Link>
+    )
+  }
+
   return (
     <Link to={to} className="group">
       <Card className="h-full transition-colors group-hover:bg-muted/50">
@@ -47,19 +64,8 @@ export function AttentionCard({
             <span className="text-sm text-destructive">Could not load</span>
           ) : (
             <>
-              <span
-                className={cn(
-                  'text-3xl font-semibold tabular-nums',
-                  count === 0 && 'text-muted-foreground',
-                )}
-              >
-                {label}
-              </span>
-              {count === 0 ? (
-                <span className="text-sm text-muted-foreground">Nothing waiting</span>
-              ) : (
-                detail
-              )}
+              <span className={cn('text-3xl font-semibold tabular-nums')}>{label}</span>
+              {detail}
             </>
           )}
         </CardContent>
