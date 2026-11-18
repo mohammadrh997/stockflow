@@ -423,6 +423,23 @@ describe('handing missing products to inventory', () => {
     const row = (await screen.findByRole('link', { name: 'ZF-0917' })).closest('tr')!
     expect(row).toHaveTextContent('1 without a product, inventory asked')
   })
+
+  it('says the products are ready once inventory created them all', async () => {
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/bill-imports`, () =>
+        HttpResponse.json([
+          summary({ missing_products: 0, products_requested_at: '2026-11-18T09:30:00Z' }),
+        ]),
+      ),
+    )
+    signInAs(buyer)
+    renderApp('/bill-imports')
+
+    const row = (await screen.findByRole('link', { name: 'ZF-0917' })).closest('tr')!
+    expect(within(row).getByText('Products ready')).toBeInTheDocument()
+    expect(row).not.toHaveTextContent('without a product')
+  })
 })
 
 describe('the bill file', () => {

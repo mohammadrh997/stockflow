@@ -61,6 +61,12 @@ function columns(listState: ListState | undefined): Column<BillImportSummary>[] 
               {bill.products_requested_at !== null && ', inventory asked'}
             </span>
           )}
+          {/* Inventory has created what was asked: it's purchase's turn to confirm. */}
+          {bill.state === 'open' &&
+            bill.missing_products === 0 &&
+            bill.products_requested_at !== null && (
+              <span className={TONE_TEXT.success}>Products ready</span>
+            )}
         </span>
       ),
     },
