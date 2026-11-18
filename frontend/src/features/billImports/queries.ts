@@ -110,9 +110,17 @@ export function useFinishImport(id: number) {
         invalidateSummaries(queryClient),
       ]),
   })
+  // Purchase can't create products, so it asks inventory managers for the missing ones.
+  const requestProducts = useMutation({
+    mutationFn: () => unwrap(api.POST('/bill-imports/{import_id}/request-products', { params })),
+    onSuccess: (bill: BillImport) =>
+      Promise.all([store(bill), queryClient.invalidateQueries({ queryKey: ['missing-products'] })]),
+  })
   const discard = useMutation({
     mutationFn: () => unwrap(api.POST('/bill-imports/{import_id}/discard', { params })),
-    onSuccess: store,
+    // Its items stop waiting on inventory.
+    onSuccess: (bill: BillImport) =>
+      Promise.all([store(bill), queryClient.invalidateQueries({ queryKey: ['missing-products'] })]),
   })
-  return { confirm, discard }
+  return { confirm, requestProducts, discard }
 }

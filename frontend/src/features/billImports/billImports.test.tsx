@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
 import { API, server } from '@/test/server'
@@ -367,5 +367,111 @@ describe('reviewing an import', () => {
     expect(
       screen.queryByRole('list', { name: 'Before creating the order' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('handing missing products to inventory', () => {
+  it('asks inventory once, then says who asked and when', async () => {
+    mockImport()
+    let asked = 0
+    server.use(
+      http.post(`${API}/bill-imports/2/request-products`, () => {
+        asked += 1
+        return HttpResponse.json(
+          makeImport({
+            products_requested_at: '2026-11-18T09:30:00Z',
+            products_requested_by: { id: 1, name: 'Sara' },
+          }),
+        )
+      }),
+    )
+    signInAs(buyer)
+    renderApp('/bill-imports/2')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Ask inventory for products' }))
+
+    expect(await screen.findByText('Inventory asked by')).toBeInTheDocument()
+    expect(screen.getByText('Sara')).toBeInTheDocument()
+    expect(asked).toBe(1)
+    expect(
+      screen.queryByRole('button', { name: 'Ask inventory for products' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("isn't offered when every item has a product", async () => {
+    mockImport(makeImport({ lines: [line(21)], warnings: [] }))
+    signInAs(buyer)
+    renderApp('/bill-imports/2')
+
+    expect(await screen.findByRole('button', { name: 'Create purchase order' })).toBeEnabled()
+    expect(
+      screen.queryByRole('button', { name: 'Ask inventory for products' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('marks the asked imports in the list', async () => {
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/bill-imports`, () =>
+        HttpResponse.json([summary({ products_requested_at: '2026-11-18T09:30:00Z' })]),
+      ),
+    )
+    signInAs(buyer)
+    renderApp('/bill-imports')
+
+    const row = (await screen.findByRole('link', { name: 'ZF-0917' })).closest('tr')!
+    expect(row).toHaveTextContent('1 without a product, inventory asked')
+  })
+})
+
+describe('the bill file', () => {
+  const createObjectURL = URL.createObjectURL
+  const revokeObjectURL = URL.revokeObjectURL
+  afterEach(() => {
+    URL.createObjectURL = createObjectURL
+    URL.revokeObjectURL = revokeObjectURL
+  })
+
+  it('shows the kept bill, fetched with the login', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:bill')
+    URL.revokeObjectURL = vi.fn()
+    mockImport(makeImport({ file_type: 'image/png' }))
+    let authorization: string | null = null
+    server.use(
+      http.get(`${API}/bill-imports/2/file`, ({ request }) => {
+        authorization = request.headers.get('Authorization')
+        return new HttpResponse(new Blob(['png'], { type: 'image/png' }), {
+          headers: { 'Content-Type': 'image/png' },
+        })
+      }),
+    )
+    signInAs(buyer)
+    renderApp('/bill-imports/2')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'View bill' }))
+
+    const dialog = await screen.findByRole('dialog')
+    await waitFor(() =>
+      expect(within(dialog).getByRole('img', { name: 'The bill' })).toHaveAttribute(
+        'src',
+        'blob:bill',
+      ),
+    )
+    expect(within(dialog).getByRole('link', { name: 'Open in a new tab' })).toHaveAttribute(
+      'href',
+      'blob:bill',
+    )
+    expect(authorization).toMatch(/^Bearer /)
+  })
+
+  it("isn't offered when the file wasn't kept", async () => {
+    mockImport()
+    signInAs(buyer)
+    renderApp('/bill-imports/2')
+
+    expect(await screen.findByRole('button', { name: 'Create purchase order' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'View bill' })).not.toBeInTheDocument()
   })
 })

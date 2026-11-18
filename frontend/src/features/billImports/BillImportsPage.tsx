@@ -56,7 +56,10 @@ function columns(listState: ListState | undefined): Column<BillImportSummary>[] 
         <span className="flex flex-wrap items-center gap-2">
           {bill.line_count}
           {bill.state === 'open' && bill.missing_products > 0 && (
-            <span className={TONE_TEXT.warning}>{bill.missing_products} without a product</span>
+            <span className={TONE_TEXT.warning}>
+              {bill.missing_products} without a product
+              {bill.products_requested_at !== null && ', inventory asked'}
+            </span>
           )}
         </span>
       ),

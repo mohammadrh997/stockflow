@@ -24,6 +24,7 @@ import { usePurchaseOrder } from '@/features/purchase/queries'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { formatDate } from '@/lib/dates'
 import { useListHref } from '@/lib/recordPager'
+import { BillFileDialog } from './BillFileDialog'
 import { ImportSupplier } from './BillImportsPage'
 import { ImportLinesTable } from './ImportLinesTable'
 import { ImportStateBadge } from './ImportStateBadge'
@@ -63,6 +64,21 @@ function Actions({ bill }: { bill: BillImport }) {
   if (bill.state !== 'open') return null
 
   const blocking = bill.warnings.filter((warning) => warning.blocks_confirm)
+  const missing = bill.lines.filter((line) => line.product_id === null).length
+  const canAsk = missing > 0 && bill.products_requested_at === null
+
+  async function askInventory() {
+    try {
+      await finish.requestProducts.mutateAsync()
+      toast.success('Inventory managers can now create the missing products')
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError && typeof error.detail === 'string'
+          ? error.detail
+          : errorMessage(error),
+      )
+    }
+  }
 
   async function create() {
     try {
@@ -86,6 +102,15 @@ function Actions({ bill }: { bill: BillImport }) {
           {finish.confirm.isPending ? 'Creating…' : 'Create purchase order'}
         </Button>
       </DisabledReason>
+      {canAsk && (
+        <Button
+          variant="outline"
+          disabled={finish.requestProducts.isPending}
+          onClick={askInventory}
+        >
+          {finish.requestProducts.isPending ? 'Asking…' : 'Ask inventory for products'}
+        </Button>
+      )}
       <ConfirmDialog
         trigger={
           <Button variant="outline" disabled={finish.confirm.isPending}>
@@ -123,6 +148,11 @@ function Details({ bill, editable }: { bill: BillImport; editable: boolean }) {
       <div className="grid gap-6">
         <ImportWarnings warnings={bill.warnings} />
         <dl className="grid max-w-2xl grid-cols-[auto_1fr] items-center gap-x-6 gap-y-3 text-sm">
+          {bill.file_type !== null && (
+            <Detail label="The bill">
+              <BillFileDialog source={{ kind: 'import', id: bill.id }} fileType={bill.file_type} />
+            </Detail>
+          )}
           <Detail label="On the bill">{bill.supplier_name ?? none}</Detail>
           <Detail label="Supplier">
             {editable ? (
@@ -177,6 +207,13 @@ function Details({ bill, editable }: { bill: BillImport; editable: boolean }) {
             <Money value={bill.total} />
           </Detail>
           <DoneByRows label="Imported" at={bill.created_at} by={bill.created_by} />
+          {bill.products_requested_at !== null && (
+            <DoneByRows
+              label="Inventory asked"
+              at={bill.products_requested_at}
+              by={bill.products_requested_by}
+            />
+          )}
         </dl>
       </div>
     </Panel>
