@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { TONE_BADGE } from '@/lib/tones'
 import type { BillImportState } from './queries'
 
 const LABELS: Record<BillImportState, string> = {
@@ -9,9 +10,9 @@ const LABELS: Record<BillImportState, string> = {
 }
 
 const STYLES: Record<BillImportState, string> = {
-  open: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200',
-  done: 'bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-200',
-  discarded: 'bg-muted text-muted-foreground',
+  open: TONE_BADGE.warning,
+  done: TONE_BADGE.success,
+  discarded: TONE_BADGE.neutral,
 }
 
 export function ImportStateBadge({ state }: { state: BillImportState }) {

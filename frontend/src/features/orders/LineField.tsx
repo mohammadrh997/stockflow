@@ -75,7 +75,7 @@ export function LineField({ productId, name, field, value, format, validate, onS
         onKeyDown={handleKeyDown}
         className={cn('h-8 text-right tabular-nums', saving && 'opacity-60')}
       />
-      {error && <span className="text-right text-xs text-destructive">{error}</span>}
+      {error && <span className="text-right text-detail text-destructive">{error}</span>}
     </div>
   )
 }

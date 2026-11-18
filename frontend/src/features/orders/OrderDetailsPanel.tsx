@@ -5,6 +5,8 @@ import { DoneByRows } from '@/components/DoneByRows'
 import { Panel } from '@/components/Panel'
 import { PartnerName, WarehouseName } from '@/components/RecordNames'
 import { OrderDetailsForm, type OrderDetails } from './OrderDetailsForm'
+import { cn } from '@/lib/utils'
+import { TONE_BADGE } from '@/lib/tones'
 
 type Props = {
   role: 'customer' | 'supplier'
@@ -76,7 +78,12 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note, source 
             <>
               <dt className="text-muted-foreground">Progress</dt>
               <dd>
-                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-0.5 text-sm font-medium',
+                    TONE_BADGE.warning,
+                  )}
+                >
                   {note}
                 </span>
               </dd>

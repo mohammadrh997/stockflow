@@ -140,7 +140,7 @@ function OrdersButton({
           </ul>
         )}
         {data && !data.complete && (
-          <p className="p-2 text-xs text-muted-foreground">Showing the newest orders only.</p>
+          <p className="p-2 text-detail text-muted-foreground">Showing the newest orders only.</p>
         )}
       </PopoverContent>
     </Popover>

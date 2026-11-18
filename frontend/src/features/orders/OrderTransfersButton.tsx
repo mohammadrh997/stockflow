@@ -62,7 +62,7 @@ export function OrderTransfersButton({ kind, transfers, trail }: Props) {
                   <StateBadge state={transfer.state} />
                 </span>
                 {transfer.backorder_of_id !== null && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-detail text-muted-foreground">
                     Backorder of {reference.get(transfer.backorder_of_id)}
                   </span>
                 )}

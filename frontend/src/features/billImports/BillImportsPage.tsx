@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDateTime } from '@/lib/format'
 import { useListState, type ListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
+import { TONE_TEXT } from '@/lib/tones'
 import { ImportBillDialog } from './ImportBillDialog'
 import { ImportStateBadge } from './ImportStateBadge'
 import { useBillImports, type BillImportState, type BillImportSummary } from './queries'
@@ -55,9 +56,7 @@ function columns(listState: ListState | undefined): Column<BillImportSummary>[] 
         <span className="flex flex-wrap items-center gap-2">
           {bill.line_count}
           {bill.state === 'open' && bill.missing_products > 0 && (
-            <span className="text-amber-700 dark:text-amber-400">
-              {bill.missing_products} without a product
-            </span>
+            <span className={TONE_TEXT.warning}>{bill.missing_products} without a product</span>
           )}
         </span>
       ),

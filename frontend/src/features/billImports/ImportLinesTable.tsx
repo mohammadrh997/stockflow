@@ -14,12 +14,13 @@ import { LineField } from '@/features/orders/LineField'
 import { checkQuantity, checkUnitPrice } from '@/features/orders/lineRules'
 import { QuickCreateProductDialog } from '@/features/products/QuickCreateProductDialog'
 import { formatMoney, formatQuantity } from '@/lib/format'
+import { TONE_TEXT } from '@/lib/tones'
 import { useImportLines, type BillImport, type BillImportLine } from './queries'
 
 // How the product was found, so a guess is never mistaken for a certainty.
 function MatchHint({ line }: { line: BillImportLine }) {
   if (line.product_id === null) {
-    return <span className="text-amber-700 dark:text-amber-400">No match: choose a product</span>
+    return <span className={TONE_TEXT.warning}>No match: choose a product</span>
   }
   if (line.match_score === null) return null // chosen by a person
   if (Number(line.match_score) >= 1) return <span>Matched by its code</span>
@@ -51,7 +52,7 @@ export function ImportLinesTable({ bill, editable }: Props) {
         <span className="grid">
           <span>{line.description}</span>
           {line.product_code && (
-            <span className="text-xs text-muted-foreground">Code {line.product_code}</span>
+            <span className="text-detail text-muted-foreground">Code {line.product_code}</span>
           )}
         </span>
       ),
@@ -71,7 +72,7 @@ export function ImportLinesTable({ bill, editable }: Props) {
               onCreate={canCreateProduct ? (name) => setCreating({ line, name }) : undefined}
               emptyHint={canCreateProduct ? undefined : 'Ask an inventory manager to add it.'}
             />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-detail text-muted-foreground">
               <MatchHint line={line} />
             </span>
           </div>
