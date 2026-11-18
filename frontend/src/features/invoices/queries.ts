@@ -97,6 +97,16 @@ export function usePostInvoice(id: number) {
   })
 }
 
+// A draft's own fields; for now the supplier's number on a vendor bill.
+export function useUpdateInvoice(id: number) {
+  const store = useStoreInvoice()
+  return useMutation({
+    mutationFn: (body: Schemas['InvoiceUpdate']) =>
+      unwrap(api.PATCH('/invoices/{invoice_id}', { params: { path: { invoice_id: id } }, body })),
+    onSuccess: store,
+  })
+}
+
 export function useCancelInvoice(id: number) {
   const store = useStoreInvoice()
   return useMutation({

@@ -332,7 +332,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Invoice */
+        patch: operations["update_invoice_invoices__invoice_id__patch"];
         trace?: never;
     };
     "/invoices/{invoice_id}/lines/{line_id}": {
@@ -752,6 +753,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bill-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Imports */
+        get: operations["list_imports_bill_imports_get"];
+        put?: never;
+        /** Import Bill */
+        post: operations["import_bill_bill_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bill-imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import */
+        get: operations["get_import_bill_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Import */
+        patch: operations["update_import_bill_imports__import_id__patch"];
+        trace?: never;
+    };
+    "/bill-imports/{import_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Bill File */
+        get: operations["get_bill_file_bill_imports__import_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bill-imports/{import_id}/lines/{line_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Line */
+        delete: operations["delete_line_bill_imports__import_id__lines__line_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Line */
+        patch: operations["update_line_bill_imports__import_id__lines__line_id__patch"];
+        trace?: never;
+    };
+    "/bill-imports/{import_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Import */
+        post: operations["confirm_import_bill_imports__import_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bill-imports/{import_id}/request-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Products
+         * @description Asks inventory managers to create the products the items still need.
+         */
+        post: operations["request_products_bill_imports__import_id__request_products_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bill-imports/{import_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Discard Import */
+        post: operations["discard_import_bill_imports__import_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/missing-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Missing Products */
+        get: operations["list_missing_products_missing_products_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/missing-products/{line_id}/product": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Product For Line */
+        post: operations["create_product_for_line_missing_products__line_id__product_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/missing-products/{line_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Bill File
+         * @description The bill the item is on, to see it as printed.
+         */
+        get: operations["get_bill_file_missing_products__line_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stock": {
         parameters: {
             query?: never;
@@ -1123,6 +1303,127 @@ export interface components {
             /** Counted Quantity */
             counted_quantity: number | string;
         };
+        /** BillImportLineRead */
+        BillImportLineRead: {
+            /** Id */
+            id: number;
+            /** Description */
+            description: string;
+            /** Product Code */
+            product_code: string | null;
+            /** Quantity */
+            quantity: string;
+            /** Unit Price */
+            unit_price: string;
+            /** Product Id */
+            product_id: number | null;
+            /** Match Score */
+            match_score: string | null;
+            /** Subtotal */
+            readonly subtotal: string;
+        };
+        /** BillImportLineUpdate */
+        BillImportLineUpdate: {
+            /** Product Id */
+            product_id?: number | null;
+            /** Quantity */
+            quantity?: number | string | null;
+            /** Unit Price */
+            unit_price?: number | string | null;
+        };
+        /** BillImportRead */
+        BillImportRead: {
+            /** Id */
+            id: number;
+            state: components["schemas"]["BillImportState"];
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Partner Id */
+            partner_id: number | null;
+            /** Partner Reference */
+            partner_reference: string | null;
+            /** Bill Date */
+            bill_date: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Bill Total */
+            bill_total: string | null;
+            /** Warehouse Id */
+            warehouse_id: number | null;
+            /** Purchase Order Id */
+            purchase_order_id: number | null;
+            /** File Type */
+            file_type: string | null;
+            /** Products Requested At */
+            products_requested_at: string | null;
+            products_requested_by: components["schemas"]["UserSummary"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["UserSummary"];
+            /** Lines */
+            lines: components["schemas"]["BillImportLineRead"][];
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: components["schemas"]["ImportWarning"][];
+            /** Total */
+            readonly total: string;
+        };
+        /**
+         * BillImportState
+         * @enum {string}
+         */
+        BillImportState: "open" | "done" | "discarded";
+        /**
+         * BillImportSummary
+         * @description A row in the list: enough to find an import, without its review.
+         */
+        BillImportSummary: {
+            /** Id */
+            id: number;
+            state: components["schemas"]["BillImportState"];
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Partner Id */
+            partner_id: number | null;
+            /** Partner Reference */
+            partner_reference: string | null;
+            /** Purchase Order Id */
+            purchase_order_id: number | null;
+            /** Products Requested At */
+            products_requested_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["UserSummary"];
+            /** Line Count */
+            readonly line_count: number;
+            /**
+             * Missing Products
+             * @description Lines still without a product.
+             */
+            readonly missing_products: number;
+        };
+        /** BillImportUpdate */
+        BillImportUpdate: {
+            /** Partner Id */
+            partner_id?: number | null;
+            /** Partner Reference */
+            partner_reference?: string | null;
+            /** Warehouse Id */
+            warehouse_id?: number | null;
+        };
+        /** Body_import_bill_bill_imports_post */
+        Body_import_bill_bill_imports_post: {
+            /** File */
+            file: string;
+        };
         /** Body_login_auth_token_post */
         Body_login_auth_token_post: {
             /** Grant Type */
@@ -1230,6 +1531,18 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImportWarning */
+        ImportWarning: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "no_supplier" | "no_warehouse" | "no_lines" | "missing_products" | "archived_products" | "reference_used" | "currency_differs" | "total_differs";
+            /** Message */
+            message: string;
+            /** Blocks Confirm */
+            blocks_confirm: boolean;
+        };
         /** InternalTransferCreate */
         InternalTransferCreate: {
             /** From Location Id */
@@ -1296,6 +1609,8 @@ export interface components {
             state: components["schemas"]["InvoiceState"];
             /** Partner Id */
             partner_id: number;
+            /** Partner Reference */
+            partner_reference: string | null;
             /** Sales Order Id */
             sales_order_id: number | null;
             /** Purchase Order Id */
@@ -1342,6 +1657,11 @@ export interface components {
          * @enum {string}
          */
         InvoiceType: "customer_invoice" | "vendor_bill";
+        /** InvoiceUpdate */
+        InvoiceUpdate: {
+            /** Partner Reference */
+            partner_reference?: string | null;
+        };
         /** LocationCreate */
         LocationCreate: {
             /** Name */
@@ -1370,6 +1690,23 @@ export interface components {
         LocationUpdate: {
             /** Name */
             name: string;
+        };
+        /**
+         * MissingProductRead
+         * @description An item inventory is asked to create a product for.
+         */
+        MissingProductRead: {
+            /** Id */
+            id: number;
+            /** Description */
+            description: string;
+            /** Product Code */
+            product_code: string | null;
+            /** Quantity */
+            quantity: string;
+            /** Unit Price */
+            unit_price: string;
+            bill_import: components["schemas"]["RequestedImport"];
         };
         /** MoveLocation */
         MoveLocation: {
@@ -1568,6 +1905,35 @@ export interface components {
             /** Category Id */
             category_id?: number | null;
         };
+        /** ProductListItem */
+        ProductListItem: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Sku */
+            sku: string;
+            /** Sale Price */
+            sale_price: string;
+            /** Cost Price */
+            cost_price: string;
+            /** Category Id */
+            category_id: number | null;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["UserSummary"];
+            /** On Hand */
+            on_hand: string;
+            /** Available */
+            available: string;
+            /** Image Url */
+            readonly image_url: string | null;
+        };
         /** ProductRead */
         ProductRead: {
             /** Id */
@@ -1621,6 +1987,8 @@ export interface components {
         PurchaseOrderCreate: {
             /** Partner Id */
             partner_id: number;
+            /** Partner Reference */
+            partner_reference?: string | null;
             /** Warehouse Id */
             warehouse_id?: number | null;
             /**
@@ -1666,6 +2034,8 @@ export interface components {
             reference: string;
             /** Partner Id */
             partner_id: number;
+            /** Partner Reference */
+            partner_reference: string | null;
             /** Warehouse Id */
             warehouse_id: number;
             state: components["schemas"]["PurchaseState"];
@@ -1684,6 +2054,8 @@ export interface components {
         PurchaseOrderUpdate: {
             /** Partner Id */
             partner_id?: number | null;
+            /** Partner Reference */
+            partner_reference?: string | null;
             /** Warehouse Id */
             warehouse_id?: number | null;
         };
@@ -1696,6 +2068,28 @@ export interface components {
         RefreshRequest: {
             /** Refresh Token */
             refresh_token: string;
+        };
+        /**
+         * RequestedImport
+         * @description The bill an item waiting for a product came from.
+         */
+        RequestedImport: {
+            /** Id */
+            id: number;
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Partner Id */
+            partner_id: number | null;
+            /** Partner Reference */
+            partner_reference: string | null;
+            /** File Type */
+            file_type: string | null;
+            /**
+             * Products Requested At
+             * Format: date-time
+             */
+            products_requested_at: string;
+            products_requested_by: components["schemas"]["UserSummary"];
         };
         /** SalesOrderCreate */
         SalesOrderCreate: {
@@ -2884,6 +3278,41 @@ export interface operations {
             };
         };
     };
+    update_invoice_invoices__invoice_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvoiceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_invoice_line_invoices__invoice_id__lines__line_id__delete: {
         parameters: {
             query?: never;
@@ -3974,6 +4403,425 @@ export interface operations {
             };
         };
     };
+    list_imports_bill_imports_get: {
+        parameters: {
+            query?: {
+                state?: components["schemas"]["BillImportState"] | null;
+                purchase_order_id?: number | null;
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_bill_bill_imports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_bill_bill_imports_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_bill_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_import_bill_imports__import_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillImportUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bill_file_bill_imports__import_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_line_bill_imports__import_id__lines__line_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_line_bill_imports__import_id__lines__line_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillImportLineUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_import_bill_imports__import_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_products_bill_imports__import_id__request_products_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_import_bill_imports__import_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillImportRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_missing_products_missing_products_get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissingProductRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_product_for_line_missing_products__line_id__product_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bill_file_missing_products__line_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_stock_stock_get: {
         parameters: {
             query?: {
@@ -4264,7 +5112,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProductRead"][];
+                    "application/json": components["schemas"]["ProductListItem"][];
                 };
             };
             /** @description Validation Error */

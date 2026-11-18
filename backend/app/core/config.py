@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     storage_key_id: str | None = None
     storage_secret_key: SecretStr | None = None
     storage_public_url: str | None = None  # where browsers load images from
+    # Imported bills go to a private bucket, same endpoint and key, and are served only
+    # through the API. Without it, imports still work but the file isn't kept.
+    storage_bills_bucket: str | None = None
+    # Reading supplier bills (Google Gemini). Without a key, bill import answers 503.
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.5-flash-lite"
 
 
 settings = Settings()

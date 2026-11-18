@@ -12,10 +12,12 @@ from app.core.database import AsyncSessionLocal, engine
 from app.core.limiter import limiter
 from app.routers import (
     auth,
+    bill_import,
     category,
     company,
     health,
     invoices,
+    missing_products,
     moves,
     partner,
     product,
@@ -57,6 +59,8 @@ app.include_router(invoices.router)
 app.include_router(partner.router)
 app.include_router(sale.router)
 app.include_router(purchase.router)
+app.include_router(bill_import.router)
+app.include_router(missing_products.router)
 app.include_router(stock.router)
 app.include_router(transfers.router)
 app.include_router(moves.router)

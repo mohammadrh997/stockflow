@@ -10,6 +10,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { Pagination } from '@/components/Pagination'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { RecordLink } from '@/components/RecordLink'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { PartnerRoles } from './PartnerRoles'
 import { usePartners, type Partner } from './queries'
@@ -17,11 +19,7 @@ import { usePartners, type Partner } from './queries'
 const columns: Column<Partner>[] = [
   {
     header: 'Name',
-    cell: (partner) => (
-      <Link to={`/partners/${partner.id}`} className="font-medium hover:underline">
-        {partner.name}
-      </Link>
-    ),
+    cell: (partner) => <RecordLink to={`/partners/${partner.id}`}>{partner.name}</RecordLink>,
   },
   { header: 'Email', cell: (partner) => partner.email },
   { header: 'Phone', cell: (partner) => partner.phone },
@@ -37,14 +35,18 @@ export function PartnersPage() {
   const name = list.get('name')
   const role = (list.get('role') || 'all') as RoleFilter
   const showArchived = list.get('archived') === 'true'
-  const partners = usePartners({
+  const query = {
     name: name || undefined,
     is_customer: role === 'customers' ? true : undefined,
     is_supplier: role === 'suppliers' ? true : undefined,
     include_archived: showArchived,
-    skip: list.skip,
-    limit: list.limit,
-  })
+  }
+  const partners = usePartners({ ...query, skip: list.skip, limit: list.limit })
+  // What each record opened from here gets, to step through this same list.
+  const listState = useListState(
+    { endpoint: '/partners', query, limit: list.limit, skip: list.skip, recordBase: '/partners' },
+    partners.data,
+  )
 
   return (
     <div className="grid gap-6">
@@ -87,6 +89,7 @@ export function PartnersPage() {
         rows={partners.data}
         rowKey={(partner) => partner.id}
         rowHref={(partner) => `/partners/${partner.id}`}
+        rowState={listState}
         isPending={partners.isPending}
         error={partners.error}
         onRetry={() => partners.refetch()}

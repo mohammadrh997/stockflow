@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, func, true
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, func, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -13,7 +13,15 @@ if TYPE_CHECKING:
 
 class Product(Base):
     __tablename__ = "products"
-
+    __table_args__ = (
+        # Finds products by a similar name (pg_trgm), for matching the lines of a bill
+        Index(
+            "ix_products_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     sku: Mapped[str] = mapped_column(unique=True)

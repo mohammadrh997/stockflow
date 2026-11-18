@@ -48,6 +48,8 @@ describe('stock report', () => {
     expect(query?.get('product_id')).toBe('3')
     expect(await within(row).findByText('North')).toBeInTheDocument()
     expect(within(row).getByText('-2')).toBeInTheDocument()
+    // Nothing free: said in words beside the number.
+    expect(within(row).getByText('None free')).toBeInTheDocument()
   })
 
   it('shows the empty state', async () => {

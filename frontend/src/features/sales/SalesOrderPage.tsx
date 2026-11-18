@@ -12,7 +12,6 @@ import { PageHeader } from '@/components/PageHeader'
 import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
-import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { AddLineForm } from '@/features/orders/AddLineForm'
 import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
@@ -24,6 +23,8 @@ import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
 import { OrderDetailsPanel } from '@/features/orders/OrderDetailsPanel'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import {
   useSalesOrder,
   useSalesOrderAction,
@@ -34,6 +35,7 @@ import { useAvailabilityHint } from './useAvailabilityHint'
 
 export function SalesOrderPage() {
   const id = Number(useParams().orderId)
+  const listHref = useListHref('/sales-orders')
   const { user } = useAuth()
   const order = useSalesOrder(id)
   const updateOrder = useUpdateSalesOrder(id)
@@ -97,16 +99,12 @@ export function SalesOrderPage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={data.reference}
-          trail={[{ to: '/sales-orders', label: 'Sales orders' }]}
-          title={
-            <>
-              {data.reference}
-              <StateBadge state={data.state} />
-            </>
-          }
+          trail={[{ to: listHref, label: 'Sales orders' }]}
+          title={<>{data.reference}</>}
           // Less frequent actions about the order itself, next to its number.
           nameActions={
             data.state !== 'cancelled' && (
@@ -152,7 +150,8 @@ export function SalesOrderPage() {
               />
             </DisabledReason>
           )}
-          {isDraft && cancelButton}
+          {/* Next to the status in every state, like Confirm and Create bill. */}
+          {cancelButton}
         </>
       }
       actions={
@@ -164,7 +163,6 @@ export function SalesOrderPage() {
             <OrderInvoicesButton kind="invoice" invoices={invoices.invoices} trail={trail} />
           )}
           {/* Once confirmed, cancelling sits with the other buttons on the right. */}
-          {!isDraft && cancelButton}
         </>
       }
       details={

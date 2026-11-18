@@ -1,6 +1,7 @@
 import {
   FileText,
   PackageCheck,
+  PackagePlus,
   PackageX,
   ReceiptText,
   Send,
@@ -13,6 +14,7 @@ import { can, canOnInvoices } from '@/auth/permissions'
 import { useAuth } from '@/auth/useAuth'
 import { visibleNavItems } from '@/components/layout/navigation'
 import { useInvoices } from '@/features/invoices/queries'
+import { useMissingProducts } from '@/features/missingProducts/queries'
 import { usePurchaseOrders } from '@/features/purchase/queries'
 import { useSalesOrders } from '@/features/sales/queries'
 import { useStock } from '@/features/stock/queries'
@@ -62,6 +64,9 @@ export function HomePage() {
     { invoice_type: 'vendor_bill', state: 'draft', ...page },
     { enabled: purchase },
   )
+  // Only inventory managers create products, so only they are asked for them.
+  const productManager = can(user, 'inventory', 'manager')
+  const missingProducts = useMissingProducts(page, { enabled: productManager })
   const stock = useStock({})
   const unavailable = stock.data?.filter((row) => Number(row.available) <= 0)
 
@@ -101,6 +106,17 @@ export function HomePage() {
                 detail={backorderNote(deliveries.data)}
               />
             </>
+          )}
+          {productManager && (
+            <AttentionCard
+              title="Products to create"
+              icon={PackagePlus}
+              to="/missing-products"
+              rows={missingProducts.data?.data}
+              isPending={missingProducts.isPending}
+              isError={missingProducts.isError}
+              limit={PAGE_SIZE}
+            />
           )}
           {purchase && (
             <AttentionCard

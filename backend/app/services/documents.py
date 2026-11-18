@@ -191,6 +191,11 @@ def _lines(lines: Sequence[SalesOrderLine | PurchaseOrderLine | InvoiceLine]) ->
     return result
 
 
+def _vendor_reference(reference: str | None) -> list[tuple[str, str]]:
+    """The supplier's own number, as a detail row; none when it isn't set."""
+    return [("Vendor reference", reference)] if reference else []
+
+
 def _total(lines: list[DocumentLine]) -> Decimal:
     return sum((line.subtotal for line in lines), Decimal("0"))
 
@@ -224,7 +229,11 @@ async def invoice_document(db: AsyncSession, invoice_id: int, storage: Storage |
             number=None,
             partner_label="Vendor" if is_bill else "Bill to",
             partner=invoice.partner,
-            details=[("Created", invoice.created_at.date()), ("Order", order.reference)],
+            details=[
+                ("Created", invoice.created_at.date()),
+                *_vendor_reference(invoice.partner_reference),
+                ("Order", order.reference),
+            ],
             lines=lines,
             total=_total(lines),
             filename=f"draft-{'bill' if is_bill else 'invoice'}-{invoice.id}.pdf",
@@ -244,6 +253,7 @@ async def invoice_document(db: AsyncSession, invoice_id: int, storage: Storage |
         details=[
             ("Invoice date", invoice.invoice_date),
             ("Due date", invoice.due_date),
+            *_vendor_reference(invoice.partner_reference),
             ("Order", order.reference),
         ],
         lines=lines,
@@ -308,7 +318,7 @@ async def purchase_order_document(
         number=order.reference,
         partner_label="Supplier",
         partner=order.partner,
-        details=[("Date", order.created_at.date())],
+        details=[("Date", order.created_at.date()), *_vendor_reference(order.partner_reference)],
         lines=lines,
         total=_total(lines),
         filename=f"{order.reference}.pdf",

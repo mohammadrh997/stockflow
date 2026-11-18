@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDateTime, formatQuantity } from '@/lib/format'
 import { useListParams } from '@/lib/useListParams'
 import { cn } from '@/lib/utils'
+import { TONE_TEXT } from '@/lib/tones'
 import { useProduct } from './queries'
 import { useProductMoves, type MoveKind, type ProductMove } from './useProductMoves'
 
@@ -50,8 +51,8 @@ const columns: Column<ProductMove>[] = [
       <span
         className={cn(
           'font-medium tabular-nums',
-          move.direction === 1 && 'text-green-700 dark:text-green-400',
-          move.direction === -1 && 'text-red-700 dark:text-red-400',
+          move.direction === 1 && TONE_TEXT.success,
+          move.direction === -1 && TONE_TEXT.danger,
         )}
       >
         {move.direction === 1 ? '+' : move.direction === -1 ? '−' : ''}

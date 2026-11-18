@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.product import Product
 from app.models.stock import StockMove, Transfer, TransferLine, TransferState, TransferType
 from app.models.warehouse import Location, LocationType
+from app.services.summaries import NO_QUANTITY
 
 
 def _movements(product_id: int | None = None, location_id: int | None = None):
@@ -93,6 +94,43 @@ async def available_in_warehouse(db: AsyncSession, product_id: int, warehouse_id
         )
     ).scalar_one()
     return on_hand - reserved
+
+
+async def product_totals(
+    db: AsyncSession, product_ids: Iterable[int]
+) -> dict[int, tuple[Decimal, Decimal]]:
+    """(on_hand, available) per product, added up across every warehouse."""
+    ids = list(product_ids)
+    if not ids:
+        return {}
+    movements = _movements()
+    on_hand_stmt = (
+        select(movements.c.product_id, func.sum(movements.c.qty))
+        .join(Location, Location.id == movements.c.location_id)
+        .where(
+            Location.location_type == LocationType.internal,
+            movements.c.product_id.in_(ids),
+        )
+        .group_by(movements.c.product_id)
+    )
+    reserved_stmt = (
+        select(TransferLine.product_id, func.sum(TransferLine.quantity))
+        .join(Transfer)
+        .where(
+            Transfer.transfer_type == TransferType.delivery,
+            Transfer.state == TransferState.ready,
+            TransferLine.product_id.in_(ids),
+        )
+        .group_by(TransferLine.product_id)
+    )
+    on_hand: dict[int, Decimal] = dict((await db.execute(on_hand_stmt)).tuples().all())
+    reserved: dict[int, Decimal] = dict((await db.execute(reserved_stmt)).tuples().all())
+
+    totals: dict[int, tuple[Decimal, Decimal]] = {}
+    for pid in ids:
+        qty = on_hand.get(pid, NO_QUANTITY)
+        totals[pid] = (qty, qty - reserved.get(pid, NO_QUANTITY))
+    return totals
 
 
 async def stock_report(

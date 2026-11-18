@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import { PAGE_SIZE } from '@/lib/useListParams'
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
 import { API, server } from '@/test/server'
 import type { PurchaseOrder } from './queries'
@@ -20,6 +21,7 @@ function makeOrder(overrides: Partial<PurchaseOrder> = {}): PurchaseOrder {
     id: 7,
     reference: 'PO00007',
     partner_id: 5,
+    partner_reference: null,
     warehouse_id: 1,
     state: 'draft',
     created_by: { id: 1, name: 'Admin' },
@@ -384,5 +386,206 @@ describe('purchase order page', () => {
     renderApp('/purchase-orders/7')
 
     expect(await screen.findByRole('heading', { name: 'No access' })).toBeInTheDocument()
+  })
+})
+
+describe('supplier reference', () => {
+  it('is edited with a draft, says a duplicate on the field, and clears when emptied', async () => {
+    mockReferenceData()
+    const bodies: unknown[] = []
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () =>
+        HttpResponse.json(makeOrder({ partner_reference: 'Q-1' })),
+      ),
+      http.patch(`${API}/purchase-orders/7`, async ({ request }) => {
+        const body = (await request.json()) as { partner_reference: string | null }
+        bodies.push(body)
+        if (body.partner_reference === 'Q-2') {
+          return HttpResponse.json(
+            { detail: "this supplier's reference Q-2 is already on PO00003" },
+            { status: 409 },
+          )
+        }
+        return HttpResponse.json(makeOrder({ partner_reference: body.partner_reference }))
+      }),
+    )
+    signInAs(purchaseUser)
+    renderApp('/purchase-orders/7')
+    const user = userEvent.setup()
+
+    const reference = await screen.findByLabelText('Supplier reference')
+    expect(reference).toHaveValue('Q-1')
+    const save = screen.getByRole('button', { name: 'Save details' })
+    expect(save).toBeDisabled()
+
+    await user.clear(reference)
+    await user.type(reference, 'Q-2')
+    await user.click(save)
+    expect(
+      await screen.findByText("this supplier's reference Q-2 is already on PO00003"),
+    ).toBeInTheDocument()
+    expect(reference).toHaveAttribute('aria-invalid', 'true')
+
+    await user.clear(reference)
+    await user.click(save)
+    await waitFor(() => expect(bodies.at(-1)).toMatchObject({ partner_reference: null }))
+  })
+
+  it('shows on a confirmed order and in the list', async () => {
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () =>
+        HttpResponse.json(makeOrder({ state: 'confirmed', partner_reference: 'Q-9' })),
+      ),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
+      http.get(`${API}/purchase-orders`, () =>
+        HttpResponse.json([makeOrder({ partner_reference: 'Q-9' })], {
+          headers: { 'X-Total-Count': '1' },
+        }),
+      ),
+    )
+    signInAs(purchaseManager)
+    const { router } = renderApp('/purchase-orders/7')
+
+    expect(await screen.findByText('Supplier reference')).toBeInTheDocument()
+    expect(screen.getByText('Supplier reference').nextElementSibling).toHaveTextContent('Q-9')
+
+    await router.navigate('/purchase-orders')
+    expect(
+      await screen.findByRole('columnheader', { name: 'Supplier reference' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByRole('cell', { name: 'Q-9' })).toBeInTheDocument()
+  })
+})
+
+describe('an order made from a supplier bill', () => {
+  it('links back to the bill it was imported from', async () => {
+    mockReferenceData()
+    let query: URLSearchParams | undefined
+    server.use(
+      http.get(`${API}/purchase-orders/7`, () =>
+        HttpResponse.json(makeOrder({ state: 'confirmed', partner_reference: 'ZF-0917' })),
+      ),
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
+      http.get(`${API}/bill-imports`, ({ request }) => {
+        query = new URL(request.url).searchParams
+        return HttpResponse.json(
+          [
+            {
+              id: 2,
+              state: 'done',
+              supplier_name: 'ZAGROS FURNITURE WORKS LLC',
+              partner_id: 5,
+              partner_reference: 'ZF-0917',
+              purchase_order_id: 7,
+              created_at: '2026-11-17T10:00:00Z',
+              created_by: { id: 1, name: 'Admin' },
+              line_count: 3,
+              missing_products: 0,
+            },
+          ],
+          { headers: { 'X-Total-Count': '1' } },
+        )
+      }),
+    )
+    signInAs(purchaseManager)
+    renderApp('/purchase-orders/7')
+
+    expect(await screen.findByRole('link', { name: 'Bill ZF-0917' })).toHaveAttribute(
+      'href',
+      '/bill-imports/2',
+    )
+    expect(query?.get('purchase_order_id')).toBe('7')
+    expect(screen.getByText('Imported from')).toBeInTheDocument()
+  })
+
+  it('says nothing about a source for an order made by hand', async () => {
+    mockReferenceData()
+    server.use(http.get(`${API}/purchase-orders/7`, () => HttpResponse.json(makeOrder())))
+    signInAs(purchaseUser)
+    renderApp('/purchase-orders/7')
+
+    expect(await screen.findByRole('link', { name: 'Desk' })).toBeInTheDocument()
+    expect(screen.queryByText('Imported from')).not.toBeInTheDocument()
+  })
+})
+
+describe('stepping through the list an order came from', () => {
+  // 30 received orders: a full first page, then the rest.
+  const received = Array.from({ length: 30 }, (_, i) =>
+    makeOrder({ id: i + 1, reference: `PO${String(i + 1).padStart(5, '0')}`, state: 'received' }),
+  )
+
+  function mockList() {
+    const queries: URLSearchParams[] = []
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/invoices`, () => HttpResponse.json([])),
+      http.get(`${API}/purchase-orders`, ({ request }) => {
+        const params = new URL(request.url).searchParams
+        queries.push(params)
+        const skip = Number(params.get('skip') ?? 0)
+        const limit = Number(params.get('limit'))
+        return HttpResponse.json(received.slice(skip, skip + limit), {
+          headers: { 'X-Total-Count': String(received.length) },
+        })
+      }),
+      http.get(`${API}/purchase-orders/:id`, ({ params }) =>
+        HttpResponse.json(received[Number(params.id) - 1]),
+      ),
+    )
+    return queries
+  }
+
+  it('pages through the same filtered list, and leads back to it', async () => {
+    const queries = mockList()
+    signInAs(purchaseManager)
+    const { router } = renderApp('/purchase-orders?state=received')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('link', { name: 'PO00002' }))
+    const pager = await screen.findByRole('navigation', { name: 'Records' })
+    expect(await within(pager).findByText('2 / 30')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByRole('link', {
+        name: 'Purchase orders',
+      }),
+    ).toHaveAttribute('href', '/purchase-orders?state=received')
+
+    await user.click(within(pager).getByRole('button', { name: 'Next record' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/purchase-orders/3'))
+    await user.click(screen.getByRole('button', { name: 'Previous record' }))
+    await user.click(screen.getByRole('button', { name: 'Previous record' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/purchase-orders/1'))
+    expect(screen.getByRole('button', { name: 'Previous record' })).toBeDisabled()
+    // Every request kept the list's filter.
+    expect(queries.every((query) => query.get('state') === 'received')).toBe(true)
+  })
+
+  it('carries on into the next page of the list', async () => {
+    const queries = mockList()
+    signInAs(purchaseManager)
+    const { router } = renderApp('/purchase-orders?state=received')
+    const user = userEvent.setup()
+
+    const last = `PO${String(PAGE_SIZE).padStart(5, '0')}`
+    await user.click(await screen.findByRole('link', { name: last }))
+    expect(await screen.findByText(`${PAGE_SIZE} / 30`)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Next record' }))
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/purchase-orders/${PAGE_SIZE + 1}`),
+    )
+    expect(await screen.findByText(`${PAGE_SIZE + 1} / 30`)).toBeInTheDocument()
+    expect(queries.some((query) => query.get('skip') === String(PAGE_SIZE))).toBe(true)
+  })
+
+  it('shows no pager on an order opened directly', async () => {
+    mockList()
+    signInAs(purchaseManager)
+    renderApp('/purchase-orders/2')
+
+    expect(await screen.findByRole('heading', { name: /PO00002/ })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Records' })).not.toBeInTheDocument()
   })
 })

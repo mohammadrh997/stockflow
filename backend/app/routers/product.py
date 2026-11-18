@@ -17,12 +17,13 @@ from app.models.product import Product
 from app.models.user import Access, User
 from app.routers.pagination import with_total
 from app.routers.uploads import read_image_upload
-from app.schemas.product import ProductCreate, ProductRead, ProductUpdate
+from app.schemas.product import ProductCreate, ProductListItem, ProductRead, ProductUpdate
 from app.schemas.summary import ProductSummary
 from app.services import category as category_service
 from app.services import product as product_service
+from app.services import stock as stock_service
 from app.services import summaries
-from app.services.common import InvalidReference, paginate
+from app.services.common import InvalidReference, Page, paginate
 from app.services.images import InvalidImage
 from app.services.product import CategoryArchived, ProductNotFound, SKUAlreadyExists
 
@@ -36,7 +37,7 @@ InventoryManager = Annotated[User, Depends(require_access(Module.inventory, Acce
 PaginationDep = Annotated[dict, Depends(pagination_params)]
 
 
-@router.get("", response_model=list[ProductRead])
+@router.get("", response_model=list[ProductListItem])
 async def get_products(
     db: DBsession,
     response: Response,
@@ -59,7 +60,16 @@ async def get_products(
         )
         stmt = stmt.where(Product.category_id.in_(categories))
     page = await paginate(db, stmt, pagination["skip"], pagination["limit"])
-    return with_total(response, page)
+    stock = await stock_service.product_totals(db, (p.id for p in page.items))
+    items = [
+        ProductListItem(
+            **dict(ProductRead.model_validate(p)),
+            on_hand=stock[p.id][0],
+            available=stock[p.id][1],
+        )
+        for p in page.items
+    ]
+    return with_total(response, Page(items, page.total))
 
 
 @router.get("/{product_id}/summary", response_model=ProductSummary)

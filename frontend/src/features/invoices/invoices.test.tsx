@@ -25,6 +25,7 @@ function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
     invoice_type: 'customer_invoice',
     state: 'draft',
     partner_id: 6,
+    partner_reference: null,
     sales_order_id: 8,
     purchase_order_id: null,
     invoice_date: null,
@@ -429,5 +430,72 @@ describe('totals elsewhere after a payment', () => {
     expect(
       await screen.findByRole('link', { name: '200.00 invoiced, 0.00 still due' }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('supplier reference on bills', () => {
+  const draftBill = makeInvoice({
+    invoice_type: 'vendor_bill',
+    sales_order_id: null,
+    purchase_order_id: 7,
+    partner_reference: 'B-1',
+  })
+
+  it('is edited on a draft bill, saying which bill already has a number', async () => {
+    mockReferenceData()
+    const bodies: unknown[] = []
+    server.use(
+      http.get(`${API}/invoices/5`, () => HttpResponse.json(draftBill)),
+      http.patch(`${API}/invoices/5`, async ({ request }) => {
+        const body = (await request.json()) as { partner_reference: string | null }
+        bodies.push(body)
+        if (body.partner_reference === 'B-2') {
+          return HttpResponse.json(
+            { detail: "this supplier's bill B-2 is already entered as BILL00004" },
+            { status: 409 },
+          )
+        }
+        return HttpResponse.json({ ...draftBill, partner_reference: body.partner_reference })
+      }),
+    )
+    signInAs(makeUser({ purchase_access: 'user' }))
+    renderApp('/invoices/5')
+    const user = userEvent.setup()
+
+    const reference = await screen.findByRole('textbox', { name: 'Supplier reference' })
+    expect(reference).toHaveValue('B-1')
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+
+    await user.clear(reference)
+    await user.type(reference, 'B-2')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(
+      await screen.findByText("this supplier's bill B-2 is already entered as BILL00004"),
+    ).toBeInTheDocument()
+
+    await user.clear(reference)
+    await user.type(reference, ' B-3 ')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(bodies.at(-1)).toEqual({ partner_reference: 'B-3' }))
+  })
+
+  it('is plain text once posted, and absent from customer invoices', async () => {
+    mockReferenceData()
+    server.use(
+      http.get(`${API}/invoices/5`, () =>
+        HttpResponse.json({ ...draftBill, number: 'BILL00001', state: 'posted' }),
+      ),
+    )
+    signInAs(makeUser({ purchase_access: 'manager' }))
+    const { router } = renderApp('/invoices/5')
+
+    expect(await screen.findByText('Supplier reference')).toBeInTheDocument()
+    expect(screen.getByText('Supplier reference').nextElementSibling).toHaveTextContent('B-1')
+    expect(screen.queryByRole('textbox', { name: 'Supplier reference' })).not.toBeInTheDocument()
+
+    server.use(http.get(`${API}/invoices/6`, () => HttpResponse.json({ ...posted, id: 6 })))
+    await router.navigate('/invoices/6')
+    expect(await screen.findByRole('heading', { name: /INV00001/ })).toBeInTheDocument()
+    expect(screen.queryByText('Supplier reference')).not.toBeInTheDocument()
   })
 })

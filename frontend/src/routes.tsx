@@ -22,6 +22,10 @@ const NewPartnerPage = lazyPage(
 )
 const PartnerPage = lazyPage(() => import('@/features/partners/PartnerPage'), 'PartnerPage')
 const PartnersPage = lazyPage(() => import('@/features/partners/PartnersPage'), 'PartnersPage')
+const MissingProductsPage = lazyPage(
+  () => import('@/features/missingProducts/MissingProductsPage'),
+  'MissingProductsPage',
+)
 const NewProductPage = lazyPage(
   () => import('@/features/products/NewProductPage'),
   'NewProductPage',
@@ -55,6 +59,14 @@ const SalesOrdersPage = lazyPage(
   'SalesOrdersPage',
 )
 const StockPage = lazyPage(() => import('@/features/stock/StockPage'), 'StockPage')
+const BillImportPage = lazyPage(
+  () => import('@/features/billImports/BillImportPage'),
+  'BillImportPage',
+)
+const BillImportsPage = lazyPage(
+  () => import('@/features/billImports/BillImportsPage'),
+  'BillImportsPage',
+)
 const CategoriesPage = lazyPage(
   () => import('@/features/categories/CategoriesPage'),
   'CategoriesPage',
@@ -120,6 +132,15 @@ export const routes: RouteObject[] = [
                   </RequireAccess>
                 ),
               },
+              {
+                // Items on supplier bills that purchase asked a product for.
+                path: 'missing-products',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'inventory', 'manager')}>
+                    <MissingProductsPage />
+                  </RequireAccess>
+                ),
+              },
               { path: 'categories', element: <CategoriesPage /> },
               { path: 'categories/:categoryId', element: <CategoryPage /> },
               { path: 'partners', element: <PartnersPage /> },
@@ -144,6 +165,18 @@ export const routes: RouteObject[] = [
                   { index: true, element: <PurchaseOrdersPage /> },
                   { path: 'new', element: <NewPurchaseOrderPage /> },
                   { path: ':orderId', element: <PurchaseOrderPage /> },
+                ],
+              },
+              {
+                path: 'bill-imports',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'purchase')}>
+                    <Outlet />
+                  </RequireAccess>
+                ),
+                children: [
+                  { index: true, element: <BillImportsPage /> },
+                  { path: ':importId', element: <BillImportPage /> },
                 ],
               },
               {

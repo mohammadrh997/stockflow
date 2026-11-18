@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 
+import { AvailableQuantity } from '@/components/AvailableQuantity'
 import { DataTable, type Column } from '@/components/DataTable'
 import { ListToolbar } from '@/components/ListToolbar'
 import { PageHeader } from '@/components/PageHeader'
@@ -8,7 +9,6 @@ import { Quantity } from '@/components/Quantity'
 import { WarehousePicker } from '@/components/WarehousePicker'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { useListParams } from '@/lib/useListParams'
-import { cn } from '@/lib/utils'
 import { CategoryFilter } from '@/features/categories/CategoryFilter'
 import { categoryFilterParams } from '@/features/categories/categoryParams'
 import { useStock, type StockRow } from './queries'
@@ -49,11 +49,7 @@ export function StockPage() {
     {
       header: 'Available',
       className: 'text-right',
-      cell: (row) => (
-        <span className={cn('font-medium', row.available.startsWith('-') && 'text-destructive')}>
-          <Quantity value={row.available} />
-        </span>
-      ),
+      cell: (row) => <AvailableQuantity value={row.available} />,
     },
   ]
 

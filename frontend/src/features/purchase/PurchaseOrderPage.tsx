@@ -9,10 +9,10 @@ import { DisabledReason } from '@/components/DisabledReason'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundPage } from '@/components/NotFoundPage'
 import { PageHeader } from '@/components/PageHeader'
+import { RecordPager } from '@/components/RecordPager'
 import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
-import { StateBadge } from '@/components/StateBadge'
 import { Button } from '@/components/ui/button'
 import { AddLineForm } from '@/features/orders/AddLineForm'
 import { CreateInvoiceButton } from '@/features/orders/CreateInvoiceButton'
@@ -22,6 +22,8 @@ import { nothingToInvoiceReason, useOrderInvoices } from '@/features/orders/useO
 import { orderMovementText } from '@/features/orders/orderMovement'
 import { OrderTransfersButton } from '@/features/orders/OrderTransfersButton'
 import { useOrderTransfers } from '@/features/orders/useOrderTransfers'
+import { useListHref } from '@/lib/recordPager'
+import { ImportedFromRow } from '@/features/billImports/ImportedFromRow'
 import { OrderDetailsPanel } from '@/features/orders/OrderDetailsPanel'
 import { OrderLinesTable } from '@/features/orders/OrderLinesTable'
 import {
@@ -35,6 +37,7 @@ export function PurchaseOrderPage() {
   const id = Number(useParams().orderId)
   const { user } = useAuth()
   const order = usePurchaseOrder(id)
+  const listHref = useListHref('/purchase-orders')
   const updateOrder = useUpdatePurchaseOrder(id)
   const lines = usePurchaseOrderLines(id)
   const confirm = usePurchaseOrderAction(id, 'confirm')
@@ -95,16 +98,12 @@ export function PurchaseOrderPage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={data.reference}
-          trail={[{ to: '/purchase-orders', label: 'Purchase orders' }]}
-          title={
-            <>
-              {data.reference}
-              <StateBadge state={data.state} />
-            </>
-          }
+          trail={[{ to: listHref, label: 'Purchase orders' }]}
+          title={<>{data.reference}</>}
           // Less frequent actions about the order itself, next to its number.
           nameActions={
             data.state !== 'cancelled' && (
@@ -150,7 +149,8 @@ export function PurchaseOrderPage() {
               />
             </DisabledReason>
           )}
-          {isDraft && cancelButton}
+          {/* Next to the status in every state, like Confirm and Create bill. */}
+          {cancelButton}
         </>
       }
       actions={
@@ -162,7 +162,6 @@ export function PurchaseOrderPage() {
             <OrderInvoicesButton kind="bill" invoices={invoices.invoices} trail={trail} />
           )}
           {/* Once confirmed, cancelling sits with the other buttons on the right. */}
-          {!isDraft && cancelButton}
         </>
       }
       details={
@@ -171,6 +170,7 @@ export function PurchaseOrderPage() {
           order={data}
           editable={canEdit}
           onSave={(details) => updateOrder.mutateAsync(details)}
+          source={<ImportedFromRow orderId={data.id} />}
           note={
             seesTransfers
               ? orderMovementText({

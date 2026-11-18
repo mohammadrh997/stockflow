@@ -189,12 +189,20 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
         for n, e, a in CUSTOMERS
     ]
 
-    def order(kind: str, partner: int, warehouse: int, lines: list[tuple[str, str]]) -> int:
-        body = {
+    def order(
+        kind: str,
+        partner: int,
+        warehouse: int,
+        lines: list[tuple[str, str]],
+        partner_reference: str | None = None,  # purchase only: the supplier's own number
+    ) -> int:
+        body: dict[str, Any] = {
             "partner_id": partner,
             "warehouse_id": warehouse,
             "lines": [{"product_id": products[sku], "quantity": qty} for sku, qty in lines],
         }
+        if partner_reference is not None:
+            body["partner_reference"] = partner_reference
         return int(api.post(f"/{kind}-orders", body)["id"])
 
     def confirm(kind: str, order_id: int) -> dict[str, Any]:
@@ -244,6 +252,7 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
         suppliers[1],
         main["id"],
         [("CHAIR-ERG", "40"), ("DESK-STD", "15"), ("CAB-3D", "10"), ("BOARD-120", "8")],
+        partner_reference="AF-2026-0412",
     )
     validate(confirm("purchase", po))  # into the default location
     furniture_po = po
@@ -253,11 +262,18 @@ def seed(api: Api, demo_email: str, demo_password: str) -> None:
         suppliers[2],
         main["id"],
         [("MON-27", "30"), ("KB-MECH", "50"), ("MOUSE-WL", "60"), ("CABLE-HDMI", "100")],
+        partner_reference="TS-88213",
     )
     validate(confirm("purchase", po), shelf_a["id"])
     electronics_po = po
 
-    po = order("purchase", suppliers[0], main["id"], [("PAPER-A4", "120"), ("LAMP-LED", "25")])
+    po = order(
+        "purchase",
+        suppliers[0],
+        main["id"],
+        [("PAPER-A4", "120"), ("LAMP-LED", "25")],
+        partner_reference="INV/2026/1187",
+    )
     validate(confirm("purchase", po), shelf_b["id"])
 
     po = order(

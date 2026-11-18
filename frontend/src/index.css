@@ -8,6 +8,22 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;
+  /* Small text that still carries a key fact ("1 waiting", a field's error): a step up from xs. */
+  --text-detail: 0.8125rem;
+  --text-detail--line-height: 1.125rem;
+  /* Status tones: a soft background, strong text on it, and text on the page itself. */
+  --color-success-soft: var(--success-soft);
+  --color-success-strong: var(--success-strong);
+  --color-success-text: var(--success-text);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-strong: var(--warning-strong);
+  --color-warning-text: var(--warning-text);
+  --color-info-soft: var(--info-soft);
+  --color-info-strong: var(--info-strong);
+  --color-info-text: var(--info-text);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-text: var(--danger-text);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -81,6 +97,22 @@
   --sidebar-accent-foreground: oklch(0.38 0.16 265);
   --sidebar-border: oklch(0.905 0.01 265);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Done, received, paid */
+  --success-soft: oklch(0.962 0.044 156.7);
+  --success-strong: oklch(0.393 0.095 152.5);
+  --success-text: oklch(0.527 0.154 150.1);
+  /* Waiting, needs a look, partly done */
+  --warning-soft: oklch(0.962 0.059 95.6);
+  --warning-strong: oklch(0.414 0.112 45.9);
+  --warning-text: oklch(0.555 0.163 49);
+  /* Under way: confirmed, posted */
+  --info-soft: oklch(0.932 0.032 255.6);
+  --info-strong: oklch(0.379 0.146 265.5);
+  --info-text: oklch(0.488 0.243 264.4);
+  /* Cancelled, overdue, out of stock */
+  --danger-soft: oklch(0.936 0.032 17.7);
+  --danger-strong: oklch(0.396 0.141 25.7);
+  --danger-text: oklch(0.505 0.213 27.5);
 }
 
 .dark {
@@ -115,6 +147,18 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --success-soft: oklch(0.393 0.095 152.5 / 0.4);
+  --success-strong: oklch(0.925 0.084 156);
+  --success-text: oklch(0.792 0.209 151.7);
+  --warning-soft: oklch(0.414 0.112 45.9 / 0.4);
+  --warning-strong: oklch(0.924 0.12 95.7);
+  --warning-text: oklch(0.828 0.189 84.4);
+  --info-soft: oklch(0.379 0.146 265.5 / 0.4);
+  --info-strong: oklch(0.882 0.059 254.1);
+  --info-text: oklch(0.707 0.165 254.6);
+  --danger-soft: oklch(0.396 0.141 25.7 / 0.4);
+  --danger-strong: oklch(0.885 0.062 18.3);
+  --danger-text: oklch(0.704 0.191 22.2);
 }
 
 @layer base {
@@ -130,5 +174,17 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* For people who ask their system for less motion: no slides, fades or spins. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

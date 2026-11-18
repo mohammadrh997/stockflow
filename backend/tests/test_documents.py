@@ -80,10 +80,14 @@ async def test_vendor_bill_pdf(client, boss):
             "/invoices", json={"purchase_order_id": receipt["purchase_order_id"]}, headers=boss
         )
     ).json()
+    await client.patch(
+        f"/invoices/{bill['id']}", json={"partner_reference": "ACME-77"}, headers=boss
+    )
     await client.post(f"/invoices/{bill['id']}/post", json={}, headers=boss)
 
     text = pdf_text(await client.get(f"/invoices/{bill['id']}/pdf", headers=boss))
     assert "Vendor bill" in text and "BILL00001" in text and "60.00" in text
+    assert "Vendor reference ACME-77" in text
 
 
 async def test_sales_order_prints_as_quotation_then_sales_order(client, boss):

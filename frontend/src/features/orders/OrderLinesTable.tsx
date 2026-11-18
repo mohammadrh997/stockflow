@@ -56,7 +56,9 @@ export function OrderLinesTable({
           <span className="font-medium">
             <ProductName id={line.product_id} thumb />
           </span>
-          {hint && <span className="text-xs text-muted-foreground">{hint(line.product_id)}</span>}
+          {hint && (
+            <span className="text-detail text-muted-foreground">{hint(line.product_id)}</span>
+          )}
         </div>
       ),
     },

@@ -3,7 +3,18 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, Date, DateTime, Enum, ForeignKey, Numeric, String, func
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -44,6 +55,19 @@ class Invoice(Base):
             " AND purchase_order_id IS NOT NULL AND sales_order_id IS NULL)",
             name="origin_matches_type",
         ),
+        # Our own invoices carry our number; only a bill has the supplier's
+        CheckConstraint(
+            "invoice_type = 'vendor_bill' OR partner_reference IS NULL",
+            name="partner_reference_on_bills_only",
+        ),
+        # The same supplier bill can't be entered twice; a cancelled bill frees its number
+        Index(
+            "uq_invoices_partner_reference",
+            "partner_id",
+            text("lower(partner_reference)"),
+            unique=True,
+            postgresql_where=text("invoice_type = 'vendor_bill' AND state <> 'cancelled'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -54,6 +78,7 @@ class Invoice(Base):
     )
     partner_id: Mapped[int] = mapped_column(ForeignKey("partners.id"))
     partner: Mapped["Partner"] = relationship()
+    partner_reference: Mapped[str | None] = mapped_column(String(100))  # the supplier's number
     purchase_order_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_orders.id"))
     purchase_order: Mapped["PurchaseOrder | None"] = relationship()
     sales_order_id: Mapped[int | None] = mapped_column(ForeignKey("sales_orders.id"))

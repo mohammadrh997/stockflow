@@ -1,15 +1,20 @@
+import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 
 import { DoneByRows } from '@/components/DoneByRows'
 import { Panel } from '@/components/Panel'
 import { PartnerName, WarehouseName } from '@/components/RecordNames'
 import { OrderDetailsForm, type OrderDetails } from './OrderDetailsForm'
+import { cn } from '@/lib/utils'
+import { TONE_BADGE } from '@/lib/tones'
 
 type Props = {
   role: 'customer' | 'supplier'
   order: {
     partner_id: number
     warehouse_id: number
+    // Purchase orders: the supplier's own number for the order.
+    partner_reference?: string | null
     created_at: string
     created_by: { name: string } | null
   }
@@ -17,13 +22,15 @@ type Props = {
   onSave: (details: OrderDetails) => Promise<unknown>
   // How far the goods have moved, when the progress steps can't say it ("Partly received...").
   note?: string | null
+  // Where the order came from, as rows of the list (a supplier bill that was imported).
+  source?: ReactNode
 }
 
 const ROWS = 'grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm'
 
 // Who the order is for, from which warehouse, and who made it, as a block above the lines
 // (like a transfer's). On a draft that can be edited, the partner and warehouse are fields.
-export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props) {
+export function OrderDetailsPanel({ role, order, editable, onSave, note, source }: Props) {
   const created = <DoneByRows label="Created" at={order.created_at} by={order.created_by} />
 
   return (
@@ -32,16 +39,23 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props
         <div className="grid gap-4">
           <OrderDetailsForm
             // Remount with what the server saved.
-            key={`${order.partner_id}|${order.warehouse_id}`}
+            key={`${order.partner_id}|${order.warehouse_id}|${order.partner_reference ?? ''}`}
             role={role}
-            defaultValues={{ partner_id: order.partner_id, warehouse_id: order.warehouse_id }}
+            defaultValues={{
+              partner_id: order.partner_id,
+              warehouse_id: order.warehouse_id,
+              partner_reference: order.partner_reference,
+            }}
             submitLabel="Save details"
             onSubmit={async (details) => {
               await onSave(details)
               toast.success('Order saved')
             }}
           />
-          <dl className={`${ROWS} border-t pt-4`}>{created}</dl>
+          <dl className={`${ROWS} border-t pt-4`}>
+            {source}
+            {created}
+          </dl>
         </div>
       ) : (
         <dl className={ROWS}>
@@ -49,6 +63,13 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props
           <dd>
             <PartnerName id={order.partner_id} />
           </dd>
+          {order.partner_reference && (
+            <>
+              <dt className="text-muted-foreground">Supplier reference</dt>
+              <dd>{order.partner_reference}</dd>
+            </>
+          )}
+          {source}
           <dt className="text-muted-foreground">Warehouse</dt>
           <dd>
             <WarehouseName id={order.warehouse_id} />
@@ -57,7 +78,12 @@ export function OrderDetailsPanel({ role, order, editable, onSave, note }: Props
             <>
               <dt className="text-muted-foreground">Progress</dt>
               <dd>
-                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
+                <span
+                  className={cn(
+                    'rounded-full px-2.5 py-0.5 text-sm font-medium',
+                    TONE_BADGE.warning,
+                  )}
+                >
                   {note}
                 </span>
               </dd>

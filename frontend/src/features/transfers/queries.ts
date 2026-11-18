@@ -45,13 +45,22 @@ export function useTransfer(id: number, options: { enabled?: boolean } = {}) {
   })
 }
 
-// Moving stock changes the stock report, and validating a receipt or delivery also moves its order on.
+// Moving stock changes the stock report and the products list's stock, and validating a
+// receipt or delivery also moves its order on.
 function useStoreTransfer() {
   const queryClient = useQueryClient()
   return (transfer: Transfer) => {
     queryClient.setQueryData(['transfer', transfer.id], transfer)
     return Promise.all(
-      ['transfers', 'stock', 'purchase-order', 'purchase-orders', 'sales-order', 'sales-orders']
+      [
+        'transfers',
+        'stock',
+        'products',
+        'purchase-order',
+        'purchase-orders',
+        'sales-order',
+        'sales-orders',
+      ]
         .map((key) => queryClient.invalidateQueries({ queryKey: [key] }))
         // In and out totals on products move with every validated transfer.
         .concat(invalidateSummaries(queryClient)),

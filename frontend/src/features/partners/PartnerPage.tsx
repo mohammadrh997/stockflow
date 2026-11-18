@@ -14,6 +14,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { PartnerForm } from './PartnerForm'
 import { PartnerInvoices } from './PartnerInvoices'
 import { PartnerSmartButtons } from './PartnerSmartButtons'
@@ -22,6 +24,7 @@ import { usePartner, useSetPartnerArchived, useUpdatePartner } from './queries'
 
 export function PartnerPage() {
   const id = Number(useParams().partnerId)
+  const listHref = useListHref('/partners')
   const { user } = useAuth()
   const partner = usePartner(id)
   const updatePartner = useUpdatePartner(id)
@@ -40,10 +43,11 @@ export function PartnerPage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={data.name}
-          trail={[{ to: '/partners', label: 'Partners' }]}
+          trail={[{ to: listHref, label: 'Partners' }]}
           title={
             <>
               {data.name}

@@ -16,6 +16,8 @@ import { PageSpinner } from '@/components/PageSpinner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useListParams } from '@/lib/useListParams'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { AddLocationForm } from './AddLocationForm'
 import { useLocations, useSetLocationArchived, useWarehouse, type Location } from './queries'
 import { RenameLocationDialog } from './RenameLocationDialog'
@@ -50,6 +52,7 @@ function ArchiveLocationButton({ location }: { location: Location }) {
 
 export function WarehousePage() {
   const id = Number(useParams().warehouseId)
+  const listHref = useListHref('/warehouses')
   const { user } = useAuth()
   const list = useListParams()
   const showArchived = list.get('archived') === 'true'
@@ -103,7 +106,8 @@ export function WarehousePage() {
     <div className="grid gap-8">
       <PageHeader
         pageTitle={data.name}
-        trail={[{ to: '/warehouses', label: 'Warehouses' }]}
+        trail={[{ to: listHref, label: 'Warehouses' }]}
+        actions={<RecordPager id={data.id} />}
         title={
           <>
             {data.name}

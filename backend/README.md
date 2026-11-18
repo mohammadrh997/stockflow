@@ -26,6 +26,9 @@ Every setting is listed in `.env.example`. Locally only the four in the setup st
 | `ACCESS_TOKEN_EXP_MINUTES` | how long an access token lasts before the frontend renews it. The default is 15 |
 | `REFRESH_TOKEN_EXP_DAYS` | how long a login survives without being used. The default is 7 |
 | `STORAGE_ENDPOINT`, `STORAGE_REGION`, `STORAGE_BUCKET`, `STORAGE_KEY_ID`, `STORAGE_SECRET_KEY`, `STORAGE_PUBLIC_URL` | the S3-compatible bucket for product images. Without them, image uploads return 503 and everything else works |
+| `STORAGE_BILLS_BUCKET` | a **private** bucket in the same account, for imported bills. Without it, bills are read but not kept |
+| `GEMINI_API_KEY` | a Google AI Studio key, for reading supplier bills. Without it, bill import returns 503 and everything else works |
+| `GEMINI_MODEL` | the Gemini model that reads bills. The default is `gemini-3.5-flash-lite` |
 
 `SECRET_KEY` must be at least 32 characters, and the app refuses to start with a shorter one. Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.
 

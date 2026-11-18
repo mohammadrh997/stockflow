@@ -6,7 +6,10 @@ import { useProduct } from '@/features/products/queries'
 import { cn } from '@/lib/utils'
 
 type Props = {
-  productId: number
+  // Names the field for screen readers: "Quantity for Desk". A line without a product
+  // (a bill being imported) passes its own name instead.
+  productId?: number
+  name?: string
   field: 'Quantity' | 'Unit price'
   value: string
   format: (value: string) => string
@@ -17,8 +20,10 @@ type Props = {
 
 // A quantity or price edited in place: Enter or leaving the field saves, Escape undoes.
 // The table remounts it with the server's value after a save.
-export function LineField({ productId, field, value, format, validate, onSave }: Props) {
-  const product = useProduct(productId)
+export function LineField({ productId, name, field, value, format, validate, onSave }: Props) {
+  const product = useProduct(productId ?? 0, {
+    enabled: productId !== undefined && name === undefined,
+  })
   const [text, setText] = useState(() => format(value))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -60,7 +65,7 @@ export function LineField({ productId, field, value, format, validate, onSave }:
   return (
     <div className="ml-auto grid w-24 justify-items-end gap-1">
       <Input
-        aria-label={`${field} for ${product.data?.name ?? 'this line'}`}
+        aria-label={`${field} for ${name ?? product.data?.name ?? 'this line'}`}
         aria-invalid={error ? true : undefined}
         inputMode="decimal"
         disabled={saving}
@@ -70,7 +75,7 @@ export function LineField({ productId, field, value, format, validate, onSave }:
         onKeyDown={handleKeyDown}
         className={cn('h-8 text-right tabular-nums', saving && 'opacity-60')}
       />
-      {error && <span className="text-right text-xs text-destructive">{error}</span>}
+      {error && <span className="text-right text-detail text-destructive">{error}</span>}
     </div>
   )
 }

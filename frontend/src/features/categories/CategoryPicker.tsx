@@ -139,7 +139,7 @@ export function CategoryPicker({
                   </CommandItem>
                 )}
                 {plan && 'problem' in plan && (
-                  <p className="px-2 py-1.5 text-xs text-muted-foreground">{plan.problem}</p>
+                  <p className="px-2 py-1.5 text-detail text-muted-foreground">{plan.problem}</p>
                 )}
               </CommandList>
             </Command>

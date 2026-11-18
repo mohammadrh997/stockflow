@@ -20,6 +20,8 @@ import {
 import { moneyHeading, useCurrency } from '@/features/company/queries'
 import { useWarehouses } from '@/features/warehouses/queries'
 import { formatDateTime } from '@/lib/format'
+import { RecordLink } from '@/components/RecordLink'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { useSalesOrders, type SalesOrder, type SalesState } from './queries'
 
@@ -30,12 +32,22 @@ export function SalesOrdersPage() {
   const list = useListParams()
   const state = (list.get('state') || undefined) as SalesState | undefined
   const partnerId = list.get('partner') ? Number(list.get('partner')) : undefined
-  const orders = useSalesOrders({
+  const query = {
     state,
     partner_id: partnerId,
-    skip: list.skip,
-    limit: list.limit,
-  })
+  }
+  const orders = useSalesOrders({ ...query, skip: list.skip, limit: list.limit })
+  // What each record opened from here gets, to step through this same list.
+  const listState = useListState(
+    {
+      endpoint: '/sales-orders',
+      query,
+      limit: list.limit,
+      skip: list.skip,
+      recordBase: '/sales-orders',
+    },
+    orders.data,
+  )
   const warehouses = useWarehouses()
   const severalWarehouses = (warehouses.data?.length ?? 0) > 1
 
@@ -43,11 +55,7 @@ export function SalesOrdersPage() {
   const columns: Column<SalesOrder>[] = [
     {
       header: 'Reference',
-      cell: (order) => (
-        <Link to={`/sales-orders/${order.id}`} className="font-medium hover:underline">
-          {order.reference}
-        </Link>
-      ),
+      cell: (order) => <RecordLink to={`/sales-orders/${order.id}`}>{order.reference}</RecordLink>,
     },
     { header: 'Customer', cell: (order) => <PartnerName id={order.partner_id} /> },
     ...(severalWarehouses
@@ -110,6 +118,7 @@ export function SalesOrdersPage() {
         rows={orders.data}
         rowKey={(order) => order.id}
         rowHref={(order) => `/sales-orders/${order.id}`}
+        rowState={listState}
         isPending={orders.isPending}
         error={orders.error}
         onRetry={() => orders.refetch()}

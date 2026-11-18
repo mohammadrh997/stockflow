@@ -68,7 +68,7 @@ function LineRow({
           onChange={(event) => onChange(event.target.value)}
         />
       </div>
-      {error && <span className="text-right text-xs text-destructive">{error}</span>}
+      {error && <span className="text-right text-detail text-destructive">{error}</span>}
     </li>
   )
 }

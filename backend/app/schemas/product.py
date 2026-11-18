@@ -47,3 +47,9 @@ class ProductRead(BaseModel):
     @property
     def image_url(self) -> str | None:
         return public_url(self.image_key)
+
+
+class ProductListItem(ProductRead):
+    # Only on the list, added up across all warehouses
+    on_hand: Decimal
+    available: Decimal  # on hand minus what ready deliveries have reserved

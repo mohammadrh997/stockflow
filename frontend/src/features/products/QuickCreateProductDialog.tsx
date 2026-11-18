@@ -14,12 +14,23 @@ type Props = {
   // The name typed in the picker; the dialog is open while this is set.
   name: string | null
   emphasise: 'sale_price' | 'cost_price'
+  // What's already known, e.g. the code and price printed on a supplier's bill.
+  prefill?: { sku?: string; cost_price?: string }
+  // Where the product goes once created; an order by default.
+  description?: string
   onClose: () => void
   onCreated: (product: Product) => void
 }
 
 // Creates a product without leaving the order being edited.
-export function QuickCreateProductDialog({ name, emphasise, onClose, onCreated }: Props) {
+export function QuickCreateProductDialog({
+  name,
+  emphasise,
+  prefill,
+  description = 'It is added to this order once created.',
+  onClose,
+  onCreated,
+}: Props) {
   const createProduct = useCreateProduct()
 
   return (
@@ -27,15 +38,15 @@ export function QuickCreateProductDialog({ name, emphasise, onClose, onCreated }
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New product</DialogTitle>
-          <DialogDescription>It is added to this order once created.</DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {name !== null && (
           <ProductForm
             defaultValues={{
               name,
-              sku: '',
+              sku: prefill?.sku ?? '',
               sale_price: '',
-              cost_price: emphasise === 'cost_price' ? '' : '0.00',
+              cost_price: prefill?.cost_price ?? (emphasise === 'cost_price' ? '' : '0.00'),
               category_id: null,
             }}
             emphasise={emphasise}

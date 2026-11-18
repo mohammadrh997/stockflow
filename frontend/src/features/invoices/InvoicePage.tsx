@@ -15,14 +15,16 @@ import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { ProgressTrack } from '@/components/ProgressTrack'
 import { PartnerName } from '@/components/RecordNames'
-import { StateBadge } from '@/components/StateBadge'
 import { formatDate, today } from '@/lib/dates'
 import { CurrencyCode } from '@/features/company/CurrencyCode'
 import { moneyHeading, useCurrency } from '@/features/company/queries'
 import { DownloadPdfButton } from '@/features/documents/DownloadPdfButton'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { InvoiceActions } from './InvoiceActions'
 import { InvoiceOrderLink, OverdueBadge, PaymentBadge } from './InvoiceBits'
 import { invoiceTitle } from './invoiceInfo'
+import { BillReferenceField } from './BillReferenceField'
 import { InvoiceLinesTable } from './InvoiceLinesTable'
 import { INVOICE_TYPE_LABELS, useInvoice, type Invoice } from './queries'
 
@@ -53,6 +55,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 export function InvoicePage() {
   const id = Number(useParams().invoiceId)
+  const listHref = useListHref('')
   const { user } = useAuth()
   const invoice = useInvoice(id)
   const currency = useCurrency()
@@ -71,14 +74,18 @@ export function InvoicePage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={invoiceTitle(data)}
-          trail={fromOrder ?? [{ to: `/invoices?type=${data.invoice_type}`, label: 'Invoices' }]}
+          trail={
+            fromOrder ?? [
+              { to: listHref || `/invoices?type=${data.invoice_type}`, label: 'Invoices' },
+            ]
+          }
           title={
             <>
               {invoiceTitle(data)}
-              <StateBadge state={data.state} />
               <PaymentBadge invoice={data} />
               <OverdueBadge invoice={data} today={today()} />
             </>
@@ -109,6 +116,20 @@ export function InvoicePage() {
             <Detail label={customer ? 'Customer' : 'Supplier'}>
               <PartnerName id={data.partner_id} />
             </Detail>
+            {/* Only a bill has one: a customer invoice's number is our own. */}
+            {!customer && (
+              <Detail label="Supplier reference">
+                {editable ? (
+                  <BillReferenceField
+                    // Remount with what the server saved.
+                    key={data.partner_reference ?? ''}
+                    invoice={data}
+                  />
+                ) : (
+                  (data.partner_reference ?? <span className="text-muted-foreground">—</span>)
+                )}
+              </Detail>
+            )}
             <Detail label="Order">
               <InvoiceOrderLink invoice={data} />
             </Detail>

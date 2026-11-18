@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatDateTime } from '@/lib/format'
+import { RecordLink } from '@/components/RecordLink'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import {
   TRANSFER_TYPE_LABELS,
@@ -39,9 +41,7 @@ const columns: Column<Transfer>[] = [
     header: 'Reference',
     cell: (transfer) => (
       <span className="flex items-center gap-2">
-        <Link to={`/transfers/${transfer.id}`} className="font-medium hover:underline">
-          {transfer.reference}
-        </Link>
+        <RecordLink to={`/transfers/${transfer.id}`}>{transfer.reference}</RecordLink>
         {transfer.backorder_of_id !== null && <Badge variant="outline">Backorder</Badge>}
       </span>
     ),
@@ -59,13 +59,17 @@ export function TransfersPage() {
   const type = (list.get('type') || undefined) as TransferType | undefined
   const state = (list.get('state') || undefined) as TransferState | undefined
   const warehouseId = list.get('warehouse') ? Number(list.get('warehouse')) : undefined
-  const transfers = useTransfers({
+  const query = {
     transfer_type: type,
     state,
     warehouse_id: warehouseId,
-    skip: list.skip,
-    limit: list.limit,
-  })
+  }
+  const transfers = useTransfers({ ...query, skip: list.skip, limit: list.limit })
+  // What each record opened from here gets, to step through this same list.
+  const listState = useListState(
+    { endpoint: '/transfers', query, limit: list.limit, skip: list.skip, recordBase: '/transfers' },
+    transfers.data,
+  )
 
   return (
     <div className="grid gap-6">
@@ -134,6 +138,7 @@ export function TransfersPage() {
         rows={transfers.data}
         rowKey={(transfer) => transfer.id}
         rowHref={(transfer) => `/transfers/${transfer.id}`}
+        rowState={listState}
         isPending={transfers.isPending}
         error={transfers.error}
         onRetry={() => transfers.refetch()}

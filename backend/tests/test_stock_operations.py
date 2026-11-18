@@ -5,6 +5,7 @@ from tests.helpers import (
     auth,
     create_location,
     create_product,
+    create_so,
     main_warehouse,
     receive_stock,
     stock_of,
@@ -216,3 +217,20 @@ async def test_only_inventory_managers_can_adjust(client, boss, make_user):
     worker = auth(await make_user(inventory_access=Access.user))
     response = await adjust(client, worker, warehouse["default_location_id"], product["id"], 1)
     assert response.status_code == 403
+
+
+async def test_product_list_shows_stock_across_locations(client, boss):
+    chair = await create_product(client, boss, sku="CHAIR")
+    await create_product(client, boss, sku="DESK")  # never received
+    warehouse = await main_warehouse(client, boss)
+    shelf = await create_location(client, boss, "Shelf B", warehouse["id"])
+    await receive_stock(client, boss, chair["id"], 10)
+    await receive_stock(client, boss, chair["id"], 5, location_id=shelf["id"])
+    so, _ = await create_so(client, boss, [(chair["id"], 6)])
+    await client.post(f"/sales-orders/{so['id']}/confirm", headers=boss)  # reserves 6
+
+    rows = (await client.get("/products", headers=boss)).json()
+    stock = {row["sku"]: (row["on_hand"], row["available"]) for row in rows}
+    assert stock == {"CHAIR": ("15.000", "9.000"), "DESK": ("0.000", "0.000")}
+    # the single product page doesn't carry it
+    assert "on_hand" not in (await client.get(f"/products/{chair['id']}", headers=boss)).json()

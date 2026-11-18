@@ -1,4 +1,5 @@
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +13,7 @@ from app.schemas.purchase import (
     PurchaseOrderUpdate,
 )
 from app.services.common import (
+    DuplicatePartnerReference,
     InvalidReference,
     LineNotFound,
     OrderHasNoLines,
@@ -42,6 +44,41 @@ async def _get_supplier(db: AsyncSession, partner_id: int) -> Partner:
     return partner
 
 
+async def _ensure_reference_free(db: AsyncSession, order: PurchaseOrder) -> None:
+    """The nice error for a reused supplier reference. The unique index is what guarantees
+    it; this only says which order already has it."""
+    if order.partner_reference is None:
+        return
+    stmt = select(PurchaseOrder.reference).where(
+        PurchaseOrder.partner_id == order.partner_id,
+        func.lower(PurchaseOrder.partner_reference) == func.lower(order.partner_reference),
+        PurchaseOrder.state != PurchaseState.cancelled,
+    )
+    if order.id is not None:
+        stmt = stmt.where(PurchaseOrder.id != order.id)
+    with db.no_autoflush:  # not yet: the order's pending change is what's being checked
+        taken = await db.scalar(stmt.limit(1))
+    if taken is not None:
+        raise DuplicatePartnerReference(
+            f"this supplier's reference {order.partner_reference} is already on {taken}"
+        )
+
+
+async def save_order(db: AsyncSession, order: PurchaseOrder, commit: bool = True) -> None:
+    """Commits, or with commit=False only flushes (to get the order's id inside a larger
+    change). Either way, a supplier reference taken in the meantime becomes a clean 409."""
+    try:
+        await (db.commit() if commit else db.flush())
+    except IntegrityError as exc:
+        # Two requests passed the check at once; the index let only one through
+        await db.rollback()
+        if "uq_purchase_orders_partner_reference" in str(exc.orig):
+            raise DuplicatePartnerReference(
+                f"this supplier's reference {order.partner_reference} is already in use"
+            ) from None
+        raise
+
+
 async def _build_line(db: AsyncSession, data: PurchaseOrderLineCreate) -> PurchaseOrderLine:
     product = await get_active_product(db, data.product_id)
     price = data.unit_price if data.unit_price is not None else product.cost_price
@@ -51,6 +88,16 @@ async def _build_line(db: AsyncSession, data: PurchaseOrderLineCreate) -> Purcha
 async def create_purchase_order(
     db: AsyncSession, data: PurchaseOrderCreate, created_by_id: int
 ) -> PurchaseOrder:
+    order = await add_purchase_order(db, data, created_by_id)
+    await save_order(db, order)
+    return await fetch_purchase_order(db, order.id)
+
+
+async def add_purchase_order(
+    db: AsyncSession, data: PurchaseOrderCreate, created_by_id: int
+) -> PurchaseOrder:
+    """Checks and adds a new order, with its id, but doesn't commit: the caller saves it,
+    together with anything that has to be saved at the same time (see bill imports)."""
     partner = await _get_supplier(db, data.partner_id)
     warehouse = await resolve_warehouse(db, data.warehouse_id)
     lines = [await _build_line(db, line) for line in data.lines]
@@ -58,13 +105,15 @@ async def create_purchase_order(
     order = PurchaseOrder(
         reference=f"PO{number:05d}",
         partner_id=partner.id,
+        partner_reference=data.partner_reference,
         warehouse_id=warehouse.id,
         created_by_id=created_by_id,
         lines=lines,
     )
+    await _ensure_reference_free(db, order)
     db.add(order)
-    await db.commit()
-    return await fetch_purchase_order(db, order.id)
+    await save_order(db, order, commit=False)
+    return order
 
 
 async def fetch_purchase_order(db: AsyncSession, order_id: int) -> PurchaseOrder:
@@ -126,14 +175,17 @@ async def update_purchase_order(
     _ensure_draft(order)
     for field in data.model_fields_set:
         value = getattr(data, field)
-        if value is None:
+        if value is None and field != "partner_reference":  # null clears the reference
             continue
         if field == "warehouse_id":
             value = (await resolve_warehouse(db, value)).id
         if field == "partner_id":
             value = (await _get_supplier(db, value)).id
         setattr(order, field, value)
-    await db.commit()
+    # a new reference, or the same one moved to another supplier
+    if {"partner_reference", "partner_id"} & data.model_fields_set:
+        await _ensure_reference_free(db, order)
+    await save_order(db, order)
     return await fetch_purchase_order(db, order.id)
 
 

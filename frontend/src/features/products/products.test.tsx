@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
@@ -6,11 +6,12 @@ import { describe, expect, it } from 'vitest'
 import { PAGE_SIZE } from '@/lib/useListParams'
 import { makeUser, renderApp, signInAs } from '@/test/renderApp'
 import { API, server } from '@/test/server'
-import type { Product } from './queries'
+import type { ProductListItem } from './queries'
 import type { ProductMove } from './useProductMoves'
 import type { ProductSummary } from './useProductOrders'
 
-function makeProduct(overrides: Partial<Product> = {}): Product {
+// The list's shape, with stock; a single product's reply simply has two fields more.
+function makeProduct(overrides: Partial<ProductListItem> = {}): ProductListItem {
   return {
     id: 1,
     name: 'Desk',
@@ -22,6 +23,8 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     is_active: true,
     created_at: '2026-01-01T00:00:00Z',
     created_by: { id: 1, name: 'Admin' },
+    on_hand: '0.000',
+    available: '0.000',
     ...overrides,
   }
 }
@@ -45,7 +48,7 @@ describe('products list', () => {
       }),
     )
     signInAs(viewer)
-    const { router } = renderApp('/products')
+    const { router } = renderApp('/products?view=list')
     const user = userEvent.setup()
 
     expect(await screen.findByRole('link', { name: 'Product 1' })).toBeInTheDocument()
@@ -54,7 +57,7 @@ describe('products list', () => {
 
     await user.click(next)
 
-    await waitFor(() => expect(router.state.location.search).toBe('?page=1'))
+    await waitFor(() => expect(router.state.location.search).toBe('?view=list&page=1'))
     await waitFor(() => expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled())
     expect(requests.at(-1)?.get('skip')).toBe(String(PAGE_SIZE))
 
@@ -66,7 +69,7 @@ describe('products list', () => {
   it('offers New product only to inventory managers', async () => {
     server.use(http.get(`${API}/products`, () => HttpResponse.json([makeProduct()])))
     signInAs(viewer)
-    renderApp('/products')
+    renderApp('/products?view=list')
 
     expect(await screen.findByRole('link', { name: 'Desk' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /New product/ })).not.toBeInTheDocument()
@@ -78,7 +81,7 @@ describe('products list', () => {
       http.get(`${API}/products/1`, () => HttpResponse.json(makeProduct())),
     )
     signInAs(viewer)
-    const { router } = renderApp('/products')
+    const { router } = renderApp('/products?view=list')
     const user = userEvent.setup()
 
     await user.click(await screen.findByText('DESK-1'))
@@ -89,7 +92,7 @@ describe('products list', () => {
   it('shows the empty state', async () => {
     server.use(http.get(`${API}/products`, () => HttpResponse.json([])))
     signInAs(viewer)
-    renderApp('/products')
+    renderApp('/products?view=list')
 
     expect(await screen.findByText('No products yet.')).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument()
@@ -267,7 +270,7 @@ describe('product image', () => {
       ),
     )
     signInAs(viewer)
-    renderApp('/products')
+    renderApp('/products?view=list')
 
     const desk = (await screen.findByRole('link', { name: 'Desk' })).closest('tr')!
     const lamp = screen.getByRole('link', { name: 'Lamp' }).closest('tr')!
@@ -585,5 +588,76 @@ describe('product moves', () => {
     expect(
       (await screen.findByRole('link', { name: 'WH/IN/00001' })).closest('tr'),
     ).toHaveTextContent('+10')
+  })
+})
+
+describe('products as cards', () => {
+  const products = [
+    makeProduct({
+      id: 1,
+      name: 'Desk',
+      sku: 'DESK-1',
+      sale_price: '50.00',
+      on_hand: '12.000',
+      available: '8.000',
+    }),
+    makeProduct({ id: 2, name: 'Old lamp', sku: 'LAMP-0', is_active: false, on_hand: '3.000' }),
+  ]
+
+  function mockProducts() {
+    server.use(
+      http.get(`${API}/products`, () =>
+        HttpResponse.json(products, { headers: { 'X-Total-Count': '2' } }),
+      ),
+      http.get(`${API}/products/1`, () => HttpResponse.json(products[0])),
+      http.get(`${API}/stock`, () => HttpResponse.json([])),
+    )
+  }
+
+  it('opens on cards, each showing the product, and steps through them from a card', async () => {
+    mockProducts()
+    signInAs(makeUser())
+    const { router } = renderApp('/products')
+    const user = userEvent.setup()
+
+    const cards = await screen.findByRole('list', { name: 'Products' })
+    const desk = within(cards).getByRole('link', { name: /Desk/ })
+    expect(desk).toHaveTextContent('DESK-1')
+    expect(desk).toHaveTextContent('50.00')
+    expect(desk).toHaveTextContent('8 available, 12 on hand')
+    const lamp = within(cards).getByRole('link', { name: /Old lamp/ })
+    expect(lamp).toHaveTextContent('Archived')
+    // Nothing free: said in words, with what's there.
+    expect(lamp).toHaveTextContent('None free3 on hand')
+    expect(screen.getByRole('button', { name: 'Cards' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(desk)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/products/1'))
+    expect(await screen.findByRole('navigation', { name: 'Records' })).toHaveTextContent('1 / 2')
+  })
+
+  it('switches to the list, and remembers it next time', async () => {
+    mockProducts()
+    signInAs(makeUser())
+    const first = renderApp('/products')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'List' }))
+    expect(await screen.findByRole('columnheader', { name: 'SKU' })).toBeInTheDocument()
+    expect(first.router.state.location.search).toBe('?view=list')
+    const deskCells = within(
+      screen.getByRole('link', { name: 'Desk' }).closest('tr')!,
+    ).getAllByRole('cell')
+    expect(deskCells[5]).toHaveTextContent('12') // on hand
+    expect(deskCells[6]).toHaveTextContent('8') // available
+    expect(screen.getByRole('link', { name: 'Old lamp' }).closest('tr')).toHaveTextContent(
+      'None free',
+    )
+    // Leaving and coming back: the choice is kept in this browser.
+    cleanup()
+
+    renderApp('/products')
+    expect(await screen.findByRole('columnheader', { name: 'SKU' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
   })
 })

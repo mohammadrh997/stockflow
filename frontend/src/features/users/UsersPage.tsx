@@ -6,6 +6,8 @@ import { ListToolbar, SearchInput } from '@/components/ListToolbar'
 import { PageHeader } from '@/components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { RecordLink } from '@/components/RecordLink'
+import { useListState } from '@/lib/recordPager'
 import { useListParams } from '@/lib/useListParams'
 import { AccessSummary } from './AccessSummary'
 import { useUsers, type User } from './queries'
@@ -13,11 +15,7 @@ import { useUsers, type User } from './queries'
 const columns: Column<User>[] = [
   {
     header: 'Name',
-    cell: (user) => (
-      <Link to={`/users/${user.id}`} className="font-medium hover:underline">
-        {user.name}
-      </Link>
-    ),
+    cell: (user) => <RecordLink to={`/users/${user.id}`}>{user.name}</RecordLink>,
   },
   { header: 'Email', cell: (user) => user.email },
   { header: 'Access', cell: (user) => <AccessSummary user={user} /> },
@@ -31,6 +29,8 @@ export function UsersPage() {
   const list = useListParams()
   const name = list.get('name')
   const users = useUsers(name)
+  // Loaded whole, so each user opened from here steps through these same rows.
+  const listState = useListState({ limit: 0, skip: 0, recordBase: '/users' }, users.data)
 
   return (
     <div className="grid gap-6">
@@ -57,6 +57,7 @@ export function UsersPage() {
         rows={users.data}
         rowKey={(user) => user.id}
         rowHref={(user) => `/users/${user.id}`}
+        rowState={listState}
         isPending={users.isPending}
         error={users.error}
         onRetry={() => users.refetch()}

@@ -14,6 +14,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { RecordLayout } from '@/components/RecordLayout'
 import { PageSpinner } from '@/components/PageSpinner'
 import { Button } from '@/components/ui/button'
+import { RecordPager } from '@/components/RecordPager'
+import { useListHref } from '@/lib/recordPager'
 import { ProductForm } from './ProductForm'
 import { ProductImage } from './ProductImage'
 import { ProductSmartButtons } from './ProductSmartButtons'
@@ -21,6 +23,7 @@ import { useProduct, useSetProductArchived, useUpdateProduct } from './queries'
 
 export function ProductPage() {
   const id = Number(useParams().productId)
+  const listHref = useListHref('/products')
   const { user } = useAuth()
   const product = useProduct(id)
   const updateProduct = useUpdateProduct(id)
@@ -38,10 +41,11 @@ export function ProductPage() {
 
   return (
     <RecordLayout
+      pager={<RecordPager id={data.id} />}
       header={
         <PageHeader
           pageTitle={data.name}
-          trail={[{ to: '/products', label: 'Products' }]}
+          trail={[{ to: listHref, label: 'Products' }]}
           title={
             <>
               {data.name}
