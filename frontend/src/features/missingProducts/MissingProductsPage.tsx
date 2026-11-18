@@ -2,6 +2,7 @@ import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import { ApiError } from '@/api/errors'
 import { DataTable, type Column } from '@/components/DataTable'
 import { Money } from '@/components/Money'
 import { PageHeader } from '@/components/PageHeader'
@@ -39,6 +40,24 @@ function Supplier({ item }: { item: MissingProduct }) {
   )
 }
 
+// The product fields' limits, which a bill's text can go past (descriptions run to 255
+// characters, codes to 100).
+const NAME_MAX = 200
+const SKU_MAX = 64
+
+// Purchase chose a product, confirmed or discarded the import, or removed the item
+// meanwhile: there's nothing left to create it for. Other refusals, like a taken SKU, belong
+// in the form.
+function itemIsGone(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  if (error.status === 404) return true
+  return (
+    error.status === 409 &&
+    typeof error.detail === 'string' &&
+    error.detail.includes("doesn't need")
+  )
+}
+
 function CreateProductDialog({
   item,
   onClose,
@@ -59,8 +78,8 @@ function CreateProductDialog({
         {item !== null && (
           <ProductForm
             defaultValues={{
-              name: item.description,
-              sku: item.product_code ?? '',
+              name: item.description.slice(0, NAME_MAX),
+              sku: (item.product_code ?? '').slice(0, SKU_MAX),
               sale_price: '',
               // What the supplier charges is where the cost price starts.
               cost_price: Number(item.unit_price).toFixed(2),
@@ -68,9 +87,16 @@ function CreateProductDialog({
             }}
             submitLabel="Create product"
             onSubmit={async (values) => {
-              const product = await create.mutateAsync({ item, values })
-              toast.success(`Created ${product.name}`)
-              onClose()
+              try {
+                const product = await create.mutateAsync({ item, values })
+                toast.success(`Created ${product.name}`)
+                onClose()
+              } catch (error) {
+                if (!itemIsGone(error)) throw error
+                // The list has refreshed without it; the dialog shouldn't stay on it.
+                toast.error(`"${item.description}" doesn't need a product any more`)
+                onClose()
+              }
             }}
           />
         )}

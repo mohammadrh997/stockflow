@@ -106,11 +106,44 @@ describe('products to create', () => {
     ).toBeInTheDocument()
   })
 
-  it('says so when purchase already sorted the item out', async () => {
+  it('closes and says so when purchase already sorted the item out', async () => {
+    let items = [item()]
+    server.use(
+      http.get(`${API}/missing-products`, () =>
+        HttpResponse.json(items, { headers: { 'X-Total-Count': String(items.length) } }),
+      ),
+      http.get(`${API}/categories`, () => HttpResponse.json([])),
+      http.post(`${API}/missing-products/22/product`, () => {
+        items = []
+        return HttpResponse.json(
+          { detail: "this item doesn't need a product any more" },
+          { status: 409 },
+        )
+      }),
+    )
+    signInAs(manager)
+    renderApp('/missing-products')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Create product' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Sale price'), '80')
+    await user.click(within(dialog).getByRole('button', { name: 'Create product' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(
+      await screen.findByText(`"Monitor arm, dual" doesn't need a product any more`),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByText('Nothing to create: no bill is waiting on a product.'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps other refusals, like a taken SKU, in the form', async () => {
     mockItems([item()])
     server.use(
       http.post(`${API}/missing-products/22/product`, () =>
-        HttpResponse.json({ detail: "this item doesn't need a product any more" }, { status: 409 }),
+        HttpResponse.json({ detail: 'SKU already Exist' }, { status: 409 }),
       ),
     )
     signInAs(manager)
@@ -122,7 +155,19 @@ describe('products to create', () => {
     await user.type(within(dialog).getByLabelText('Sale price'), '80')
     await user.click(within(dialog).getByRole('button', { name: 'Create product' }))
 
-    expect(await within(dialog).findByText(/doesn't need a product any more/)).toBeInTheDocument()
+    expect(await within(dialog).findByText('SKU already Exist')).toBeInTheDocument()
+  })
+
+  it('trims a long description and code to what a product allows', async () => {
+    mockItems([item({ description: 'D'.repeat(255), product_code: 'C'.repeat(100) })])
+    signInAs(manager)
+    renderApp('/missing-products')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Create product' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('D'.repeat(200))
+    expect(within(dialog).getByLabelText('SKU')).toHaveValue('C'.repeat(64))
   })
 
   it('is only for inventory managers', async () => {
