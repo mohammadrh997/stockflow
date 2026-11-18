@@ -313,7 +313,7 @@ describe('categories on products', () => {
       http.get(`${API}/products`, () => HttpResponse.json([product])),
     )
     signInAs(makeUser())
-    renderApp('/products')
+    renderApp('/products?view=list')
 
     const row = (await screen.findByRole('link', { name: 'Desk chair' })).closest('tr')!
     expect(await within(row).findByText('Furniture / Chairs / Office')).toBeInTheDocument()
