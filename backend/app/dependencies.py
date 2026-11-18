@@ -10,7 +10,7 @@ from app.core.database import AsyncSessionLocal
 from app.core.security import decode_token
 from app.models.user import Access, User
 from app.services.bill_reader import BillReader, configured_bill_reader
-from app.services.storage import Storage, configured_storage
+from app.services.storage import Storage, configured_bill_storage, configured_storage
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
@@ -109,6 +109,15 @@ def get_storage(storage: OptionalStorageDep) -> Storage:
 
 
 StorageDep = Annotated[Storage, Depends(get_storage)]
+
+
+def get_bill_storage() -> Storage | None:
+    """The private bucket for bills, or None: imports then work without keeping the file.
+    Tests override this one."""
+    return configured_bill_storage()
+
+
+BillStorageDep = Annotated[Storage | None, Depends(get_bill_storage)]
 
 
 def get_optional_bill_reader() -> BillReader | None:

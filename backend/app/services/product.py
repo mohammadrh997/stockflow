@@ -24,7 +24,11 @@ class ProductNotFound(Exception):
 class CategoryArchived(Exception): ...  # 409
 
 
-async def create_product(db: AsyncSession, data: ProductCreate, created_by_id: int) -> Product:
+async def create_product(
+    db: AsyncSession, data: ProductCreate, created_by_id: int, commit: bool = True
+) -> Product:
+    """With commit=False the product is only flushed, so it gets an id and its SKU is
+    checked, and the caller commits it together with its own changes."""
     if data.category_id is not None:
         await lock_usable_category(db, data.category_id)
     product = Product(
@@ -37,13 +41,17 @@ async def create_product(db: AsyncSession, data: ProductCreate, created_by_id: i
     )
     db.add(product)
     try:
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
     except IntegrityError as exc:
         await db.rollback()
         if "uq_products_sku" in str(exc.orig):
             raise SKUAlreadyExists(data.sku) from None
         raise
-    await db.refresh(product)
+    if commit:
+        await db.refresh(product)
     return product
 
 

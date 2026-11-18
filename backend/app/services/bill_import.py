@@ -6,6 +6,8 @@ pg_trgm, and only when the match is close. A wrong automatic match is worse than
 because the user might not notice it.
 """
 
+import logging
+import uuid
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -24,11 +26,16 @@ from app.schemas.bill_import import (
     WarningCode,
 )
 from app.schemas.common import line_subtotal
+from app.schemas.product import ProductCreate
 from app.schemas.purchase import PurchaseOrderCreate, PurchaseOrderLineCreate
+from app.services import product as product_service
 from app.services import purchase as purchase_service
 from app.services.bill_reader import BillReader, bill_file_type
 from app.services.common import InvalidReference, LineNotFound, Page, paginate
 from app.services.company import get_company
+from app.services.storage import Storage, delete_quietly
+
+logger = logging.getLogger(__name__)
 
 # Below this similarity a name match is left for the user to choose. Measured on real
 # descriptions: "Office Chair Ergonomic, black" scores 0.79 against "Ergonomic Office Chair",
@@ -43,6 +50,15 @@ class ImportNotOpen(Exception): ...  # 409: already confirmed or discarded
 
 
 class ImportNotReady(Exception): ...  # 409: something blocks confirming (see the warnings)
+
+
+class NoBillFile(Exception): ...  # 404: the file wasn't kept, or the import was discarded
+
+
+class NothingToRequest(Exception): ...  # 409: every item already has a product
+
+
+class LineNotWaiting(Exception): ...  # 409: the item got a product, or wasn't asked for
 
 
 # ---- matching ----
@@ -105,14 +121,37 @@ async def _default_warehouse(db: AsyncSession) -> int | None:
 # ---- reading ----
 
 
+EXTENSIONS = {
+    "application/pdf": "pdf",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+}
+
+
+async def _keep_file(storage: Storage | None, data: bytes, mime_type: str) -> str | None:
+    if storage is None:
+        return None
+    key = f"bills/{uuid.uuid4().hex}.{EXTENSIONS[mime_type]}"
+    try:
+        await storage.put(key, data, mime_type)
+    except Exception:
+        # The bill was already read, which used the model's quota; losing the copy is the
+        # smaller harm, so the import goes on without it
+        logger.warning("Could not keep the bill file", exc_info=True)
+        return None
+    return key
+
+
 async def import_bill(
-    db: AsyncSession, reader: BillReader, data: bytes, user_id: int
+    db: AsyncSession, reader: BillReader, storage: Storage | None, data: bytes, user_id: int
 ) -> BillImport:
     # The login check left a transaction open. End it, so no pooled connection sits idle
-    # while the bill is checked and read, which can take a minute.
+    # while the bill is checked, read and stored, which can take a minute.
     await db.rollback()
     mime_type = await bill_file_type(data)
     bill = await reader.read(data, mime_type)
+    file_key = await _keep_file(storage, data, mime_type)
 
     lines = []
     for line in bill.lines:
@@ -135,11 +174,18 @@ async def import_bill(
         currency=bill.currency,
         bill_total=bill.total,
         warehouse_id=await _default_warehouse(db),
+        file_key=file_key,
+        file_type=mime_type if file_key else None,
         created_by_id=user_id,
         lines=lines,
     )
     db.add(bill_import)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        if storage is not None and file_key is not None:
+            await delete_quietly(storage, file_key)  # nothing points at it now
+        raise
     return await fetch_import(db, bill_import.id)
 
 
@@ -156,6 +202,16 @@ async def fetch_import(db: AsyncSession, import_id: int) -> BillImport:
     if bill_import is None:
         raise BillImportNotFound(import_id)
     return bill_import
+
+
+async def bill_file(db: AsyncSession, storage: Storage | None, import_id: int) -> tuple[bytes, str]:
+    """The uploaded bill and its MIME type."""
+    bill_import = await fetch_import(db, import_id)
+    if storage is None or bill_import.file_key is None or bill_import.file_type is None:
+        raise NoBillFile(import_id)
+    key, mime_type = bill_import.file_key, bill_import.file_type
+    await db.rollback()  # don't hold a connection while the bucket answers
+    return await storage.get(key), mime_type
 
 
 async def _lock_import(db: AsyncSession, import_id: int) -> BillImport:
@@ -361,8 +417,85 @@ async def confirm_import(db: AsyncSession, import_id: int, user_id: int) -> Bill
     return await fetch_import(db, import_id)
 
 
-async def discard_import(db: AsyncSession, import_id: int) -> BillImport:
+async def discard_import(db: AsyncSession, storage: Storage | None, import_id: int) -> BillImport:
     bill_import = await _lock_import(db, import_id)
     bill_import.state = BillImportState.discarded
+    # A discarded bill isn't kept: it never became an order, so there's nothing to prove
+    file_key = bill_import.file_key
+    bill_import.file_key = bill_import.file_type = None
+    await db.commit()
+    if storage is not None and file_key is not None:
+        await delete_quietly(storage, file_key)
+    return await fetch_import(db, import_id)
+
+
+# ---- the handoff to inventory ----
+# A purchase user can't create products, and an inventory manager can't see imports.
+# So purchase asks for the missing products, and inventory creates them from a list of
+# the items waiting, which links each new product to its item.
+
+
+async def request_products(db: AsyncSession, import_id: int, user_id: int) -> BillImport:
+    bill_import = await _lock_import(db, import_id)
+    if all(line.product_id is not None for line in bill_import.lines):
+        raise NothingToRequest("every item already has a product")
+    if bill_import.products_requested_at is None:  # asking again changes nothing
+        bill_import.products_requested_at = func.now()
+        bill_import.products_requested_by_id = user_id
     await db.commit()
     return await fetch_import(db, import_id)
+
+
+def _waiting():
+    """Items still without a product, on open imports whose products were asked for."""
+    return (
+        select(BillImportLine)
+        .join(BillImport)
+        .where(
+            BillImport.state == BillImportState.open,
+            BillImport.products_requested_at.is_not(None),
+            BillImportLine.product_id.is_(None),
+        )
+    )
+
+
+async def list_missing_products(db: AsyncSession, skip: int, limit: int) -> Page[BillImportLine]:
+    stmt = (
+        _waiting()
+        .options(selectinload(BillImportLine.bill_import))
+        .order_by(BillImport.products_requested_at, BillImportLine.id)  # oldest request first
+    )
+    return await paginate(db, stmt, skip, limit)
+
+
+async def waiting_line(db: AsyncSession, line_id: int) -> BillImportLine:
+    line = await db.scalar(_waiting().where(BillImportLine.id == line_id))
+    if line is None:
+        raise LineNotWaiting("this item doesn't need a product any more")
+    return line
+
+
+async def create_product_for_line(
+    db: AsyncSession, line_id: int, data: ProductCreate, user_id: int
+) -> Product:
+    """Creates the product and puts it on the item, in one transaction."""
+    import_id = await db.scalar(
+        select(BillImportLine.import_id).where(BillImportLine.id == line_id)
+    )
+    if import_id is None:
+        raise LineNotFound(line_id)
+    try:
+        # Locked, so purchase can't confirm, discard or change the item meanwhile
+        bill_import = await _lock_import(db, import_id)
+    except ImportNotOpen:
+        raise LineNotWaiting("this item doesn't need a product any more") from None
+    line = _line(bill_import, line_id)
+    if bill_import.products_requested_at is None or line.product_id is not None:
+        raise LineNotWaiting("this item doesn't need a product any more")
+
+    product = await product_service.create_product(db, data, user_id, commit=False)
+    line.product_id = product.id
+    line.match_score = None  # chosen by a person
+    await db.commit()
+    await db.refresh(product)
+    return product

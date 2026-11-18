@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Upload
 from app.core.limiter import limiter, user_or_ip
 from app.dependencies import (
     BillReaderDep,
+    BillStorageDep,
     CurrentUser,
     DBsession,
     Module,
@@ -22,7 +23,13 @@ from app.schemas.bill_import import (
     BillImportUpdate,
 )
 from app.services import bill_import as import_service
-from app.services.bill_import import BillImportNotFound, ImportNotOpen, ImportNotReady
+from app.services.bill_import import (
+    BillImportNotFound,
+    ImportNotOpen,
+    ImportNotReady,
+    NoBillFile,
+    NothingToRequest,
+)
 from app.services.bill_reader import BillUnreadable, InvalidBillFile, ReaderUnavailable
 from app.services.common import DuplicatePartnerReference, InvalidReference, LineNotFound
 
@@ -48,11 +55,16 @@ async def _read(db: DBsession, bill_import: BillImport) -> BillImportRead:
 # so colleagues behind one office IP don't use up each other's
 @limiter.limit("10/hour", key_func=user_or_ip)
 async def import_bill(
-    request: Request, db: DBsession, file: UploadFile, reader: BillReaderDep, user: CurrentUser
+    request: Request,
+    db: DBsession,
+    file: UploadFile,
+    reader: BillReaderDep,
+    storage: BillStorageDep,
+    user: CurrentUser,
 ):
     data = await read_upload(file, "bill")
     try:
-        bill_import = await import_service.import_bill(db, reader, data, user.id)
+        bill_import = await import_service.import_bill(db, reader, storage, data, user.id)
     except (InvalidBillFile, BillUnreadable) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     except ReaderUnavailable as exc:
@@ -84,6 +96,20 @@ async def get_import(db: DBsession, import_id: int):
         return await _read(db, await import_service.fetch_import(db, import_id))
     except BillImportNotFound:
         raise NOT_FOUND from None
+
+
+@router.get("/{import_id}/file", response_class=Response)
+async def get_bill_file(db: DBsession, storage: BillStorageDep, import_id: int):
+    try:
+        data, mime_type = await import_service.bill_file(db, storage, import_id)
+    except (BillImportNotFound, NoBillFile):
+        raise NOT_FOUND from None
+    return Response(
+        data,
+        media_type=mime_type,
+        # Shown in the browser, never cached on the way: the bill is private
+        headers={"Content-Disposition": "inline", "Cache-Control": "private, no-store"},
+    )
 
 
 @router.patch("/{import_id}", response_model=BillImportRead)
@@ -133,10 +159,21 @@ async def confirm_import(db: DBsession, import_id: int, user: CurrentUser):
         raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
-@router.post("/{import_id}/discard", response_model=BillImportRead)
-async def discard_import(db: DBsession, import_id: int):
+@router.post("/{import_id}/request-products", response_model=BillImportRead)
+async def request_products(db: DBsession, import_id: int, user: CurrentUser):
+    """Asks inventory managers to create the products the items still need."""
     try:
-        return await _read(db, await import_service.discard_import(db, import_id))
+        return await _read(db, await import_service.request_products(db, import_id, user.id))
+    except BillImportNotFound:
+        raise NOT_FOUND from None
+    except (ImportNotOpen, NothingToRequest) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
+@router.post("/{import_id}/discard", response_model=BillImportRead)
+async def discard_import(db: DBsession, storage: BillStorageDep, import_id: int):
+    try:
+        return await _read(db, await import_service.discard_import(db, storage, import_id))
     except BillImportNotFound:
         raise NOT_FOUND from None
     except ImportNotOpen as exc:

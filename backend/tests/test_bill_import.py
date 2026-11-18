@@ -366,6 +366,148 @@ async def test_bill_imports_need_purchase_access(client, make_user, bill_reader)
     assert (await client.get("/bill-imports", headers=seller)).status_code == 403
 
 
+# ---- the bill file ----
+
+
+async def test_the_bill_file_is_kept_and_served_only_through_the_api(
+    client, boss, bill_reader, bill_storage, make_user
+):
+    result = await imported(client, boss, bill_reader, bill(line("Anything")))
+    assert result["file_type"] == "image/png"
+    [key] = bill_storage.files
+    assert key.startswith("bills/") and key.endswith(".png")
+
+    url = f"/bill-imports/{result['id']}/file"
+    response = await client.get(url, headers=boss)
+    assert response.status_code == 200
+    assert response.content == PNG
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"] == "private, no-store"
+
+    seller = auth(await make_user(sales_access=Access.manager))
+    assert (await client.get(url, headers=seller)).status_code == 403
+
+    # discarding deletes it
+    discarded = await client.post(f"/bill-imports/{result['id']}/discard", headers=boss)
+    assert discarded.json()["file_type"] is None
+    assert bill_storage.files == {}
+    assert (await client.get(url, headers=boss)).status_code == 404
+
+
+async def test_without_a_bills_bucket_the_import_works_without_the_file(client, boss, bill_reader):
+    result = await imported(client, boss, bill_reader, bill(line("Anything")))
+    assert result["file_type"] is None
+    assert (await client.get(f"/bill-imports/{result['id']}/file", headers=boss)).status_code == 404
+
+
+async def test_a_bucket_failure_doesnt_lose_the_import(client, boss, bill_reader, bill_storage):
+    async def broken_put(key, data, content_type):
+        raise OSError("bucket down")
+
+    bill_storage.put = broken_put
+    result = await imported(client, boss, bill_reader, bill(line("Anything")))
+    assert result["file_type"] is None  # the bill was read; only the copy is missing
+
+
+# ---- the handoff to inventory ----
+
+
+async def test_inventory_creates_the_missing_products_purchase_asked_for(
+    client, boss, bill_reader, bill_storage, make_user
+):
+    buyer = auth(await make_user(purchase_access=Access.user))
+    stocker = auth(await make_user(inventory_access=Access.manager))
+    supplier = await create_partner(client, boss, name="Zagros Furniture Works", is_supplier=True)
+    result = await imported(
+        client, buyer, bill_reader, bill(line("Monitor arm, dual", "3", "45.00", code="MA-2"))
+    )
+    url = f"/bill-imports/{result['id']}"
+
+    # not asked yet: inventory sees nothing
+    assert (await client.get("/missing-products", headers=stocker)).json() == []
+
+    response = await client.post(f"{url}/request-products", headers=buyer)
+    assert response.status_code == 200
+    assert response.json()["products_requested_at"] is not None
+    assert response.json()["products_requested_by"]["id"] is not None
+
+    response = await client.get("/missing-products", headers=stocker)
+    assert response.headers["x-total-count"] == "1"
+    [item] = response.json()
+    assert (item["description"], item["product_code"], item["unit_price"]) == (
+        "Monitor arm, dual",
+        "MA-2",
+        "45.00",
+    )
+    assert item["bill_import"]["id"] == result["id"]
+    assert item["bill_import"]["partner_id"] == supplier["id"]
+    bill_file = await client.get(f"/missing-products/{item['id']}/file", headers=stocker)
+    assert bill_file.content == PNG  # the bill, to see the item as printed
+
+    body = {"name": "Dual Monitor Arm", "sku": "MA-2", "sale_price": "79.00", "cost_price": "45.00"}
+    response = await client.post(
+        f"/missing-products/{item['id']}/product", json=body, headers=stocker
+    )
+    assert response.status_code == 201, response.text
+    created = response.json()
+
+    # the item has its product, the list is empty, and purchase can confirm
+    assert (await client.get("/missing-products", headers=stocker)).json() == []
+    current = (await client.get(url, headers=buyer)).json()
+    assert current["lines"][0]["product_id"] == created["id"]
+    assert current["warnings"] == []
+    assert (await client.post(f"{url}/confirm", headers=buyer)).status_code == 200
+
+    # done: nothing waits any more
+    again = await client.post(f"/missing-products/{item['id']}/product", json=body, headers=stocker)
+    assert again.status_code == 409
+
+
+async def test_items_that_got_a_product_another_way_leave_the_list(client, boss, bill_reader):
+    chair = await product(client, boss, "CHAIR-ERG", "Ergonomic Office Chair")
+    result = await imported(client, boss, bill_reader, bill(line("Something new")))
+    url = f"/bill-imports/{result['id']}"
+    await client.post(f"{url}/request-products", headers=boss)
+    [item] = (await client.get("/missing-products", headers=boss)).json()
+
+    # purchase picked an existing product after all
+    await client.patch(f"{url}/lines/{item['id']}", json={"product_id": chair["id"]}, headers=boss)
+    assert (await client.get("/missing-products", headers=boss)).json() == []
+    body = {"name": "New", "sku": "NEW-1", "sale_price": "1.00"}
+    response = await client.post(f"/missing-products/{item['id']}/product", json=body, headers=boss)
+    assert response.status_code == 409
+    assert (await client.get("/products?name=New", headers=boss)).json() == []  # nothing made
+
+    # nothing left to ask for
+    response = await client.post(f"{url}/request-products", headers=boss)
+    assert response.status_code == 409
+
+
+async def test_a_taken_sku_saves_nothing(client, boss, bill_reader):
+    await product(client, boss, "MA-2", "Something else")
+    result = await imported(client, boss, bill_reader, bill(line("Monitor arm, dual")))
+    await client.post(f"/bill-imports/{result['id']}/request-products", headers=boss)
+    [item] = (await client.get("/missing-products", headers=boss)).json()
+
+    body = {"name": "Dual Monitor Arm", "sku": "ma-2", "sale_price": "79.00"}
+    response = await client.post(f"/missing-products/{item['id']}/product", json=body, headers=boss)
+    assert response.status_code == 409
+    assert len((await client.get("/missing-products", headers=boss)).json()) == 1  # still waiting
+
+
+async def test_the_handoff_access(client, boss, bill_reader, make_user):
+    result = await imported(client, boss, bill_reader, bill(line("Something new")))
+    url = f"/bill-imports/{result['id']}"
+    stocker = auth(await make_user(inventory_access=Access.manager))
+    worker = auth(await make_user(inventory_access=Access.user))
+
+    # only purchase asks, and only inventory managers see and create
+    assert (await client.post(f"{url}/request-products", headers=stocker)).status_code == 403
+    await client.post(f"{url}/request-products", headers=boss)
+    assert (await client.get("/missing-products", headers=worker)).status_code == 403
+    assert (await client.get(url, headers=stocker)).status_code == 403  # not the whole import
+
+
 # ---- the Gemini reader, with Google's client replaced ----
 
 

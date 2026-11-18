@@ -69,6 +69,9 @@ class BillImportRead(BaseModel):
     bill_total: Decimal | None
     warehouse_id: int | None
     purchase_order_id: int | None
+    file_type: str | None  # the kept bill's MIME type; null when there's no file to show
+    products_requested_at: datetime | None  # when inventory was asked for the missing products
+    products_requested_by: UserSummary | None
     created_at: datetime
     created_by: UserSummary
     lines: list[BillImportLineRead]
@@ -91,6 +94,7 @@ class BillImportSummary(BaseModel):
     partner_id: int | None
     partner_reference: str | None
     purchase_order_id: int | None
+    products_requested_at: datetime | None
     created_at: datetime
     created_by: UserSummary
     lines: list[BillImportLineRead] = Field(exclude=True)  # only counted, not sent
@@ -105,3 +109,30 @@ class BillImportSummary(BaseModel):
     def missing_products(self) -> int:
         """Lines still without a product."""
         return sum(1 for line in self.lines if line.product_id is None)
+
+
+class RequestedImport(BaseModel):
+    """The bill an item waiting for a product came from."""
+
+    model_config = {"from_attributes": True}
+
+    id: int
+    supplier_name: str | None  # as printed
+    partner_id: int | None
+    partner_reference: str | None
+    file_type: str | None
+    products_requested_at: datetime
+    products_requested_by: UserSummary
+
+
+class MissingProductRead(BaseModel):
+    """An item inventory is asked to create a product for."""
+
+    model_config = {"from_attributes": True}
+
+    id: int  # the item's (line's) id
+    description: str
+    product_code: str | None
+    quantity: Decimal
+    unit_price: Decimal  # what the supplier charges: a starting point for the cost price
+    bill_import: RequestedImport

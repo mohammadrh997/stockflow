@@ -23,9 +23,22 @@ class Storage(Protocol):
     async def delete(self, key: str) -> None: ...
 
 
+# A key is never reused for different content, so browsers may cache an image forever
+PUBLIC_CACHE = "public, max-age=31536000, immutable"
+
+
 class S3Storage:
-    def __init__(self, endpoint: str, region: str | None, bucket: str, key_id: str, secret: str):
+    def __init__(
+        self,
+        endpoint: str,
+        region: str | None,
+        bucket: str,
+        key_id: str,
+        secret: str,
+        cache_control: str = PUBLIC_CACHE,
+    ):
         self._bucket = bucket
+        self._cache_control = cache_control
         self._client: S3Client = boto3.client(
             "s3",
             endpoint_url=endpoint,
@@ -48,8 +61,7 @@ class S3Storage:
             Key=key,
             Body=data,
             ContentType=content_type,
-            # A key is never reused for different content, so browsers may cache it forever
-            CacheControl="public, max-age=31536000, immutable",
+            CacheControl=self._cache_control,
         )
 
     async def get(self, key: str) -> bytes:
@@ -78,21 +90,28 @@ class MemoryStorage:
         self.files.pop(key, None)
 
 
-@cache  # one client for the whole app; creating one is slow, and they're thread-safe
-def configured_storage() -> Storage | None:
+def _bucket(bucket: str | None, cache_control: str) -> S3Storage | None:
     s = settings
     secret = s.storage_secret_key.get_secret_value() if s.storage_secret_key else ""
-    if not (
-        s.storage_endpoint
-        and s.storage_bucket
-        and s.storage_key_id
-        and secret
-        and s.storage_public_url
-    ):
+    if not (s.storage_endpoint and bucket and s.storage_key_id and secret):
         return None
     return S3Storage(
-        s.storage_endpoint, s.storage_region, s.storage_bucket, s.storage_key_id, secret
+        s.storage_endpoint, s.storage_region, bucket, s.storage_key_id, secret, cache_control
     )
+
+
+@cache  # one client for the whole app; creating one is slow, and they're thread-safe
+def configured_storage() -> Storage | None:
+    """Product images. Public: browsers load them straight from the bucket."""
+    if not settings.storage_public_url:
+        return None
+    return _bucket(settings.storage_bucket, PUBLIC_CACHE)
+
+
+@cache
+def configured_bill_storage() -> Storage | None:
+    """Imported bills. Private: only the API reads them, for users allowed to see them."""
+    return _bucket(settings.storage_bills_bucket, "private, no-store")
 
 
 def public_url(key: str | None) -> str | None:

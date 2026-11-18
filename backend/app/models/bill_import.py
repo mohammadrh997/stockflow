@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class BillImportState(enum.StrEnum):
-    open = "open"  # being reviewed, or waiting for products
+    open = "open"  # being reviewed, or waiting for products (products_requested_at)
     done = "done"  # turned into a purchase order
     discarded = "discarded"
 
@@ -46,9 +46,19 @@ class BillImport(Base):
     purchase_order_id: Mapped[int | None] = mapped_column(
         ForeignKey("purchase_orders.id"), unique=True
     )
+    # The uploaded bill, in the private bucket. Empty when no bucket is set up, and once
+    # the import is discarded.
+    file_key: Mapped[str | None] = mapped_column(String(100))
+    file_type: Mapped[str | None] = mapped_column(String(50))
+    # Set when purchase asks inventory to create the products the bill's items need
+    products_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    products_requested_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    products_requested_by: Mapped["User | None"] = relationship(
+        foreign_keys=[products_requested_by_id], lazy="selectin"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_by: Mapped["User"] = relationship(lazy="selectin")
+    created_by: Mapped["User"] = relationship(foreign_keys=[created_by_id], lazy="selectin")
     lines: Mapped[list["BillImportLine"]] = relationship(
         back_populates="bill_import",
         cascade="all, delete-orphan",

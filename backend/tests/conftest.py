@@ -11,7 +11,13 @@ if "test" not in TEST_DATABASE_URL.rsplit("/", 1)[-1]:
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL  # before any app import, so app and Alembic use it
 
 # Tests never talk to a real bucket, even if .env has one; they use MemoryStorage instead
-for name in ("STORAGE_ENDPOINT", "STORAGE_BUCKET", "STORAGE_KEY_ID", "STORAGE_SECRET_KEY"):
+for name in (
+    "STORAGE_ENDPOINT",
+    "STORAGE_BUCKET",
+    "STORAGE_KEY_ID",
+    "STORAGE_SECRET_KEY",
+    "STORAGE_BILLS_BUCKET",
+):
     os.environ[name] = ""
 os.environ["STORAGE_PUBLIC_URL"] = "https://images.test"
 os.environ["GEMINI_API_KEY"] = ""  # nor Google: bill reading uses FakeBillReader
@@ -28,7 +34,12 @@ from sqlalchemy.pool import NullPool  # noqa: E402
 from alembic import command  # noqa: E402
 from app.core.database import Base  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
-from app.dependencies import get_db, get_optional_bill_reader, get_optional_storage  # noqa: E402
+from app.dependencies import (
+    get_bill_storage,
+    get_db,
+    get_optional_bill_reader,
+    get_optional_storage,
+)  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.user import (
     Access,  # noqa: E402
@@ -130,6 +141,14 @@ def storage(client: AsyncClient) -> MemoryStorage:
     """Image uploads go to a dict instead of a bucket. Requested by tests that upload."""
     memory = MemoryStorage()
     app.dependency_overrides[get_optional_storage] = lambda: memory
+    return memory
+
+
+@pytest.fixture
+def bill_storage(client: AsyncClient) -> MemoryStorage:
+    """Imported bills go to a dict. Without this fixture, the file isn't kept."""
+    memory = MemoryStorage()
+    app.dependency_overrides[get_bill_storage] = lambda: memory
     return memory
 
 

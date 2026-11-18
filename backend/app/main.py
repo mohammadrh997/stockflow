@@ -17,6 +17,7 @@ from app.routers import (
     company,
     health,
     invoices,
+    missing_products,
     moves,
     partner,
     product,
@@ -59,6 +60,7 @@ app.include_router(partner.router)
 app.include_router(sale.router)
 app.include_router(purchase.router)
 app.include_router(bill_import.router)
+app.include_router(missing_products.router)
 app.include_router(stock.router)
 app.include_router(transfers.router)
 app.include_router(moves.router)
