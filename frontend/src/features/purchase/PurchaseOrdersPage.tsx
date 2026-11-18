@@ -67,7 +67,7 @@ export function PurchaseOrdersPage() {
     },
     { header: 'Supplier', cell: (order) => <PartnerName id={order.partner_id} /> },
     {
-      header: 'Supplier ref.',
+      header: 'Supplier reference',
       cell: (order) => order.partner_reference ?? <span className="text-muted-foreground">—</span>,
     },
     ...(severalWarehouses

@@ -236,8 +236,8 @@ describe('reviewing an import', () => {
 
     const warnings = await screen.findByRole('list', { name: 'Before creating the order' })
     const items = within(warnings).getAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('1 item(s) have no product yet(needed)')
-    expect(items[1]).toHaveTextContent('(check)')
+    expect(items[0]).toHaveTextContent('1 item(s) have no product yetRequired')
+    expect(items[1]).toHaveTextContent('Check')
     expect(screen.getByRole('button', { name: 'Create purchase order' })).toBeDisabled()
 
     // How each product was found.

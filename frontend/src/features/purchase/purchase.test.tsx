@@ -451,7 +451,9 @@ describe('supplier reference', () => {
     expect(screen.getByText('Supplier reference').nextElementSibling).toHaveTextContent('Q-9')
 
     await router.navigate('/purchase-orders')
-    expect(await screen.findByRole('columnheader', { name: 'Supplier ref.' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('columnheader', { name: 'Supplier reference' }),
+    ).toBeInTheDocument()
     expect(await screen.findByRole('cell', { name: 'Q-9' })).toBeInTheDocument()
   })
 })

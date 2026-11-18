@@ -75,7 +75,7 @@ export function InvoicesPage() {
       ? []
       : [
           {
-            header: 'Supplier ref.',
+            header: 'Supplier reference',
             cell: (invoice: Invoice) =>
               invoice.partner_reference ?? <span className="text-muted-foreground">—</span>,
           },

@@ -1,5 +1,6 @@
 import { CircleAlert, Info } from 'lucide-react'
 
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { ImportWarning } from './queries'
 
@@ -15,7 +16,7 @@ export function ImportWarnings({ warnings }: { warnings: ImportWarning[] }) {
           className={cn(
             'flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
             warning.blocks_confirm
-              ? 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100'
+              ? 'border-warning-text/40 bg-warning-soft text-warning-strong'
               : 'bg-muted/60',
           )}
         >
@@ -24,18 +25,17 @@ export function ImportWarnings({ warnings }: { warnings: ImportWarning[] }) {
           ) : (
             <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
           )}
-          <span>
-            {warning.message}
-            {/* Heard and seen: whether it stops the order being created. */}
-            <span
-              className={cn(
-                'ml-2',
-                warning.blocks_confirm ? 'font-medium' : 'text-muted-foreground',
-              )}
-            >
-              {warning.blocks_confirm ? '(needed)' : '(check)'}
-            </span>
-          </span>
+          <span className="min-w-0 flex-1">{warning.message}</span>
+          {/* Seen and heard: whether it stops the order being created. */}
+          <Badge
+            variant="outline"
+            className={cn(
+              'shrink-0',
+              warning.blocks_confirm ? 'border-warning-text/50' : 'text-muted-foreground',
+            )}
+          >
+            {warning.blocks_confirm ? 'Required' : 'Check'}
+          </Badge>
         </li>
       ))}
     </ul>
