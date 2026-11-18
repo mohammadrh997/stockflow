@@ -63,7 +63,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Products',
     icon: Package,
     visible: everyone,
-    paths: ['/products', '/categories'],
+    paths: ['/products', '/categories', '/missing-products'],
     sections: [
       {
         to: '/products',
@@ -76,6 +76,13 @@ export const NAV_ITEMS: NavItem[] = [
         label: 'Categories',
         visible: everyone,
         isActive: ({ pathname }) => under(pathname, '/categories'),
+      },
+      {
+        // Only the people who create products.
+        to: '/missing-products',
+        label: 'To create',
+        visible: (user) => can(user, 'inventory', 'manager'),
+        isActive: ({ pathname }) => under(pathname, '/missing-products'),
       },
     ],
   },

@@ -26,6 +26,10 @@ export const server = setupServer(
   http.get(`${API}/bill-imports`, () =>
     HttpResponse.json([], { headers: { 'X-Total-Count': '0' } }),
   ),
+  // Asked by the start page for inventory managers: nothing waiting unless a test says so.
+  http.get(`${API}/missing-products`, () =>
+    HttpResponse.json([], { headers: { 'X-Total-Count': '0' } }),
+  ),
   http.get(`${API}/partners/:id/summary`, () =>
     HttpResponse.json({
       sales_orders: null,

@@ -22,6 +22,10 @@ const NewPartnerPage = lazyPage(
 )
 const PartnerPage = lazyPage(() => import('@/features/partners/PartnerPage'), 'PartnerPage')
 const PartnersPage = lazyPage(() => import('@/features/partners/PartnersPage'), 'PartnersPage')
+const MissingProductsPage = lazyPage(
+  () => import('@/features/missingProducts/MissingProductsPage'),
+  'MissingProductsPage',
+)
 const NewProductPage = lazyPage(
   () => import('@/features/products/NewProductPage'),
   'NewProductPage',
@@ -125,6 +129,15 @@ export const routes: RouteObject[] = [
                 element: (
                   <RequireAccess allowed={(user) => can(user, 'inventory')}>
                     <ProductMovesPage />
+                  </RequireAccess>
+                ),
+              },
+              {
+                // Items on supplier bills that purchase asked a product for.
+                path: 'missing-products',
+                element: (
+                  <RequireAccess allowed={(user) => can(user, 'inventory', 'manager')}>
+                    <MissingProductsPage />
                   </RequireAccess>
                 ),
               },
