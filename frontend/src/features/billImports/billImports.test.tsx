@@ -25,12 +25,12 @@ function line(id: number, overrides: Partial<BillImportLine> = {}): BillImportLi
 
 const missingProduct: ImportWarning = {
   code: 'missing_products',
-  message: '1 item(s) have no product yet',
+  message: '1 item has no product yet',
   blocks_confirm: true,
 }
 const totalDiffers: ImportWarning = {
   code: 'total_differs',
-  message: "The items add up to 1674.00, but the bill's total is 1700.00",
+  message: "The items add up to 1,674.00, but the bill's total is 1,700.00",
   blocks_confirm: false,
 }
 
@@ -46,6 +46,9 @@ function makeImport(overrides: Partial<BillImport> = {}): BillImport {
     bill_total: '1700.00',
     warehouse_id: 1,
     purchase_order_id: null,
+    file_type: null,
+    products_requested_at: null,
+    products_requested_by: null,
     created_at: '2026-11-17T10:00:00Z',
     created_by: { id: 1, name: 'Admin' },
     lines: [
@@ -74,6 +77,7 @@ function summary(overrides: Partial<BillImportSummary> = {}): BillImportSummary 
     partner_id: 5,
     partner_reference: 'ZF-0917',
     purchase_order_id: null,
+    products_requested_at: null,
     created_at: '2026-11-17T10:00:00Z',
     created_by: { id: 1, name: 'Admin' },
     line_count: 2,
@@ -236,7 +240,7 @@ describe('reviewing an import', () => {
 
     const warnings = await screen.findByRole('list', { name: 'Before creating the order' })
     const items = within(warnings).getAllByRole('listitem')
-    expect(items[0]).toHaveTextContent('1 item(s) have no product yetRequired')
+    expect(items[0]).toHaveTextContent('1 item has no product yetRequired')
     expect(items[1]).toHaveTextContent('Check')
     expect(screen.getByRole('button', { name: 'Create purchase order' })).toBeDisabled()
 
