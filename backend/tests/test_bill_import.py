@@ -106,6 +106,7 @@ async def test_lines_are_matched_by_code_then_by_a_close_name(client, boss, bill
     assert by_name["product_id"] == chair["id"] and Decimal(by_name["match_score"]) > 0
     assert unmatched["product_id"] is None and unmatched["match_score"] is None
     assert codes(result) == {"missing_products"}
+    assert result["warnings"][0]["message"] == "1 item has no product yet"
     assert bill_reader.mime_types == ["image/png"]
 
 
@@ -213,14 +214,16 @@ async def test_the_review_warns_about_currency_total_and_a_used_bill_number(
         client,
         boss,
         bill_reader,
-        bill(line("Ergonomic Office Chair", "2", "10.00"), currency="EUR", total=Decimal("25.00")),
+        bill(line("Ergonomic Office Chair", "2", "1000.00"), currency="EUR", total=Decimal("2500")),
     )
     warnings = {w["code"]: w for w in result["warnings"]}
     assert set(warnings) == {"reference_used", "currency_differs", "total_differs"}
     assert "PO00001" in warnings["reference_used"]["message"]
     assert warnings["reference_used"]["blocks_confirm"] is True
     assert warnings["currency_differs"]["blocks_confirm"] is False
-    assert "20.00" in warnings["total_differs"]["message"]
+    assert warnings["total_differs"]["message"] == (
+        "The items add up to 2,000.00, but the bill's total is 2,500.00"
+    )
 
 
 # ---- editing ----
@@ -300,7 +303,7 @@ async def test_confirming_creates_a_draft_purchase_order(client, boss, bill_read
     # the order can find the import it came from
     url = f"/bill-imports?purchase_order_id={done['purchase_order_id']}"
     assert [row["id"] for row in (await client.get(url, headers=boss)).json()] == [result["id"]]
-    
+
     again = await client.post(f"/bill-imports/{result['id']}/confirm", headers=boss)
     assert again.status_code == 409
     edit = await client.patch(f"/bill-imports/{result['id']}", json={}, headers=boss)
@@ -309,11 +312,13 @@ async def test_confirming_creates_a_draft_purchase_order(client, boss, bill_read
 
 async def test_confirming_is_refused_until_every_line_has_a_product(client, boss, bill_reader):
     await create_partner(client, boss, name="Zagros Furniture Works", is_supplier=True)
-    result = await imported(client, boss, bill_reader, bill(line("Something new")))
+    result = await imported(
+        client, boss, bill_reader, bill(line("Something new"), line("Another new one"))
+    )
 
     response = await client.post(f"/bill-imports/{result['id']}/confirm", headers=boss)
     assert response.status_code == 409
-    assert "1 item(s) have no product yet" in response.json()["detail"]
+    assert "2 items have no product yet" in response.json()["detail"]
 
 
 async def test_a_refused_confirm_saves_nothing(client, boss, bill_reader):

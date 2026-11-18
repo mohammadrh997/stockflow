@@ -191,6 +191,10 @@ async def list_imports(
 # ---- the review ----
 
 
+def _count(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"  # "1 item has", "3 items have"
+
+
 async def review(db: AsyncSession, bill_import: BillImport) -> list[ImportWarning]:
     """What's wrong with an open import, worst first. Worked out each time, never stored,
     so it can't disagree with the lines."""
@@ -211,14 +215,22 @@ async def review(db: AsyncSession, bill_import: BillImport) -> list[ImportWarnin
 
     missing = sum(1 for line in lines if line.product_id is None)
     if missing:
-        warn("missing_products", f"{missing} item(s) have no product yet", True)
+        warn(
+            "missing_products",
+            f"{_count(missing, 'item has', 'items have')} no product yet",
+            True,
+        )
     chosen = {line.product_id for line in lines if line.product_id is not None}
     if chosen:
         archived = await db.scalar(
             select(func.count()).where(Product.id.in_(chosen), Product.is_active.is_(False))
         )
         if archived:
-            warn("archived_products", f"{archived} chosen product(s) are archived", True)
+            warn(
+                "archived_products",
+                f"{_count(archived, 'chosen product is', 'chosen products are')} archived",
+                True,
+            )
 
     if bill_import.partner_id is not None and bill_import.partner_reference is not None:
         taken = await db.scalar(
@@ -247,7 +259,8 @@ async def review(db: AsyncSession, bill_import: BillImport) -> list[ImportWarnin
     if bill_import.bill_total is not None and lines and total != bill_import.bill_total:
         warn(
             "total_differs",
-            f"The items add up to {total}, but the bill's total is {bill_import.bill_total}",
+            f"The items add up to {total:,.2f}, "
+            f"but the bill's total is {bill_import.bill_total:,.2f}",
             False,
         )
     return warnings
