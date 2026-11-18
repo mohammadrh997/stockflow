@@ -143,6 +143,7 @@ describe('sales order page', () => {
     )
     expect(screen.queryByText(/available in this warehouse/)).not.toBeInTheDocument()
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['stock'] })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['products'] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['transfers'] })
   })
 

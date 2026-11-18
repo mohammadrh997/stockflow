@@ -113,6 +113,8 @@ export function useSalesOrderAction(id: number, action: 'confirm' | 'cancel') {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['transfers'] }),
         queryClient.invalidateQueries({ queryKey: ['stock'] }),
+        // Confirming reserves stock and cancelling frees it: the products list shows what's free.
+        queryClient.invalidateQueries({ queryKey: ['products'] }),
       ])
     },
   })
