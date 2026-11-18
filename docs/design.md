@@ -101,7 +101,7 @@ Categories nest, so "Furniture" can hold "Chairs", which can hold "Office chairs
 - **Uploads are checked by decoding them,** not by trusting the filename or content type. Only real JPEG, PNG and WebP files are accepted, and the pixel count is checked from the header before decoding, so a small file can't unpack into gigabytes.
 - **Every image is re-encoded** as a WebP of at most 800 px. The stored file is a fresh one built from the pixels alone, so camera metadata, GPS location and anything hidden in the original are gone. Phone photos are turned upright first, from their EXIF rotation.
 - **The files live in an S3-compatible bucket** (Backblaze B2 in the demo), behind a small `Storage` interface. Tests use an in-memory version, so CI never touches the bucket. Without storage settings, uploads answer 503 and the rest of the app works.
-- **The bucket is public; that's deliberate.** Product photos are meant to be seen, so browsers load them straight from storage and cache them, without going through the API. Files that are actually private, such as supplier documents, would go in a separate private bucket with short-lived signed links.
+- **The bucket is public; that's deliberate.** Product photos are meant to be seen, so browsers load them straight from storage and cache them, without going through the API. Imported bills are private, so they go in a separate private bucket and are served only through the API, to users allowed to see them.
 - **Every upload gets a new random name.** A URL's content then never changes, so browsers can cache an image for a year; a replaced photo shows up at once under its new URL. Random names also can't be guessed, unlike `products/42.webp`.
 - **The order on replace:** upload the new file, point the product at it and commit, then delete the old file. The product never points at a file that doesn't exist. If deleting the old file fails, it's logged rather than turned into an error, because the request has already succeeded. The product row is locked for the swap, so two uploads at once can't both delete the same old file and leave another behind.
 - **Oversized requests are refused before they're read.** FastAPI reads the whole body before any endpoint code runs, so a size check there comes too late. A small middleware refuses any request whose `Content-Length` is too big, and the endpoint still checks the size it actually reads, for clients that don't send the header. The middleware sits inside the CORS middleware, so even its 413 can be read by the frontend.
@@ -138,12 +138,14 @@ A supplier's bill becomes a draft purchase order: Gemini reads it, PostgreSQL ma
 - **The model only reads, and its answer is untrusted.** It's checked against a fixed schema and nothing is saved before a review, so a bill with hidden instructions can at worst produce a wrong reading.
 - **Matching is done in the database:** an exact product code first, then the closest name (`pg_trgm`), only above 0.45 similarity. A wrong match is worse than none.
 - **Imports are saved,** so one can wait for a missing product. Confirm is one transaction and locks the import, so a double click can't make two orders.
+- **The bill file is kept,** in the private bucket, so the review and the order’s history can show the original. A discarded import’s file is deleted.
+- **Missing products go to inventory,** rchase can’t create products, so it asks; inventory managers get a list of the waiting items, and creating a product from one links it in the same transaction.
 - **Limits:** 10 imports an hour per user. Google's "overloaded" is retried once.
 - **Free tier:** Google may use what's sent, so the demo uses sample bills only.
 
 ## Permissions
 
-Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts and cancelling a backorder need an inventory manager. Customer invoices follow sales access and vendor bills follow purchase access: users draft them, managers post, cancel and record payments. Reading is broader on purpose: anyone with sales or purchase access can read and print both kinds of invoice, because in a small business the same people follow customer and supplier payments. Bill imports need purchase access.
+Each user has a level per module (sales, purchase, inventory): none, user or manager. Admins pass every check and manage users. A user can draft an order; a manager can confirm or cancel it. Stock counts and cancelling a backorder need an inventory manager. Customer invoices follow sales access and vendor bills follow purchase access: users draft them, managers post, cancel and record payments. Reading is broader on purpose: anyone with sales or purchase access can read and print both kinds of invoice, because in a small business the same people follow customer and supplier payments. Bill imports need purchase access; the items they wait products for are shown to inventory managers.
 
 The backend enforces every rule through FastAPI dependencies. The frontend only hides buttons the user can't use; it never decides.
 
@@ -187,6 +189,5 @@ The API is a Docker image on Render, and the database is on Neon. Migrations run
 
 - Transfers between warehouses, which would go through a transit location in two steps.
 - Credit notes and taxes.
-- A list for inventory managers of the products bill imports are waiting for.
 - Units of measure, lots and serial numbers.
 - Reorder alerts, which would run in a background worker.

@@ -10,7 +10,7 @@ The demo runs on free hosting that sleeps when idle, so the first request can ta
 ## What it does
 
 - **Purchase orders:** draft → confirmed → received. Confirming creates a receipt, and the warehouse team validates it into a location.
-- **Bill import with AI:** upload a supplier's bill (PDF or photo). Gemini reads it, the app matches the supplier and products, and after a review it becomes a draft purchase order.
+- **Bill import with AI:** upload a supplier's bill (PDF or photo). Gemini reads it, the app matches the supplier and products, and after a review it becomes a draft purchase order.Items with no matching product go to the inventory manager to create.
 - **Sales orders:** confirming checks the available stock and reserves it. The warehouse then validates the delivery, which takes stock from the default location first and then from the other locations.
 - **Partial deliveries:** a receipt or delivery can move part of its goods. The rest goes on a backorder that keeps it reserved, and cancelling the backorder closes the order with what actually shipped.
 - **Invoicing:** customer invoices and vendor bills for what actually moved, with payments and a paid / partly paid status. Posting freezes the invoice's number and amounts. A supplier's own bill number can be entered only once.
